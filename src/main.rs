@@ -1,5 +1,4 @@
 use regex::Regex;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 enum TokenType {
@@ -107,16 +106,42 @@ fn iterate_number(current_index : usize, text : &str, current_line : i32) -> Out
     let mut number_value = first_number_char;
     let number_regex = Regex::new(r"[0-9]|\.").unwrap();
 
-    let mut used_dot = false;
+    let mut dotused = false;
+
+
+    println!("{dotused}");
+
+ 
+         
 
      while number_regex.is_match(&currentchar) { 
-     
-
-        if currentchar == "." && !used_dot{
-            used_dot = true;
-        } else {
-            panic!("number on line {current_line} contains more than one dot")
+         if currentchar == "." && dotused {
+            panic!("you may only use one dot in numbers")
         }
+             
+        if currentchar == "." && !dotused {
+
+        dotused = false;
+        let nextchar = peek(current_index + iter_skip_steps, text); 
+
+        println!("{nextchar}");
+
+        if !number_regex.is_match(&nextchar) {
+
+            return OuterIter {
+                     token: Token{
+                     token_type: TokenType::NUMBER, 
+                     string: Some(number_value),                        
+                     line:Some(current_line),
+                    literal:None
+                 },
+                 iter_skip_steps
+             }
+
+
+            }
+        } 
+       
 
         number_value += &currentchar;
         iter_skip_steps += 1;
@@ -124,9 +149,9 @@ fn iterate_number(current_index : usize, text : &str, current_line : i32) -> Out
 
     }
 
-    
 
-    return OuterIter {
+
+     return OuterIter {
         token: Token{
             token_type: TokenType::NUMBER, 
             string: Some(number_value),
@@ -195,7 +220,7 @@ fn iterate_identifier(current_index : usize, text : &str, current_line : i32) ->
 }
 
     
-fn lexer(text : String) {
+fn lexer(text : String) -> Vec<Token>{
    
 
 
@@ -292,15 +317,33 @@ fn lexer(text : String) {
     
         
 
+    
+    return tokens
+}
 
-    println!("{:?}", tokens)
+
+fn generateAST(tokens : Vec<Token>){
+
 }
 
 
 fn main() {
 
+    let text = r#"
 
-    lexer(r#"
-        let twelve = 450.4.40.40; 
-          "#.to_string())
+        fn hello(arg1){
+            
+            return 20.20.sqrt();
+
+        }
+        
+
+
+
+        "#.to_string();
+
+    let tokens = lexer(text);
+
+
+    println!("{:?}", tokens)
 }
