@@ -1,6 +1,9 @@
+mod parser;
 use regex::Regex;
+use parser::parse;
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 enum TokenType {
     LPAREN, RPAREN, LBRACE, RBRACE, COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
 
@@ -17,18 +20,23 @@ enum TokenType {
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum LiteralType{
-    STRING, NUMBER
+    STRING {value : String}, 
+    NUMBER {value : f64 },
+    BOOL   {value : bool}, 
+    NIL
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Literal {
     r#type : LiteralType,
     value : String
 }
 
-#[derive(Debug)]
+
+
+#[derive(Debug, Clone)]
 struct Token{
 
     token_type : TokenType,
@@ -37,6 +45,7 @@ struct Token{
     line : Option<i32>
     
 }
+
 
 
 fn simple_token(token_type : TokenType, line : i32)->Token{
@@ -98,9 +107,10 @@ fn iterate_string(current_index : usize, text : &str, current_line : i32) -> Out
 fn iterate_number(current_index : usize, text : &str, current_line : i32) -> OuterIter{
 
     let mut iter_skip_steps = 1;
-    
+   
     let mut currentchar = text.chars().nth(current_index + iter_skip_steps).unwrap().to_string();
 
+    println!("{currentchar}");
     let first_number_char = text.chars().nth(current_index).unwrap().to_string();
 
     let mut number_value = first_number_char;
@@ -109,7 +119,6 @@ fn iterate_number(current_index : usize, text : &str, current_line : i32) -> Out
     let mut dotused = false;
 
 
-    println!("{dotused}");
 
  
          
@@ -124,7 +133,6 @@ fn iterate_number(current_index : usize, text : &str, current_line : i32) -> Out
         dotused = false;
         let nextchar = peek(current_index + iter_skip_steps, text); 
 
-        println!("{nextchar}");
 
         if !number_regex.is_match(&nextchar) {
 
@@ -289,10 +297,11 @@ fn lexer(text : String) -> Vec<Token>{
             "+" => tokens.push(simple_token(TokenType::PLUS, line_count)),
             "-" => tokens.push(simple_token(TokenType::MINUS, line_count)),
             
-            "!" => tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::BANGEQ} else {TokenType::BANG}, line_count)),
-            "=" => tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::EQEQ} else {TokenType::EQ}, line_count)), 
-            "<" => tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::LESSEQ} else {TokenType::LESS}, line_count)),
-            ">" => tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::GREATEREQ} else {TokenType::GREATER}, line_count)),
+            "!" => {iter_skip_steps = 2;
+                tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::BANGEQ} else {TokenType::BANG}, line_count))},
+            "=" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::EQEQ} else {TokenType::EQ}, line_count))},
+            "<" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::LESSEQ} else {TokenType::LESS}, line_count))},
+            ">" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::GREATEREQ} else {TokenType::GREATER}, line_count))},
 
             "/" => {
                 if peek(iter, text) == "/" {
@@ -315,35 +324,32 @@ fn lexer(text : String) -> Vec<Token>{
         iter += iter_skip_steps
     }
     
-        
+    tokens.push(simple_token(TokenType::EOF, line_count)); 
 
     
     return tokens
 }
 
+// end of lexer stuff 
+// start of parser stuff
 
-fn generateAST(tokens : Vec<Token>){
 
-}
+//define how expressions can interlock together 
+
+//helpers
 
 
 fn main() {
 
     let text = r#"
 
-        fn hello(arg1){
-            
-            return 20.20.sqrt();
-
-        }
-        
-
-
+        3.5 + 4 * 6;
 
         "#.to_string();
 
     let tokens = lexer(text);
 
+    let AST = parse(tokens.clone());
 
-    println!("{:?}", tokens)
+    println!("{:#?}", AST)
 }
