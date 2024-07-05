@@ -1,6 +1,8 @@
 mod parser;
+mod eval;
 use regex::Regex;
-use parser::parse;
+use parser::{parse, Expression};
+use eval::eval;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug, Clone, Copy)]
@@ -343,7 +345,6 @@ fn main() {
 
     let text = r#"
 
-        3.5 + 4 ;
 
         "#.to_string();
 
@@ -351,5 +352,8 @@ fn main() {
 
     let AST = parse(tokens.clone());
 
-    println!("{:#?}", AST)
+
+    let evaluated = eval(&AST);
+
+    println!("{:#?}", &AST)
 }
