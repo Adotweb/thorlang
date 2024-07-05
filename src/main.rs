@@ -343,7 +343,7 @@ fn main() {
 
     let text = r#"
 
-        3.5 + 4 * 6;
+        3.5 + 4 ;
 
         "#.to_string();
 
