@@ -1,6 +1,44 @@
 use crate::{Token, Literal, LiteralType, TokenType};
 
 #[derive(Debug)]
+pub enum Statement {
+    Print {
+        expression : Option<Expression>
+    }
+}
+
+
+pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    
+    while let Some(token) = tokens.get(*current_index){
+
+        match token.token_type  {
+            TokenType::PRINT => {
+                *current_index += 1;
+                return print_statement(current_index, tokens)
+            }, 
+            _ => ()
+        }
+        
+    }
+
+
+    return Statement::Print{
+        expression:None
+    }
+}
+
+fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    
+    let expression = expr(current_index, tokens);
+
+    return Statement::Print{
+        expression: Some(expression)
+    }
+
+}
+
+#[derive(Debug)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -177,8 +215,8 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Expression {
+pub fn parse(tokens: Vec<Token>) -> Statement{
     let mut current_index: usize = 0;
-    expr(&mut current_index, &tokens)
+    statement(&mut current_index, &tokens)
 }
 

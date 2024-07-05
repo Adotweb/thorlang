@@ -345,6 +345,7 @@ fn main() {
 
     let text = r#"
 
+        print 20 + 40;
 
         "#.to_string();
 
@@ -353,7 +354,6 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    let evaluated = eval(&AST);
 
     println!("{:#?}", &AST)
 }
