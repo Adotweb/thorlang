@@ -1,4 +1,49 @@
-use crate::{TokenType, LiteralType, Expression};
+use crate::{TokenType, LiteralType, Expression, Statement};
+use std::collections::HashMap;
+
+//eval statements
+
+pub fn eval_statement(stmts : Vec<Statement>){
+
+    let mut value_map : HashMap<String, Value> = HashMap::new();
+
+    for stmt in stmts {
+        match stmt {
+
+            Statement::Print { expression } => {
+            
+                let result = eval(&expression.unwrap());
+
+                match result.value_type {
+                    ValueType::STRING => {
+                        println!("{:#?}", result.string_value.unwrap())
+                    },
+                    ValueType::NUMBER => {
+                        println!("{:#?}", result.number_value.unwrap())
+                    },
+                    ValueType::BOOL => {
+                        println!("{:#?}", result.bool_value.unwrap())
+                    },
+                    ValueType::NIL => {
+                        println!("{:#?}", ValueType::NIL)
+                    },
+
+                }
+
+            },
+            Statement::Variable { name, expression } => {
+                value_map.insert(name, eval(&expression.unwrap()));
+            }
+
+        }      
+    }
+
+
+}
+
+
+
+//eval expressions
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ValueType {

@@ -1,8 +1,8 @@
 mod parser;
 mod eval;
 use regex::Regex;
-use parser::{parse, Expression};
-use eval::eval;
+use parser::{parse, Expression, Statement, statement};
+use eval::eval_statement;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug, Clone, Copy)]
@@ -112,7 +112,6 @@ fn iterate_number(current_index : usize, text : &str, current_line : i32) -> Out
    
     let mut currentchar = text.chars().nth(current_index + iter_skip_steps).unwrap().to_string();
 
-    println!("{currentchar}");
     let first_number_char = text.chars().nth(current_index).unwrap().to_string();
 
     let mut number_value = first_number_char;
@@ -345,7 +344,9 @@ fn main() {
 
     let text = r#"
 
-        print 20 + 40;
+        print 20;
+
+        let p = 20;
 
         "#.to_string();
 
@@ -354,6 +355,8 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
+    //eval_statement(AST);
 
-    println!("{:#?}", &AST)
+    println!("{:#?}", AST);
+
 }
