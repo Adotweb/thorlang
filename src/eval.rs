@@ -12,7 +12,7 @@ pub fn eval_statement(stmts : Vec<Statement>){
 
             Statement::Print { expression } => {
             
-                let result = eval(&expression.unwrap());
+                let result = eval(&expression.unwrap(), &mut value_map);
 
                 match result.value_type {
                     ValueType::STRING => {
@@ -32,7 +32,10 @@ pub fn eval_statement(stmts : Vec<Statement>){
 
             },
             Statement::Variable { name, expression } => {
-                value_map.insert(name, eval(&expression.unwrap()));
+                
+                let val = eval(&expression.unwrap(), &mut value_map);
+
+                value_map.insert(name, val);
             }
 
         }      
@@ -45,12 +48,12 @@ pub fn eval_statement(stmts : Vec<Statement>){
 
 //eval expressions
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
     STRING, NUMBER, BOOL, NIL
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Value {
     pub value_type : ValueType,
     pub string_value : Option<String>,
@@ -71,9 +74,9 @@ impl Default for Value {
     }
 }
 
-fn eval_unary(operator : TokenType, right : &Expression)  -> Value{
+fn eval_unary(operator : TokenType, right : &Expression, value_map : &mut HashMap<String, Value>)  -> Value{
 
-    let r = eval(right);      
+    let r = eval(right, value_map);      
     match operator {
 
         //only negate logically when is bool
@@ -156,10 +159,10 @@ fn check_type_equality(value_1 : &Value, value_2 : &Value, expected_type : Value
 
 }
 
-fn eval_binary(left : &Expression, operator : TokenType, right : &Expression) -> Value {
+fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, value_map : &mut HashMap<String, Value>) -> Value {
 
-    let l = eval(left);
-    let r = eval(right);
+    let l = eval(left, value_map);
+    let r = eval(right, value_map);
 
 
 
@@ -292,22 +295,26 @@ fn eval_binary(left : &Expression, operator : TokenType, right : &Expression) ->
     return Value::default()
 }
 
-pub fn eval(expr : &Expression) -> Value{
+pub fn eval(expr : &Expression, value_map : &mut HashMap<String, Value>) -> Value{
 
     //recursivley traverses the tree.
     match expr {
-
+    
+        Expression::Identifier { name } => {
+            let value = value_map.get(name).expect("no such variable found");
+            return value.clone()
+        },
         Expression::Unary { operator, right } => {
-            return eval_unary(*operator, &right)
+            return eval_unary(*operator, &right, value_map)
         }, 
         Expression::Literal { literal } => {
             return eval_literal(literal.clone())
         }, 
         Expression::Grouping { inner } => {
-            return eval(&inner) 
+            return eval(&inner, value_map) 
         }, 
         Expression::Binary { left, operator, right } => {
-            return eval_binary(&left, *operator, &right)
+            return eval_binary(&left, *operator, &right, value_map)
         }
     } 
 

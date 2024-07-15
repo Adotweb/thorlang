@@ -81,7 +81,6 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
         *current_index += 1;
 
-        println!("{:#?}", tokens.get(*current_index).unwrap());
         init = expr(current_index, tokens);
     }
 
@@ -103,6 +102,9 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
 #[derive(Debug)]
 pub enum Expression {
+    Identifier{
+        name : String, 
+    },
     Binary {
         left: Box<Expression>,
         operator: TokenType,
@@ -235,6 +237,9 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     if let Some(token) = tokens.get(*current_index) {
         *current_index += 1;
         match &token.token_type {
+            TokenType::IDENTIFIER => Expression::Identifier{
+                name : token.string.clone().unwrap()
+            },
             TokenType::TRUE => Expression::Literal {
                 literal: LiteralType::BOOL { value: true },
             },

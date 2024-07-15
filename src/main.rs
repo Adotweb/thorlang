@@ -344,9 +344,13 @@ fn main() {
 
     let text = r#"
 
-        print 20;
+        print 20 + 40 == 60;
 
         let p = 20;
+        
+        let a = 40;
+
+        print p + a;
 
         "#.to_string();
 
@@ -355,8 +359,8 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    //eval_statement(AST);
+    eval_statement(AST);
 
-    println!("{:#?}", AST);
+    //println!("{:#?}", AST);
 
 }
