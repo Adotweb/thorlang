@@ -343,13 +343,6 @@ fn main() {
 
     let text = r#"
 
-        let p = false;
-
-        let b = 40;
-
-
-
-        print ((20 + 30) != 20) == !p;
 
 
         "#.to_string();
@@ -359,7 +352,7 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    eval_statement(AST);
+    eval_statement(AST, None);
 
     //println!("{:#?}", AST);
 

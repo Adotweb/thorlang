@@ -3,13 +3,19 @@ use std::collections::HashMap;
 
 //eval statements
 
-pub fn eval_statement(stmts : Vec<Statement>){
+pub fn eval_statement(stmts : Vec<Statement>, global_values : Option<&mut HashMap<String, Value>>){
+    
+    let globals = &mut HashMap::new();
 
-    let mut value_map : HashMap<String, Value> = HashMap::new();
+    let mut value_map = global_values.unwrap_or(globals).clone();
 
     for stmt in stmts {
         match stmt {
+            Statement::Block { statements } => {
 
+                eval_statement(statements, Some(&mut value_map));
+               
+            },
             Statement::Print { expression } => {
             
                 let result = eval(&expression.unwrap(), &mut value_map);

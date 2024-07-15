@@ -9,10 +9,16 @@ pub enum Statement {
         name : String, 
         expression : Option<Expression>
     }, 
+    Block {
+        statements : Vec<Statement>
+    }
 }
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
 //individually executed in eval_stmts later (in the context of a global "program")
+
+
+
 pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statement>{
 
     let mut statements = vec![];
@@ -22,12 +28,24 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
         match token.token_type  {
             TokenType::PRINT => {
+                //consume the token
                 *current_index += 1;
                 statements.push(print_statement(current_index, tokens))
             }, 
             TokenType::LET => {
                 *current_index += 1;
                 statements.push(declaration(current_index, tokens))
+            },
+            TokenType::LBRACE => {
+                *current_index += 1;
+
+                statements.push(Statement::Block{
+                    statements : statement(current_index, tokens)
+                })
+            },
+            TokenType::RBRACE => {
+                *current_index += 1;
+                return statements;
             },
             TokenType::EOF => return statements,
             _ => ()
@@ -100,6 +118,8 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     }
     
 }
+
+
 
 
 #[derive(Debug)]
