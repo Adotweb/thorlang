@@ -343,9 +343,13 @@ fn main() {
 
     let text = r#"
 
-        let p = !false;
+        let p = false;
 
-        print p;
+        let b = 40;
+
+
+
+        print ((20 + 30) != 20) == !p;
 
 
         "#.to_string();

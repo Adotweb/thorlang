@@ -299,7 +299,14 @@ pub fn eval(expr : &Expression, value_map : &mut HashMap<String, Value>) -> Valu
 
     //recursivley traverses the tree.
     match expr {
-    
+
+        Expression::Assignment { name, value } => {
+          
+            let eval_value = eval(value, value_map);
+            value_map.insert(name.to_string(), eval_value.clone()).unwrap();
+           
+            return eval_value
+        },
         Expression::Identifier { name } => {
             let value = value_map.get(name).expect("no such variable found");
             return value.clone()

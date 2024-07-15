@@ -49,8 +49,9 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     let expression = expr(current_index, tokens);
 
 
+
     if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
-        panic!("exptected ; after value {:?}", tokens.get(*current_index));
+        panic!("expected ; after {:?}", tokens.get(*current_index));
     }
 
     //consume token (is ";" because throws otherwise) and move on.
@@ -121,10 +122,47 @@ pub enum Expression {
     Literal {
         literal: LiteralType,
     },
+    Assignment {
+        name : String, 
+        value : Box<Expression>
+    }
 }
 
 fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
-    eq(current_index, tokens)
+    assign(current_index, tokens)
+}
+
+fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Expression{
+
+    let expression = eq(current_index, tokens);
+
+
+    if let Some(token) = tokens.get(*current_index){
+
+        if token.token_type == TokenType::EQ{
+           
+            //consume the eq token
+            *current_index += 1;
+
+            let value = assign(current_index, tokens);
+        
+            if let Expression::Identifier { name } = expression  {
+                
+                return Expression::Assignment{
+                    name, 
+                    value : Box::new(value)
+                }
+
+            } else {
+                panic!("incalid assigment target")
+            }
+
+        }
+
+    }
+
+
+    return expression
 }
 
 fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
