@@ -298,11 +298,10 @@ fn lexer(text : String) -> Vec<Token>{
             "+" => tokens.push(simple_token(TokenType::PLUS, line_count)),
             "-" => tokens.push(simple_token(TokenType::MINUS, line_count)),
             
-            "!" => {iter_skip_steps = 2;
-                tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::BANGEQ} else {TokenType::BANG}, line_count))},
-            "=" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::EQEQ} else {TokenType::EQ}, line_count))},
-            "<" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::LESSEQ} else {TokenType::LESS}, line_count))},
-            ">" => {iter_skip_steps = 2;tokens.push(simple_token(if peek(iter, text).as_str() == "=" {TokenType::GREATEREQ} else {TokenType::GREATER}, line_count))},
+            "!" => {tokens.push(simple_token(if peek(iter, text).as_str() == "=" {iter_skip_steps = 2; TokenType::BANGEQ} else {TokenType::BANG}, line_count))},
+            "=" => {tokens.push(simple_token(if peek(iter, text).as_str() == "=" {iter_skip_steps = 2;TokenType::EQEQ} else {TokenType::EQ}, line_count))},
+            "<" => {tokens.push(simple_token(if peek(iter, text).as_str() == "=" {iter_skip_steps = 2;TokenType::LESSEQ} else {TokenType::LESS}, line_count))},
+            ">" => {tokens.push(simple_token(if peek(iter, text).as_str() == "=" {iter_skip_steps = 2;TokenType::GREATEREQ} else {TokenType::GREATER}, line_count))},
 
             "/" => {
                 if peek(iter, text) == "/" {
@@ -344,13 +343,10 @@ fn main() {
 
     let text = r#"
 
-        print 20 + 40 == 60;
+        let p = !false;
 
-        let p = 20;
-        
-        let a = 40;
+        print p;
 
-        print p + a;
 
         "#.to_string();
 

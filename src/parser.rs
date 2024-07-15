@@ -48,6 +48,7 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
     let expression = expr(current_index, tokens);
 
+
     if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
         panic!("exptected ; after value {:?}", tokens.get(*current_index));
     }
@@ -215,6 +216,7 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 }
 
 fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
+
     if let Some(token) = tokens.get(*current_index) {
         match token.token_type {
             TokenType::BANG | TokenType::MINUS => {
