@@ -11,6 +11,11 @@ pub enum Statement {
     }, 
     Block {
         statements : Vec<Statement>
+    }, 
+    If {
+        condition : Option<Expression>, 
+        then_branch : Option<Box<Vec<Statement>>>,
+        else_branch : Option<Box<Vec<Statement>>>
     }
 }
 
@@ -26,12 +31,16 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
     while let Some(token) = tokens.get(*current_index){
 
 
-        match token.token_type  {
+        match token.token_type  { 
             TokenType::PRINT => {
                 //consume the token
                 *current_index += 1;
                 statements.push(print_statement(current_index, tokens))
             }, 
+            TokenType::IF => {
+                *current_index += 1;
+                statements.push(if_statement(current_index, tokens))
+            },
             TokenType::LET => {
                 *current_index += 1;
                 statements.push(declaration(current_index, tokens))
@@ -47,6 +56,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
                 *current_index += 1;
                 return statements;
             },
+            TokenType::ELSE => {
+                //dont consume the else token as it is needed one layer of recursion above
+                return statements
+            }
             TokenType::EOF => return statements,
             _ => ()
                 
@@ -60,6 +73,40 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
     return statements
 }
 
+fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    
+    if tokens.get(*current_index).unwrap().token_type != TokenType::LPAREN {
+        panic!("expected ( after if on line {:?}", tokens.get(*current_index).unwrap().line)
+    } 
+    //consume the paren token
+    *current_index += 1;
+    let condition = Some(expr(current_index, tokens));
+    
+    
+    if tokens.get(*current_index).unwrap().token_type != TokenType::RPAREN {
+        panic!("expected ) after if condition on line {:?}", tokens.get(*current_index).unwrap().line);
+    }
+
+    *current_index += 1;
+
+    let then_branch = Some(Box::new(statement(current_index, tokens)));
+   
+
+    let mut else_branch = None;
+
+    if tokens.get(*current_index).unwrap().token_type == TokenType::ELSE {
+        
+        //consume the else token
+        *current_index += 1;
+        else_branch = Some(Box::new(statement(current_index, tokens)));
+    } 
+
+    return Statement::If{
+        condition, 
+        then_branch, 
+        else_branch
+    }
+}
 
 fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     

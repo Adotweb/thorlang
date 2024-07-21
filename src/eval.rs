@@ -16,6 +16,13 @@ pub fn eval_statement(stmts : Vec<Statement>, global_values : Option<&mut HashMa
                 eval_statement(statements, Some(&mut value_map));
                
             },
+            Statement::If { condition, then_branch, else_branch } => {
+                if eval(&condition.unwrap(), &mut value_map).bool_value.expect("can only run if statements on bool values"){
+                    eval_statement(*then_branch.unwrap(), Some(&mut value_map))
+                } else {
+                    eval_statement(*else_branch.unwrap(), Some(&mut value_map))
+                }
+            },
             Statement::Print { expression } => {
             
                 let result = eval(&expression.unwrap(), &mut value_map);

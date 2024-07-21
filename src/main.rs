@@ -186,7 +186,7 @@ fn iterate_identifier(current_index : usize, text : &str, current_line : i32) ->
    
 
     let mut identifier = first_identifier_char;
- 
+
 
 
     while id_regex.is_match(&currentchar){
@@ -195,10 +195,10 @@ fn iterate_identifier(current_index : usize, text : &str, current_line : i32) ->
         identifier += &currentchar;
         iter_skip_steps += 1;
 
-        currentchar =  text.chars().nth(current_index + iter_skip_steps).unwrap().to_string();
+        currentchar = text.chars().nth(current_index + iter_skip_steps).unwrap().to_string();
     } 
 
-        
+
     //check if identifier is part of keywords
     match identifier.as_str() {
         "if" => token_type = TokenType::IF,
@@ -342,9 +342,18 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
+        
+        let a = 10;
 
+        if (a > 10) {
+            print 20;
+        } else {
+            print a = 20; 
+        }
 
+        print a;
 
+    
         "#.to_string();
 
     let tokens = lexer(text);
