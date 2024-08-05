@@ -3,6 +3,7 @@ mod eval;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
 use eval::eval_statement;
+use std::collections::HashMap;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug, Clone, Copy)]
@@ -330,13 +331,6 @@ fn lexer(text : String) -> Vec<Token>{
     return tokens
 }
 
-// end of lexer stuff 
-// start of parser stuff
-
-
-//define how expressions can interlock together 
-
-//helpers
 
 
 fn main() {
@@ -348,7 +342,9 @@ fn main() {
         if (a > 10) {
             print 20;
         } else {
-            print a = 20; 
+            let s = "siuuu";
+            print s;
+            print a = "hello"; 
         }
 
         print a;
@@ -361,7 +357,7 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    eval_statement(AST, None);
+    eval_statement(AST, &mut HashMap::new());
 
     //println!("{:#?}", AST);
 

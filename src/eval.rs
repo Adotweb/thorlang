@@ -3,29 +3,29 @@ use std::collections::HashMap;
 
 //eval statements
 
-pub fn eval_statement(stmts : Vec<Statement>, global_values : Option<&mut HashMap<String, Value>>){
+pub fn eval_statement(stmts : Vec<Statement>, global_scope : &mut HashMap<String, Value>){
     
-    let globals = &mut HashMap::new();
 
-    let mut value_map = global_values.unwrap_or(globals).clone();
+    let local_scope = &mut global_scope.clone();
+
 
     for stmt in stmts {
         match stmt {
             Statement::Block { statements } => {
 
-                eval_statement(statements, Some(&mut value_map));
+                eval_statement(statements, local_scope);
                
             },
             Statement::If { condition, then_branch, else_branch } => {
-                if eval(&condition.unwrap(), &mut value_map).bool_value.expect("can only run if statements on bool values"){
-                    eval_statement(*then_branch.unwrap(), Some(&mut value_map))
+                if eval(&condition.unwrap(),  local_scope).bool_value.expect("can only run if statements on bool values"){
+                    eval_statement(*then_branch.unwrap(), local_scope)
                 } else {
-                    eval_statement(*else_branch.unwrap(), Some(&mut value_map))
+                    eval_statement(*else_branch.unwrap(), local_scope)
                 }
             },
             Statement::Print { expression } => {
             
-                let result = eval(&expression.unwrap(), &mut value_map);
+                let result = eval(&expression.unwrap(), local_scope);
 
                 match result.value_type {
                     ValueType::STRING => {
@@ -46,12 +46,26 @@ pub fn eval_statement(stmts : Vec<Statement>, global_values : Option<&mut HashMa
             },
             Statement::Variable { name, expression } => {
                 
-                let val = eval(&expression.unwrap(), &mut value_map);
+                let val = eval(&expression.unwrap(), local_scope);
 
-                value_map.insert(name, val);
+                local_scope.insert(name, val);
             }
 
         }      
+
+    
+        for key_value in &mut *local_scope {
+
+            if global_scope.contains_key(key_value.0) {
+
+                global_scope.insert(key_value.0.to_string(), key_value.1.clone());
+
+            }
+
+        }
+
+                  
+
     }
 
 
