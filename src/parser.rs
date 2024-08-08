@@ -1,6 +1,6 @@
 use crate::{Token, Literal, LiteralType, TokenType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Print {
         expression : Option<Expression>
@@ -16,6 +16,10 @@ pub enum Statement {
         condition : Option<Expression>, 
         then_branch : Option<Box<Vec<Statement>>>,
         else_branch : Option<Box<Vec<Statement>>>
+    }, 
+    While{
+        condition : Option<Expression>, 
+        block : Option<Box<Vec<Statement>>>
     }
 }
 
@@ -40,6 +44,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
             TokenType::IF => {
                 *current_index += 1;
                 statements.push(if_statement(current_index, tokens))
+            },
+            TokenType::WHILE => {
+                *current_index += 1;
+                statements.push(while_statement(current_index, tokens))
             },
             TokenType::LET => {
                 *current_index += 1;
@@ -71,6 +79,30 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
 
     return statements
+}
+
+fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    if tokens.get(*current_index).unwrap().token_type != TokenType::LPAREN{
+        panic!("expected ( after while on line {:?}", tokens.get(*current_index).unwrap().line)
+    } 
+
+    *current_index += 1;
+
+    let condition = Some(expr(current_index, tokens));
+
+    if tokens.get(*current_index).unwrap().token_type != TokenType::RPAREN {
+        panic!("expected ) after condition on line {:?}", tokens.get(*current_index).unwrap().line)
+    }
+
+    *current_index += 1;
+
+    let block = Some(Box::new(statement(current_index, tokens)));
+
+
+    return Statement::While{
+        condition, 
+        block
+    }
 }
 
 fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
@@ -169,7 +201,7 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Identifier{
         name : String, 

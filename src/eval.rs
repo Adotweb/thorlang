@@ -85,6 +85,19 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 }
             },
 
+            Statement::While { condition, block } => {
+
+                let mut condition_true = 
+                    eval(&condition.clone().unwrap(), local_scope.clone());
+                while condition_true.bool_value.expect("while only accepts bool conditions"){
+
+                    eval_statement(*block.clone().unwrap(), local_scope.clone());
+
+                    condition_true = eval(&condition.clone().unwrap(), local_scope.clone())
+                }
+                
+            },
+            
             //print is built in
             Statement::Print { expression } => {
             

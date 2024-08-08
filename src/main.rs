@@ -337,15 +337,11 @@ fn main() {
 
     let text = r#"
         
-        let a = 10;
-        {
-           let a = "hello";
-            print a = "a changes here";
-           print a;
+        let a = 0;
+
+        while (a < 10){
+            print a = a + 1;
         }
-
-        print a;
-
     
         "#.to_string();
 
