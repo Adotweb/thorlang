@@ -340,9 +340,7 @@ fn main() {
         let a = 10;
         {
            let a = "hello";
-           {
             print a = "a changes here";
-           }
            print a;
         }
 

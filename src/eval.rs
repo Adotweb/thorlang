@@ -4,11 +4,20 @@ use std::cell::RefCell;
 use std::rc::Rc;
 //eval statements
 
+
+
+//this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
+//environment object at will (its just some trickery so we can do that) terrible performance
+//decision, but makes it work
 pub struct Environment {
     values : RefCell<HashMap<String, Value>>,
     enclosing : Option<Rc<RefCell<Environment>>>
 }
 
+
+//its easier to instantiate a get and set function that automatically search the entire env tree
+//(for existence for example) to
+//look for a value than doing that over and over again in the later following code
 impl Environment {
     pub fn new(enclosing : Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>>{
        
@@ -42,6 +51,14 @@ impl Environment {
     }
 }
 
+
+//here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
+//of the env tree is not needed it automatically disappears, meaning that we can only 
+// - mutate variables that exist
+// - add variables to the currently used branch of the env tree
+//
+//this ensures that as soon as a branch is exited (i.e a block is done executing) we will have the
+//old values back.
 pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>){
     
     
@@ -51,11 +68,15 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
     for stmt in stmts {
         match stmt {
+
+            //a block just opens a new env tree branch
             Statement::Block { statements } => {
 
                 eval_statement(statements, local_scope.clone());
                
             },
+
+            //if statements are one to one in the host language, makes it meta-programming...?
             Statement::If { condition, then_branch, else_branch } => {
                 if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
                     eval_statement(*then_branch.unwrap(), local_scope.clone())
@@ -63,6 +84,8 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                     eval_statement(*else_branch.unwrap(), local_scope.clone())
                 }
             },
+
+            //print is built in
             Statement::Print { expression } => {
             
                 let result = eval(&expression.unwrap(), local_scope.clone());
@@ -84,6 +107,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 }
 
             },
+
+            //variable declaration only ever mutates the current branch of the env tree ensuring,
+            //in this case "local_scope"
             Statement::Variable { name, expression } => {
                 
                 let val = eval(&expression.unwrap(), local_scope.clone());
@@ -133,6 +159,11 @@ impl Default for Value {
     }
 }
 
+//order of precedence is as follows 
+// eval_statement -> eval -> eval_binary -> eval_unary -> eval_literal
+
+
+
 fn eval_unary(operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>)  -> Value{
 
     let r = eval(right, enclosing);      
@@ -172,6 +203,9 @@ fn eval_unary(operator : TokenType, right : &Expression, enclosing : Rc<RefCell<
 
 }
 
+
+//evaluates the "atoms" these can not be further reduced and bubble up to form more complex data
+//(not types but composed values like 1 + 2)
 fn eval_literal (literal : LiteralType) -> Value{
 
         //turn literaltype into value wrapped in value_type
@@ -206,7 +240,7 @@ fn eval_literal (literal : LiteralType) -> Value{
 }
 
 
-
+//just a helper to ensure that adding a string and a number throws
 fn check_type_equality(value_1 : &Value, value_2 : &Value, expected_type : ValueType) -> bool{
     
 
@@ -218,6 +252,8 @@ fn check_type_equality(value_1 : &Value, value_2 : &Value, expected_type : Value
 
 }
 
+
+//all the possible binary operation combinations.
 fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value {
 
     let l = eval(left, enclosing.clone());
@@ -356,17 +392,22 @@ fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, en
 
 pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
-    //recursivley traverses the tree.
+    //recursivley traverses the expr tree.
     match expr {
 
         Expression::Assignment { name, value } => {
           
             let eval_value = eval(value, enclosing.clone());
-          
+         
+            //assignment is the only thing that can change variables in higher scope, but will
+            //always find the closest variable with this name
             enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
 
             return eval_value
         },
+
+        //kind of like literals, but will replace instantly with the value behind the variable name
+        //instead of going down to literals first
         Expression::Identifier { name } => {
 
             let value = enclosing.borrow().get(name).expect("this values does not exist");
