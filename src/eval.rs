@@ -1,31 +1,71 @@
 use crate::{TokenType, LiteralType, Expression, Statement};
 use std::collections::HashMap;
-
+use std::cell::RefCell;
+use std::rc::Rc;
 //eval statements
 
-pub fn eval_statement(stmts : Vec<Statement>, global_scope : &mut HashMap<String, Value>){
+pub struct Environment {
+    values : RefCell<HashMap<String, Value>>,
+    enclosing : Option<Rc<RefCell<Environment>>>
+}
+
+impl Environment {
+    pub fn new(enclosing : Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>>{
+       
+        Rc::new(RefCell::new(Environment{
+            values: RefCell::new(HashMap::new()),
+            enclosing
+        }))
+    }
+
+
+
+    fn get(&self, key : &str) -> Option<Value> {
+       if let Some(value) = self.values.borrow().get(key) {
+           Some(value.clone())
+       } else if let Some(ref parent) = self.enclosing{
+           parent.borrow().get(key)
+       } else {
+           None
+       }
+    }
+
+
+    fn set(&self, key : String, value : Value){
+        if self.values.borrow().contains_key(&key) {
+            self.values.borrow_mut().insert(key, value);
+        } else if let Some(ref parent) = self.enclosing {
+            parent.borrow().set(key, value)
+        } else {
+            panic!("no such variable {key} found")
+        }
+    }
+}
+
+pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>){
     
+    
+    let local_scope = Environment::new(Some(enclosing));
 
-    let local_scope = &mut global_scope.clone();
-
+    
 
     for stmt in stmts {
         match stmt {
             Statement::Block { statements } => {
 
-                eval_statement(statements, local_scope);
+                eval_statement(statements, local_scope.clone());
                
             },
             Statement::If { condition, then_branch, else_branch } => {
-                if eval(&condition.unwrap(),  local_scope).bool_value.expect("can only run if statements on bool values"){
-                    eval_statement(*then_branch.unwrap(), local_scope)
+                if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
+                    eval_statement(*then_branch.unwrap(), local_scope.clone())
                 } else {
-                    eval_statement(*else_branch.unwrap(), local_scope)
+                    eval_statement(*else_branch.unwrap(), local_scope.clone())
                 }
             },
             Statement::Print { expression } => {
             
-                let result = eval(&expression.unwrap(), local_scope);
+                let result = eval(&expression.unwrap(), local_scope.clone());
 
                 match result.value_type {
                     ValueType::STRING => {
@@ -46,23 +86,15 @@ pub fn eval_statement(stmts : Vec<Statement>, global_scope : &mut HashMap<String
             },
             Statement::Variable { name, expression } => {
                 
-                let val = eval(&expression.unwrap(), local_scope);
+                let val = eval(&expression.unwrap(), local_scope.clone());
 
-                local_scope.insert(name, val);
+                local_scope.borrow_mut().values.borrow_mut().insert(name, val);
             }
 
         }      
 
     
-        for key_value in &mut *local_scope {
-
-            if global_scope.contains_key(key_value.0) {
-
-                global_scope.insert(key_value.0.to_string(), key_value.1.clone());
-
-            }
-
-        }
+       
 
                   
 
@@ -101,9 +133,9 @@ impl Default for Value {
     }
 }
 
-fn eval_unary(operator : TokenType, right : &Expression, value_map : &mut HashMap<String, Value>)  -> Value{
+fn eval_unary(operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>)  -> Value{
 
-    let r = eval(right, value_map);      
+    let r = eval(right, enclosing);      
     match operator {
 
         //only negate logically when is bool
@@ -186,10 +218,10 @@ fn check_type_equality(value_1 : &Value, value_2 : &Value, expected_type : Value
 
 }
 
-fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, value_map : &mut HashMap<String, Value>) -> Value {
+fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value {
 
-    let l = eval(left, value_map);
-    let r = eval(right, value_map);
+    let l = eval(left, enclosing.clone());
+    let r = eval(right, enclosing);
 
 
 
@@ -322,33 +354,36 @@ fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, va
     return Value::default()
 }
 
-pub fn eval(expr : &Expression, value_map : &mut HashMap<String, Value>) -> Value{
+pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
     //recursivley traverses the tree.
     match expr {
 
         Expression::Assignment { name, value } => {
           
-            let eval_value = eval(value, value_map);
-            value_map.insert(name.to_string(), eval_value.clone()).unwrap();
-           
+            let eval_value = eval(value, enclosing.clone());
+          
+            enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
+
             return eval_value
         },
         Expression::Identifier { name } => {
-            let value = value_map.get(name).expect("no such variable found");
+
+            let value = enclosing.borrow().get(name).expect("this values does not exist");
+
             return value.clone()
         },
         Expression::Unary { operator, right } => {
-            return eval_unary(*operator, &right, value_map)
+            return eval_unary(*operator, &right, enclosing)
         }, 
         Expression::Literal { literal } => {
             return eval_literal(literal.clone())
         }, 
         Expression::Grouping { inner } => {
-            return eval(&inner, value_map) 
+            return eval(&inner, enclosing) 
         }, 
         Expression::Binary { left, operator, right } => {
-            return eval_binary(&left, *operator, &right, value_map)
+            return eval_binary(&left, *operator, &right, enclosing)
         }
     } 
 

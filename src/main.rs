@@ -2,7 +2,7 @@ mod parser;
 mod eval;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
-use eval::eval_statement;
+use eval::{eval_statement, Environment};
 use std::collections::HashMap;
 
 #[derive(Eq, PartialEq)]
@@ -338,13 +338,12 @@ fn main() {
     let text = r#"
         
         let a = 10;
-
-        if (a > 10) {
-            print 20;
-        } else {
-            let s = "siuuu";
-            print s;
-            print a = "hello"; 
+        {
+           let a = "hello";
+           {
+            print a = "a changes here";
+           }
+           print a;
         }
 
         print a;
@@ -357,7 +356,7 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    eval_statement(AST, &mut HashMap::new());
+    eval_statement(AST, Environment::new(None));
 
     //println!("{:#?}", AST);
 
