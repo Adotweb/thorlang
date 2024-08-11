@@ -405,6 +405,36 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     primary(current_index, tokens)
 }
 
+// needs to check whether or not the expression returned in finishcall is a function itself, and if
+// it is evaluate as well given more arguments/a call invocation i.e. "()"
+
+fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
+
+    let mut expression = primary(current_index, tokens);
+
+    while let Some(token) = tokens.get(*current_index) {
+        
+        match token.token_type {
+            TokenType::LPAREN => {
+                expression = finish_call(expression);
+            }, 
+            _ => ()
+        }
+
+    }        
+        
+
+    expression
+}
+
+fn finish_call(expression : Expression) -> Expression {
+
+
+    let arguments : Vec<Expression> = vec![];
+
+    expression
+}
+
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     if let Some(token) = tokens.get(*current_index) {
         *current_index += 1;
