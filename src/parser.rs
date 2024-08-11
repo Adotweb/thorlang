@@ -1,10 +1,13 @@
-use crate::{Token, Literal, LiteralType, TokenType};
+use crate::{Token, LiteralType, TokenType};
 
 #[derive(Debug, Clone)]
 pub enum Statement {
     Print {
         expression : Option<Expression>
     }, 
+    Do {
+        expression : Option<Expression>
+    },
     Variable {
         name : String, 
         expression : Option<Expression>
@@ -41,6 +44,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
                 *current_index += 1;
                 statements.push(print_statement(current_index, tokens))
             }, 
+            TokenType::DO => {
+                *current_index += 1;
+                statements.push(do_statement(current_index, tokens))
+            },
             TokenType::IF => {
                 *current_index += 1;
                 statements.push(if_statement(current_index, tokens))
@@ -67,7 +74,8 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
             TokenType::ELSE => {
                 //dont consume the else token as it is needed one layer of recursion above
                 return statements
-            }
+            }, 
+
             TokenType::EOF => return statements,
             _ => ()
                 
@@ -94,10 +102,12 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
         panic!("expected ) after condition on line {:?}", tokens.get(*current_index).unwrap().line)
     }
 
-    *current_index += 1;
+    //consume the ")" and the "{" tokens;
+    *current_index += 2;
 
     let block = Some(Box::new(statement(current_index, tokens)));
 
+    
 
     return Statement::While{
         condition, 
@@ -119,7 +129,8 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
         panic!("expected ) after if condition on line {:?}", tokens.get(*current_index).unwrap().line);
     }
 
-    *current_index += 1;
+    //consume the ")" and the "{" (two tokens)
+    *current_index += 2;
 
     let then_branch = Some(Box::new(statement(current_index, tokens)));
    
@@ -160,6 +171,28 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
 }
 
+
+//do turns expressions into statements;
+//assignment only works with do at the moment
+fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    
+    let expression = expr(current_index, tokens);
+
+    if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
+        panic!("expected ; after {:?}", tokens.get(*current_index).unwrap().token_type)
+    }
+    
+    //consume the ; token
+
+        
+    *current_index += 1;    
+
+
+    return Statement::Do{
+        expression: Some(expression)
+    }
+
+}
 
 fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
   

@@ -14,7 +14,7 @@ enum TokenType {
 
     IDENTIFIER, STRING, NUMBER, 
 
-    AND, ELSE, FALSE, FN, FOR, IF, NIL, OR, 
+    DO, AND, ELSE, FALSE, FN, FOR, IF, NIL, OR, 
     PRINT, RETURN, TRUE, LET, WHILE, 
 
     EOF
@@ -214,6 +214,7 @@ fn iterate_identifier(current_index : usize, text : &str, current_line : i32) ->
         "nil" => token_type = TokenType::NIL,
         "let" => token_type = TokenType::LET,
         "print" => token_type = TokenType::PRINT,
+        "do" => token_type = TokenType::DO,
         "return" => token_type = TokenType::RETURN,
         _ => ()
     }
@@ -336,16 +337,28 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
-        
-        let a = 0;
+       
+        let iter = 0;
 
-        while (a < 10){
-            print a = a + 1;
+        let a = 0;
+        let b = 1;
+
+        while (iter < 10){
+            do iter = iter + 1;
+            let temp = b;
+            do b = a + b;
+            
+            do a = temp;
+
+
+            print b;
         }
+    
     
         "#.to_string();
 
     let tokens = lexer(text);
+
 
     let AST = parse(tokens.clone());
 

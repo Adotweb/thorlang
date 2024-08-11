@@ -121,6 +121,11 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
             },
 
+            Statement::Do { expression } => {
+                //runs expressions 
+                eval(&expression.unwrap(), local_scope.clone());
+            },
+
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "local_scope"
             Statement::Variable { name, expression } => {
