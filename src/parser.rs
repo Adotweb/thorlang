@@ -1,6 +1,6 @@
 use crate::{Token, LiteralType, TokenType};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Print {
         expression : Option<Expression>
@@ -243,7 +243,7 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Identifier{
         name : String, 

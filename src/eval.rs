@@ -104,7 +104,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 let result = eval(&expression.unwrap(), local_scope.clone());
 
                 match result.value_type {
-                    ValueType::FUNCTION => {
+                    ValueType::NATIVEFUNCTION => {
                         println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
                     },
                     ValueType::STRING => {
@@ -156,7 +156,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL, FUNCTION
+    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION
 }
 
 
@@ -165,8 +165,14 @@ pub enum ValueType {
 //
 //probably both (closures for native functions, together with a enclosing param so we can use )
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Function { 
+pub struct NativeFunction { 
     pub body : fn(HashMap<String, Value>) -> Value,
+    pub arguments : Vec<String>
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Function {
+    pub body : Vec<Statement>, 
     pub arguments : Vec<String>
 }
 
@@ -176,7 +182,7 @@ pub struct Value {
     pub string_value : Option<String>,
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
-    pub function : Option<Function>,
+    pub function : Option<NativeFunction>,
     pub is_nil : bool
 }
 
@@ -439,7 +445,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 .get(&eval(callee, enclosing.clone()).string_value.unwrap()).unwrap();
 
             match function.value_type {
-                ValueType::FUNCTION => { 
+                ValueType::NATIVEFUNCTION => { 
                     let eval_args : Vec<Value> = arguments
                         .iter()
                         .map(|arg| eval(arg, enclosing.clone())).collect();

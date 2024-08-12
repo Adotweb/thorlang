@@ -26,7 +26,7 @@ enum TokenType {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum LiteralType{
     STRING {value : String}, 
     NUMBER {value : f64 },
@@ -34,7 +34,7 @@ enum LiteralType{
     NIL
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Literal {
     r#type : LiteralType,
     value : String
@@ -42,7 +42,7 @@ struct Literal {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Token{
 
     token_type : TokenType,
@@ -364,7 +364,7 @@ fn main() {
     
 
     natives.insert("somefunc".to_string(), Value{
-        value_type: eval::ValueType::FUNCTION, 
+        value_type: eval::ValueType::NATIVEFUNCTION, 
         string_value: Some("somefunc".to_string()), 
         bool_value: None, 
         number_value: None, 
