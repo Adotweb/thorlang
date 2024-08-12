@@ -2,8 +2,11 @@ mod parser;
 mod eval;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
-use eval::{eval_statement, Environment, Value};
+use eval::{eval_statement, Environment, Value, Function};
 use std::collections::HashMap;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug, Clone, Copy)]
@@ -358,22 +361,32 @@ fn main() {
 
     let mut natives : HashMap<String, Value> = HashMap::new();
 
+    
 
     natives.insert("somefunc".to_string(), Value{
         value_type: eval::ValueType::FUNCTION, 
         string_value: Some("somefunc".to_string()), 
         bool_value: None, 
         number_value: None, 
-        function : Some(|x| {}), 
+        function : Some(Function{
+            body : |x| {
+                    
+
+                Value::default()
+            },
+            arguments : vec![
+                "string".to_string()
+            ]
+        }), 
         is_nil : false
     });
 
-    let global_env = Environment{
-        values: HashMap::new().into(),
+    let global_env = Rc::new(RefCell::new(Environment{
+        values: natives.into(),
         enclosing : None
-    }
+    }));
 
-    eval_statement(AST, Environment::new(None));
+    eval_statement(AST, global_env);
 
     //println!("{:#?}", AST);
 

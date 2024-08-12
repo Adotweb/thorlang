@@ -159,13 +159,24 @@ pub enum ValueType {
     STRING, NUMBER, BOOL, NIL, FUNCTION
 }
 
+
+//still thinking about whether or not i should implement functions as closures (in rust) or as
+//functions that are defined as code blocks
+//
+//probably both (closures for native functions, together with a enclosing param so we can use )
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Function { 
+    pub body : fn(HashMap<String, Value>) -> Value,
+    pub arguments : Vec<String>
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Value {
     pub value_type : ValueType,
     pub string_value : Option<String>,
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
-    pub function : Option<fn(Vec<Value>)>,
+    pub function : Option<Function>,
     pub is_nil : bool
 }
 
@@ -423,15 +434,26 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
             //let eval_callee = eval(callee, enclosing.clone());
 
-            let function_name = enclosing
+            let function = enclosing
                 .borrow()
-                .get(&eval(callee, enclosing.clone()).string_value.unwrap());
+                .get(&eval(callee, enclosing.clone()).string_value.unwrap()).unwrap();
 
-            let eval_args : Vec<Value> = arguments
-                .iter()
-                .map(|arg| eval(arg, enclosing.clone())).collect();
+            match function.value_type {
+                ValueType::FUNCTION => { 
+                    let eval_args : Vec<Value> = arguments
+                        .iter()
+                        .map(|arg| eval(arg, enclosing.clone())).collect();
+                               
 
-            println!("{:?}", function_name); 
+                    println!("{:?}", eval_args);
+
+                }, 
+                _ => panic!("can only invoke function on line {:?}", paren.clone().line.unwrap())
+            }
+
+
+            
+            
 
 
             Value::default()
@@ -452,7 +474,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
         //instead of going down to literals first
         Expression::Identifier { name } => {
 
-            let value = enclosing.borrow().get(name).expect("this values does not exist");
+            let value = enclosing.borrow().get(name).expect("this value does not exist");
 
             return value.clone()
         },
