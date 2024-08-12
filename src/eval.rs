@@ -413,6 +413,10 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
     //recursivley traverses the expr tree.
     match expr {
 
+        Expression::Call { callee, paren, arguments } => {
+            return Value::default() 
+        },
+
         Expression::Assignment { name, value } => {
           
             let eval_value = eval(value, enclosing.clone());

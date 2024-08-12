@@ -23,7 +23,7 @@ pub enum Statement {
     While{
         condition : Option<Expression>, 
         block : Option<Box<Vec<Statement>>>
-    }
+    }, 
 }
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
@@ -77,7 +77,14 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
             }, 
 
             TokenType::EOF => return statements,
-            _ => ()
+
+
+            _ => {
+
+                //tries to automatically run and expressions when just written. Works semantically
+                //the same as "do expression";
+                statements.push(do_statement(current_index, tokens));
+            }
                 
         }
 
@@ -222,6 +229,8 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     }
 
     *current_index += 1;
+
+
     //consume token (is ";" because throws otherwise) and move on.
 
     return Statement::Variable{
@@ -257,10 +266,17 @@ pub enum Expression {
     Assignment {
         name : String, 
         value : Box<Expression>
+    },
+    Call {
+        callee : Box<Expression>, 
+        paren : Token, 
+        arguments : Vec<Expression>
     }
 }
 
 fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
+
+
     assign(current_index, tokens)
 }
 
@@ -402,7 +418,7 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
         }
     }
 
-    primary(current_index, tokens)
+    call(current_index, tokens)
 }
 
 // needs to check whether or not the expression returned in finishcall is a function itself, and if
@@ -412,27 +428,73 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     let mut expression = primary(current_index, tokens);
 
-    while let Some(token) = tokens.get(*current_index) {
+    
+       
+    while tokens.get(*current_index).unwrap().token_type == TokenType::LPAREN {
         
-        match token.token_type {
-            TokenType::LPAREN => {
-                expression = finish_call(expression);
-            }, 
-            _ => ()
-        }
+        //consume the ( token
+        *current_index += 1;  
 
-    }        
+
+        
+        expression = finish_call(current_index, tokens, expression.clone());
+
+
+        *current_index += 1;
+
+    }
+
+    
         
 
     expression
 }
 
-fn finish_call(expression : Expression) -> Expression {
+fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee : Expression) -> Expression {
 
 
-    let arguments : Vec<Expression> = vec![];
+    let mut arguments : Vec<Expression> = vec![];
 
-    expression
+
+    while let Some(token) = tokens.get(*current_index){
+       
+
+        match token.token_type {
+            TokenType::RPAREN => {
+
+
+                return Expression::Call{
+                    callee : Box::new(callee), 
+                    arguments,
+                    paren : token.clone()
+                }
+            },
+            TokenType::COMMA => {
+
+                //consume the comma token
+              
+
+                *current_index += 1; 
+            },
+            TokenType::IDENTIFIER => {
+                
+                let argument = expr(current_index, tokens);
+
+
+                arguments.push(argument);
+
+
+            }
+             
+
+            _ => panic!("error in argument list on line {:?}", tokens.get(*current_index).unwrap())
+
+        }
+        
+    }
+
+    panic!("no delimiter in argument list on line {:?}", tokens.get(*current_index).unwrap().line)
+
 }
 
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {

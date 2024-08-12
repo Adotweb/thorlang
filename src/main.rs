@@ -337,24 +337,17 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
-       
-        let iter = 0;
+      
+        let arg1 = 1;
+        let arg2 = 2;
+        let arg3 = 3;
 
-        let a = 0;
-        let b = 1;
+        arg1 = 4;
 
-        while (iter < 10){
-            do iter = iter + 1;
-            let temp = b;
-            do b = a + b;
-            
-            do a = temp;
+        somefunc(arg1);
 
+        print arg1;
 
-            print b;
-        }
-    
-    
         "#.to_string();
 
     let tokens = lexer(text);
@@ -363,8 +356,8 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    eval_statement(AST, Environment::new(None));
+    //eval_statement(AST, Environment::new(None));
 
-    //println!("{:#?}", AST);
+    println!("{:#?}", AST);
 
 }
