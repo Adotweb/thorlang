@@ -10,8 +10,8 @@ use std::rc::Rc;
 //environment object at will (its just some trickery so we can do that) terrible performance
 //decision, but makes it work
 pub struct Environment {
-    values : RefCell<HashMap<String, Value>>,
-    enclosing : Option<Rc<RefCell<Environment>>>
+    pub values : RefCell<HashMap<String, Value>>,
+    pub enclosing : Option<Rc<RefCell<Environment>>>
 }
 
 
@@ -104,6 +104,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 let result = eval(&expression.unwrap(), local_scope.clone());
 
                 match result.value_type {
+                    ValueType::FUNCTION => {
+                        println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
+                    },
                     ValueType::STRING => {
                         println!("{:#?}", result.string_value.unwrap())
                     },
@@ -153,7 +156,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL
+    STRING, NUMBER, BOOL, NIL, FUNCTION
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -162,6 +165,7 @@ pub struct Value {
     pub string_value : Option<String>,
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
+    pub function : Option<fn(Vec<Value>)>,
     pub is_nil : bool
 }
 
@@ -172,6 +176,7 @@ impl Default for Value {
             string_value:None,
             number_value:None,
             bool_value:None,
+            function : None,
             is_nil:false
         }
     }
@@ -414,7 +419,22 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
     match expr {
 
         Expression::Call { callee, paren, arguments } => {
-            return Value::default() 
+          
+
+            //let eval_callee = eval(callee, enclosing.clone());
+
+            let function_name = enclosing
+                .borrow()
+                .get(&eval(callee, enclosing.clone()).string_value.unwrap());
+
+            let eval_args : Vec<Value> = arguments
+                .iter()
+                .map(|arg| eval(arg, enclosing.clone())).collect();
+
+            println!("{:?}", function_name); 
+
+
+            Value::default()
         },
 
         Expression::Assignment { name, value } => {

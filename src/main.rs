@@ -2,7 +2,7 @@ mod parser;
 mod eval;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
-use eval::{eval_statement, Environment};
+use eval::{eval_statement, Environment, Value};
 use std::collections::HashMap;
 
 #[derive(Eq, PartialEq)]
@@ -356,8 +356,25 @@ fn main() {
     let AST = parse(tokens.clone());
 
 
-    //eval_statement(AST, Environment::new(None));
+    let mut natives : HashMap<String, Value> = HashMap::new();
 
-    println!("{:#?}", AST);
+
+    natives.insert("somefunc".to_string(), Value{
+        value_type: eval::ValueType::FUNCTION, 
+        string_value: Some("somefunc".to_string()), 
+        bool_value: None, 
+        number_value: None, 
+        function : Some(|x| {}), 
+        is_nil : false
+    });
+
+    let global_env = Environment{
+        values: HashMap::new().into(),
+        enclosing : None
+    }
+
+    eval_statement(AST, Environment::new(None));
+
+    //println!("{:#?}", AST);
 
 }
