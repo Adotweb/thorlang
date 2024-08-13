@@ -343,10 +343,12 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
-        
-        fn function(arg1, arg2){
-            printf(arg1 + arg2);
+
+        fn somefunc(arg1, arg2){
+            printf("hello");
         }
+
+        somefunc("hello");
 
         "#.to_string();
 
@@ -362,9 +364,9 @@ fn main() {
         enclosing : None
     }));
 
-    eval_statement(AST, global_env);
+    //eval_statement(AST, global_env);
 
-    //println!("{:#?}", AST);
+    println!("{:#?}", AST);
 
     
     
