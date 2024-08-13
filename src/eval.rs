@@ -186,6 +186,22 @@ pub struct Value {
     pub is_nil : bool
 }
 
+
+
+impl Value {
+    pub fn native_function(name : &str, arguments : Vec<&str>, body : fn(HashMap<String, Value>) -> Value) -> Value{
+        Value{
+            value_type:ValueType::NATIVEFUNCTION,
+            string_value:Some(name.to_string()),
+            function : Some(NativeFunction{
+                arguments : arguments.iter().map(|x| x.to_string()).collect(),
+                body
+            }),
+            ..Value::default()
+        }
+    }
+}
+
 impl Default for Value {
     fn default() -> Value {
         Value {
@@ -440,29 +456,43 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
             //let eval_callee = eval(callee, enclosing.clone());
 
-            let function = enclosing
+            let function_value = enclosing
                 .borrow()
                 .get(&eval(callee, enclosing.clone()).string_value.unwrap()).unwrap();
 
-            match function.value_type {
-                ValueType::NATIVEFUNCTION => { 
-                    let eval_args : Vec<Value> = arguments
-                        .iter()
-                        .map(|arg| eval(arg, enclosing.clone())).collect();
-                               
 
-                    println!("{:?}", eval_args);
+            match function_value.value_type {
+                ValueType::NATIVEFUNCTION => { 
+                       
+                    let needed_args = function_value.function.clone().unwrap().arguments;
+
+
+                    //check if arity of args is ok
+                    if needed_args.len() != arguments.len() {
+                        panic!("function {:?} requires {:?} arguments but got {:?}", 
+                               function_value.string_value.unwrap(), 
+                               needed_args.len(),
+                               arguments.len())
+                    }
+
+                    let mut eval_args : HashMap<String, Value> = HashMap::new(); 
+
+                    for i in 0..arguments.len() {
+                        let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                        let arg_name = needed_args.get(i).unwrap();
+                        
+                        eval_args.insert(arg_name.to_string(), arg);
+                    }
+
+                    let function_value = (function_value.function.unwrap().body)(eval_args);
+               
+
+                    return function_value
 
                 }, 
                 _ => panic!("can only invoke function on line {:?}", paren.clone().line.unwrap())
             }
 
-
-            
-            
-
-
-            Value::default()
         },
 
         Expression::Assignment { name, value } => {

@@ -487,7 +487,14 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee : Expressi
             }
              
 
-            _ => panic!("error in argument list on line {:?}", tokens.get(*current_index).unwrap())
+            _ => {
+
+                let argument = expr(current_index, tokens);
+
+
+                arguments.push(argument);
+
+            }
 
         }
         

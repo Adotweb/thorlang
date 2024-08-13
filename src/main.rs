@@ -1,9 +1,12 @@
 mod parser;
 mod eval;
+mod native_functions;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
-use eval::{eval_statement, Environment, Value, Function};
+use eval::{eval_statement, Environment, Value, Function, NativeFunction, ValueType};
 use std::collections::HashMap;
+use native_functions::init_native_functions;
+
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -340,16 +343,9 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
-      
-        let arg1 = 1;
-        let arg2 = 2;
-        let arg3 = 3;
-
-        arg1 = 4;
-
-        somefunc(arg1);
-
-        print arg1;
+        
+    
+            printf(getTime());
 
         "#.to_string();
 
@@ -358,28 +354,7 @@ fn main() {
 
     let AST = parse(tokens.clone());
 
-
-    let mut natives : HashMap<String, Value> = HashMap::new();
-
-    
-
-    natives.insert("somefunc".to_string(), Value{
-        value_type: eval::ValueType::NATIVEFUNCTION, 
-        string_value: Some("somefunc".to_string()), 
-        bool_value: None, 
-        number_value: None, 
-        function : Some(Function{
-            body : |x| {
-                    
-
-                Value::default()
-            },
-            arguments : vec![
-                "string".to_string()
-            ]
-        }), 
-        is_nil : false
-    });
+    let natives : HashMap<String, Value> = init_native_functions();
 
     let global_env = Rc::new(RefCell::new(Environment{
         values: natives.into(),
@@ -390,4 +365,6 @@ fn main() {
 
     //println!("{:#?}", AST);
 
+    
+    
 }
