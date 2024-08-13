@@ -24,6 +24,11 @@ pub enum Statement {
         condition : Option<Expression>, 
         block : Option<Box<Vec<Statement>>>
     }, 
+    Function{
+        name : String,
+        body : Option<Box<Vec<Statement>>>,
+        arguments : Option<Vec<String>>
+    }
 }
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
@@ -44,6 +49,11 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
                 *current_index += 1;
                 statements.push(print_statement(current_index, tokens))
             }, 
+            TokenType::FN => {
+                *current_index += 1;
+
+                statements.push(function_statement(current_index, tokens))
+            },
             TokenType::DO => {
                 *current_index += 1;
                 statements.push(do_statement(current_index, tokens))
@@ -178,6 +188,59 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
 }
 
+fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+
+    if tokens.get(*current_index).unwrap().token_type != TokenType::IDENTIFIER {
+        panic!("expected Identifier after fn keyword on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
+    }
+    
+    let name = tokens.get(*current_index).unwrap().string.clone().unwrap();
+
+    //consume the identifier token
+    *current_index += 1;
+
+    let mut args = vec![];
+
+    if tokens.get(*current_index).unwrap().token_type != TokenType::LPAREN {
+        panic!("expected ( after function name for argument list on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
+    }
+
+    //consume the paren token
+    *current_index += 1;
+
+    while tokens.get(*current_index).unwrap().token_type != TokenType::RPAREN {
+        let current_token = tokens.get(*current_index).unwrap();
+
+        match current_token.token_type {
+            TokenType::COMMA => {
+                *current_index += 1;
+            }, 
+            TokenType::IDENTIFIER => {
+                args.push(tokens.get(*current_index).unwrap().string.clone().unwrap());
+                *current_index += 1;
+            },
+            _ => ()
+        }
+    }
+
+    //consume rparen
+
+    *current_index += 1;
+
+    if tokens.get(*current_index).unwrap().token_type != TokenType::LBRACE {
+        panic!("expected block after function declaration on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
+    }
+
+    let block = statement(current_index, tokens);
+
+
+
+    Statement::Function {
+        arguments : Some(args),
+        name : name.to_string(),
+        body : Some(Box::new(block))
+    }
+}
 
 //do turns expressions into statements;
 //assignment only works with do at the moment

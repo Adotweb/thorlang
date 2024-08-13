@@ -68,7 +68,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
     for stmt in stmts {
         match stmt {
-
+            Statement::Function { name, body, arguments } => {
+                println!("{:?} {:?} {:?}", name, body, arguments);
+            }
             //a block just opens a new env tree branch
             Statement::Block { statements } => {
 

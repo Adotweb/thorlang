@@ -344,8 +344,9 @@ fn main() {
 
     let text = r#"
         
-    
-            printf(getTime());
+        fn function(arg1, arg2){
+            printf(arg1 + arg2);
+        }
 
         "#.to_string();
 
