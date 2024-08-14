@@ -60,15 +60,20 @@ impl Environment {
 //
 //this ensures that as soon as a branch is exited (i.e a block is done executing) we will have the
 //old values back.
-pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>){
+pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>) -> Value{
     
     
-    let local_scope = Environment::new(Some(enclosing));
+    let local_scope = Environment::new(Some(enclosing.clone()));
 
     
 
     for stmt in stmts {
         match stmt {
+
+            Statement::Return { expression } => {
+                return eval(&expression.unwrap(), enclosing.clone()) 
+            }
+
             Statement::Function { name, body, arguments } => {
 
                 let function = Value{
@@ -97,11 +102,11 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             //if statements are one to one in the host language, makes it meta-programming...?
             Statement::If { condition, then_branch, else_branch } => {
                 if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
-                    eval_statement(*then_branch.unwrap(), local_scope.clone())
+                    eval_statement(*then_branch.unwrap(), local_scope.clone());
                 } else {
 
                     if let Some(else_block) = else_branch {
-                        eval_statement(*else_block, local_scope.clone())
+                        eval_statement(*else_block, local_scope.clone());
                     }
                 }
             },
@@ -172,7 +177,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
     }
 
-
+    Value::default()
 }
 
 
@@ -557,11 +562,9 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 };
 
 
-                eval_statement(body, Rc::new(RefCell::new(function_env)));
+                eval_statement(body, Rc::new(RefCell::new(function_env)))
 
 
-                //return statement needs to be implemented
-                return Value::default()
             }
 
 

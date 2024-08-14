@@ -28,6 +28,9 @@ pub enum Statement {
         name : String,
         body : Option<Box<Vec<Statement>>>,
         arguments : Option<Vec<String>>
+    },
+    Return{
+        expression : Option<Expression>
     }
 }
 
@@ -44,6 +47,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
 
         match token.token_type  { 
+            TokenType::RETURN => {
+                *current_index += 1;
+                statements.push(return_statement(current_index, tokens));
+            },
             TokenType::PRINT => {
                 //consume the token
                 *current_index += 1;
@@ -104,6 +111,18 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
 
     return statements
+}
+
+fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+    
+    let expression = Some(expr(current_index, tokens));
+   
+    //consume the token
+    *current_index += 1;
+
+    return Statement::Return{
+        expression
+    }
 }
 
 fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
@@ -252,7 +271,7 @@ fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     let expression = expr(current_index, tokens);
 
     if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
-        panic!("expected ; after {:?}", tokens.get(*current_index).unwrap().token_type)
+        panic!("expected ; after {:?} on line {:?}", tokens.get(*current_index).clone().unwrap().token_type,  tokens.get(*current_index).unwrap().line.unwrap())
     }
     
     //consume the ; token

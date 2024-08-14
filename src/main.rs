@@ -344,14 +344,14 @@ fn main() {
 
     let text = r#"
 
-        fn count(arg1){
-            if (arg1 > 1) {
-                count(arg1 - 1);
-            }
-            print arg1;
+        fn makethree(){
+            return 3;
         }
 
-        count(3);
+        let t = makethree();
+
+
+        print t;
 
         "#.to_string();
 
