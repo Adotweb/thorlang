@@ -9,10 +9,10 @@ use std::rc::Rc;
 //this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
 //environment object at will (its just some trickery so we can do that) terrible performance
 //decision, but makes it work
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     pub values : RefCell<HashMap<String, Value>>,
-    pub enclosing : Option<Rc<RefCell<Environment>>>
+    pub enclosing : Option<Rc<RefCell<Environment>>>,
 }
 
 
@@ -63,7 +63,6 @@ impl Environment {
 pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>) -> Value{
     
     
-    let local_scope = Environment::new(Some(enclosing.clone()));
 
     
 
@@ -81,18 +80,21 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
             Statement::Function { name, body, arguments } => {
 
+
                 let function = Value{
                     value_type : ValueType::THORFUNCTION,
                     string_value : Some(name.clone()),
                     function : Some(Function::ThorFunction {
                         body : *body.unwrap(),
-                        needed_arguments : arguments.unwrap()
+                        needed_arguments : arguments.unwrap(),
+                        closure : enclosing.clone()
+
                     }),
                     ..Value::default()
                 };
                
 
-                local_scope.borrow_mut().values.borrow_mut().insert(name, function);
+                enclosing.borrow_mut().values.borrow_mut().insert(name, function);
 
 
                  
@@ -100,18 +102,20 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             //a block just opens a new env tree branch
             Statement::Block { statements } => {
 
+
+                let local_scope = Environment::new(Some(enclosing.clone()));
                 eval_statement(statements, local_scope.clone());
                
             },
 
             //if statements are one to one in the host language, makes it meta-programming...?
             Statement::If { condition, then_branch, else_branch } => {
-                if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
-                    return eval_statement(*then_branch.unwrap(), local_scope.clone())
+                if eval(&condition.unwrap(),  enclosing.clone()).bool_value.expect("can only run if statements on bool values"){
+                    return eval_statement(*then_branch.unwrap(), enclosing.clone())
                 } else {
 
                     if let Some(else_block) = else_branch {
-                        return eval_statement(*else_block, local_scope.clone());
+                        return eval_statement(*else_block, enclosing.clone());
                     }
                 }
             },
@@ -122,12 +126,12 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             Statement::While { condition, block } => {
 
                 let mut condition_true = 
-                    eval(&condition.clone().unwrap(), local_scope.clone());
+                    eval(&condition.clone().unwrap(), enclosing.clone());
                 while condition_true.bool_value.expect("while only accepts bool conditions"){
 
-                    eval_statement(*block.clone().unwrap(), local_scope.clone());
+                    eval_statement(*block.clone().unwrap(), enclosing.clone());
 
-                    condition_true = eval(&condition.clone().unwrap(), local_scope.clone())
+                    condition_true = eval(&condition.clone().unwrap(), enclosing.clone())
                 }
                 
             },
@@ -135,7 +139,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             //print is built in
             Statement::Print { expression } => {
             
-                let result = eval(&expression.unwrap(), local_scope.clone());
+                let result = eval(&expression.unwrap(), enclosing.clone());
 
                 match result.value_type {
                     ValueType::NATIVEFUNCTION => {
@@ -164,16 +168,16 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
             Statement::Do { expression } => {
                 //runs expressions 
-                eval(&expression.unwrap(), local_scope.clone());
+                eval(&expression.unwrap(), enclosing.clone());
             },
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
-            //in this case "local_scope"
+            //in this case "enclosing"
             Statement::Variable { name, expression } => {
                 
-                let val = eval(&expression.unwrap(), local_scope.clone());
+                let val = eval(&expression.unwrap(), enclosing.clone());
 
-                local_scope.borrow_mut().values.borrow_mut().insert(name, val);
+                enclosing.borrow_mut().values.borrow_mut().insert(name, val);
             }
 
         }      
@@ -211,13 +215,14 @@ pub struct NativeFunction {
 #[derive(PartialEq, Debug, Clone)]
 pub struct ThorFunction {
     pub body : Vec<Statement>, 
-    pub arguments : Vec<String>
+    pub arguments : Vec<String>, 
+    pub closure : Rc<RefCell<Environment>>
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Function {
     NativeFunction {body : fn(HashMap<String, Value>) -> Value, needed_arguments : Vec<String>}, 
-    ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>}
+    ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -245,13 +250,14 @@ impl Value {
         }
     }
 
-    pub fn thor_function(name : &str, arguments : Vec<&str>, body : Vec<Statement>) -> Value {
+    pub fn thor_function(name : &str, arguments : Vec<&str>, body : Vec<Statement>, closure : Rc<RefCell<Environment>>) -> Value {
         Value{
             value_type : ValueType::THORFUNCTION,
             string_value : Some(name.to_string()),
             function : Some(Function::ThorFunction{
                 needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
-                body
+                body,
+                closure
             }),
             ..Value::default()
         } 
@@ -514,7 +520,8 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
             let function_value = enclosing
                 .borrow()
-                .get(&eval(callee, enclosing.clone()).string_value.unwrap()).unwrap();
+                .get(&eval(callee, enclosing.clone()).string_value.unwrap())
+                .expect("function not found");
 
 
             if let Function::NativeFunction { body, needed_arguments } = function_value.function.clone().unwrap() {
@@ -545,32 +552,26 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
             } 
                 
-            if let Function::ThorFunction { body, needed_arguments } = function_value.function.clone().unwrap() {
+            if let Function::ThorFunction { body, needed_arguments, closure } = function_value.function.clone().unwrap() {
                 if needed_arguments.len() != arguments.len() {
-                    panic!("function {:?} requires {:?} arguments but got {:?}", 
-                               function_value.string_value.unwrap(), 
-                               needed_arguments.len(),
-                               arguments.len())
-                }
-                
-        
-                let mut eval_args : HashMap<String, Value> = HashMap::new(); 
+                        panic!("Expected {} arguments but got {}", needed_arguments.len(), arguments.len());
+                    }
 
+                    // Evaluate the arguments in the current environment
+                    let mut eval_args: HashMap<String, Value> = HashMap::new();
                     for i in 0..arguments.len() {
-
                         let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
                         let arg_name = needed_arguments.get(i).unwrap();
-                        
                         eval_args.insert(arg_name.to_string(), arg);
-                    }    
+                    }
 
-                let function_env = Environment{
-                    values : eval_args.into(), 
-                    enclosing : Some(enclosing)
-                };
+                    // Create a new environment for the function call, using the closure's environment
+                    let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
+                    for (name, value) in eval_args {
+                        function_env.borrow_mut().values.borrow_mut().insert(name, value);
+                    }
 
-
-                eval_statement(body, Rc::new(RefCell::new(function_env)))
+                eval_statement(body, function_env)
 
 
             }

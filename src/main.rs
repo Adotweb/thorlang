@@ -344,18 +344,27 @@ fn main() {
 
     let text = r#"
 
+        
+        
 
-        fn fact(n){
-            if (n == 0){
-                return 1;
+        fn outer(){
+            
+            let num = 0;
+
+            fn inner(){
+                
+                fn mostInner(){
+                    return num;
+                }
+
+                return mostInner;
+
             }
-            return n * fact(n - 1);
+            
+            print inner();
         }
 
-
-        let p = fact(5);
-
-        print p;
+        outer();
 
         "#.to_string();
 
