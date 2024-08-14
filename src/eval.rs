@@ -71,7 +71,12 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
         match stmt {
 
             Statement::Return { expression } => {
-                return eval(&expression.unwrap(), enclosing.clone()) 
+                let ret_value = eval(&expression.unwrap(), enclosing.clone());
+    
+
+
+                
+                return ret_value
             }
 
             Statement::Function { name, body, arguments } => {
@@ -102,11 +107,11 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             //if statements are one to one in the host language, makes it meta-programming...?
             Statement::If { condition, then_branch, else_branch } => {
                 if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
-                    eval_statement(*then_branch.unwrap(), local_scope.clone());
+                    return eval_statement(*then_branch.unwrap(), local_scope.clone())
                 } else {
 
                     if let Some(else_block) = else_branch {
-                        eval_statement(*else_block, local_scope.clone());
+                        return eval_statement(*else_block, local_scope.clone());
                     }
                 }
             },
@@ -591,7 +596,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
         Expression::Identifier { name } => {
             
 
-            let value = enclosing.borrow().get(name).expect("this value does not exist");
+            let value = enclosing.borrow().get(name).expect(&("this value does not exist ".to_string() + name));
 
             return value.clone()
         },

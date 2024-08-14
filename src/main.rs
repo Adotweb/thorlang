@@ -344,14 +344,18 @@ fn main() {
 
     let text = r#"
 
-        fn makethree(){
-            return 3;
+
+        fn fact(n){
+            if (n == 0){
+                return 1;
+            }
+            return n * fact(n - 1);
         }
 
-        let t = makethree();
 
+        let p = fact(5);
 
-        print t;
+        print p;
 
         "#.to_string();
 
