@@ -14,11 +14,13 @@ pub fn init_native_functions() -> HashMap<String, Value>{
         let value = values.get("value").unwrap();
         
         match value.value_type {
+                
                 ValueType::NIL => println!("NIL"),
                 ValueType::BOOL => println!("{:?}", value.bool_value.unwrap()),
                 ValueType::NUMBER => println!("{:?}", value.number_value.unwrap()),
                 ValueType::STRING => println!("{:?}", value.clone().string_value.unwrap()),
-                ValueType::NATIVEFUNCTION => println!("{:?}", value.clone().function.unwrap())
+                ValueType::NATIVEFUNCTION => println!("{:?}", value.clone().function.unwrap()),
+                ValueType::THORFUNCTION => println!("{:?}", value.clone().function.unwrap())
         }
 
         Value::default()

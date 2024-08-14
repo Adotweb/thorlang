@@ -9,6 +9,7 @@ use std::rc::Rc;
 //this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
 //environment object at will (its just some trickery so we can do that) terrible performance
 //decision, but makes it work
+#[derive(Debug)]
 pub struct Environment {
     pub values : RefCell<HashMap<String, Value>>,
     pub enclosing : Option<Rc<RefCell<Environment>>>
@@ -69,7 +70,22 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
     for stmt in stmts {
         match stmt {
             Statement::Function { name, body, arguments } => {
-                println!("{:?} {:?} {:?}", name, body, arguments);
+
+                let function = Value{
+                    value_type : ValueType::THORFUNCTION,
+                    string_value : Some(name.clone()),
+                    function : Some(Function::ThorFunction {
+                        body : *body.unwrap(),
+                        needed_arguments : arguments.unwrap()
+                    }),
+                    ..Value::default()
+                };
+               
+
+                local_scope.borrow_mut().values.borrow_mut().insert(name, function);
+
+
+                 
             }
             //a block just opens a new env tree branch
             Statement::Block { statements } => {
@@ -83,7 +99,10 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 if eval(&condition.unwrap(),  local_scope.clone()).bool_value.expect("can only run if statements on bool values"){
                     eval_statement(*then_branch.unwrap(), local_scope.clone())
                 } else {
-                    eval_statement(*else_branch.unwrap(), local_scope.clone())
+
+                    if let Some(else_block) = else_branch {
+                        eval_statement(*else_block, local_scope.clone())
+                    }
                 }
             },
 
@@ -109,6 +128,10 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                     ValueType::NATIVEFUNCTION => {
                         println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
                     },
+                    ValueType::THORFUNCTION => {
+
+                        println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
+                    }
                     ValueType::STRING => {
                         println!("{:#?}", result.string_value.unwrap())
                     },
@@ -158,7 +181,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION
+    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION
 }
 
 
@@ -173,9 +196,15 @@ pub struct NativeFunction {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Function {
+pub struct ThorFunction {
     pub body : Vec<Statement>, 
     pub arguments : Vec<String>
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Function {
+    NativeFunction {body : fn(HashMap<String, Value>) -> Value, needed_arguments : Vec<String>}, 
+    ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>}
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -184,7 +213,7 @@ pub struct Value {
     pub string_value : Option<String>,
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
-    pub function : Option<NativeFunction>,
+    pub function : Option<Function>,
     pub is_nil : bool
 }
 
@@ -195,12 +224,24 @@ impl Value {
         Value{
             value_type:ValueType::NATIVEFUNCTION,
             string_value:Some(name.to_string()),
-            function : Some(NativeFunction{
-                arguments : arguments.iter().map(|x| x.to_string()).collect(),
+            function : Some(Function::NativeFunction{
+                needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
                 body
             }),
             ..Value::default()
         }
+    }
+
+    pub fn thor_function(name : &str, arguments : Vec<&str>, body : Vec<Statement>) -> Value {
+        Value{
+            value_type : ValueType::THORFUNCTION,
+            string_value : Some(name.to_string()),
+            function : Some(Function::ThorFunction{
+                needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
+                body
+            }),
+            ..Value::default()
+        } 
     }
 }
 
@@ -463,38 +504,72 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 .get(&eval(callee, enclosing.clone()).string_value.unwrap()).unwrap();
 
 
-            match function_value.value_type {
-                ValueType::NATIVEFUNCTION => { 
-                       
-                    let needed_args = function_value.function.clone().unwrap().arguments;
+            if let Function::NativeFunction { body, needed_arguments } = function_value.function.clone().unwrap() {
 
 
                     //check if arity of args is ok
-                    if needed_args.len() != arguments.len() {
+                    if needed_arguments.len() != arguments.len() {
                         panic!("function {:?} requires {:?} arguments but got {:?}", 
                                function_value.string_value.unwrap(), 
-                               needed_args.len(),
+                               needed_arguments.len(),
                                arguments.len())
                     }
 
                     let mut eval_args : HashMap<String, Value> = HashMap::new(); 
 
                     for i in 0..arguments.len() {
+
                         let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
-                        let arg_name = needed_args.get(i).unwrap();
+                        let arg_name = needed_arguments.get(i).unwrap();
                         
                         eval_args.insert(arg_name.to_string(), arg);
                     }
 
-                    let function_value = (function_value.function.unwrap().body)(eval_args);
+                    let function_value = body(eval_args);
                
 
                     return function_value
 
-                }, 
-                _ => panic!("can only invoke function on line {:?}", paren.clone().line.unwrap())
+            } 
+                
+            if let Function::ThorFunction { body, needed_arguments } = function_value.function.clone().unwrap() {
+                if needed_arguments.len() != arguments.len() {
+                    panic!("function {:?} requires {:?} arguments but got {:?}", 
+                               function_value.string_value.unwrap(), 
+                               needed_arguments.len(),
+                               arguments.len())
+                }
+                
+        
+                let mut eval_args : HashMap<String, Value> = HashMap::new(); 
+
+                    for i in 0..arguments.len() {
+
+                        let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                        let arg_name = needed_arguments.get(i).unwrap();
+                        
+                        eval_args.insert(arg_name.to_string(), arg);
+                    }    
+
+                let function_env = Environment{
+                    values : eval_args.into(), 
+                    enclosing : Some(enclosing)
+                };
+
+
+                eval_statement(body, Rc::new(RefCell::new(function_env)));
+
+
+                //return statement needs to be implemented
+                return Value::default()
             }
 
+
+            else {
+                panic!("error in function {:?}", function_value.string_value.unwrap())
+            }
+
+            
         },
 
         Expression::Assignment { name, value } => {
@@ -511,6 +586,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
         //kind of like literals, but will replace instantly with the value behind the variable name
         //instead of going down to literals first
         Expression::Identifier { name } => {
+            
 
             let value = enclosing.borrow().get(name).expect("this value does not exist");
 

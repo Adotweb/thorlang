@@ -231,8 +231,11 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
         panic!("expected block after function declaration on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
     }
 
-    let block = statement(current_index, tokens);
+    //consume the rbrace token
+    *current_index += 1;
 
+    let block = statement(current_index, tokens);
+    
 
 
     Statement::Function {

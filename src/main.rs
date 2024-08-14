@@ -344,11 +344,14 @@ fn main() {
 
     let text = r#"
 
-        fn somefunc(arg1, arg2){
-            printf("hello");
+        fn count(arg1){
+            if (arg1 > 1) {
+                count(arg1 - 1);
+            }
+            print arg1;
         }
 
-        somefunc("hello");
+        count(3);
 
         "#.to_string();
 
@@ -364,9 +367,9 @@ fn main() {
         enclosing : None
     }));
 
-    //eval_statement(AST, global_env);
+    eval_statement(AST, global_env);
 
-    println!("{:#?}", AST);
+    //println!("{:#?}", AST);
 
     
     
