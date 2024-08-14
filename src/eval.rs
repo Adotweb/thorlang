@@ -116,6 +116,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 }
             },
 
+
+            //still need to fix returns from while as i dont have a good way of detecing whether or
+            //not something got returned....
             Statement::While { condition, block } => {
 
                 let mut condition_true = 
