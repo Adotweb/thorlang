@@ -344,28 +344,23 @@ fn main() {
 
     let text = r#"
 
-        
-        
-
-        fn outer(){
-            
+        fn makeCounter(){
             let num = 0;
-
-            fn inner(){
+            fn count(){
                 
-                fn mostInner(){
-                    return num;
-                }
-
-                return mostInner;
-
+                num = num + 1;
+                    
+                print num;
             }
             
-            print inner();
-        }
+            return count;
+        } 
+        
+        let count = makeCounter();
 
-        outer();
+        count();
 
+        count();
         "#.to_string();
 
     let tokens = lexer(text);

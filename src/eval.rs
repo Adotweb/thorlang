@@ -79,7 +79,8 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             }
 
             Statement::Function { name, body, arguments } => {
-
+                
+                let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
 
                 let function = Value{
                     value_type : ValueType::THORFUNCTION,
@@ -87,7 +88,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                     function : Some(Function::ThorFunction {
                         body : *body.unwrap(),
                         needed_arguments : arguments.unwrap(),
-                        closure : enclosing.clone()
+                        closure
 
                     }),
                     ..Value::default()
