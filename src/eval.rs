@@ -143,6 +143,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                 let result = eval(&expression.unwrap(), enclosing.clone());
 
                 match result.value_type {
+                    ValueType::ARRAY => {
+                        println!("{:?}", result.array.unwrap());
+                    },
                     ValueType::NATIVEFUNCTION => {
                         println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
                     },
@@ -199,7 +202,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION
+    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION, ARRAY
 }
 
 
@@ -233,6 +236,7 @@ pub struct Value {
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
     pub function : Option<Function>,
+    pub array : Option<Vec<Value>>,
     pub is_nil : bool
 }
 
@@ -273,6 +277,7 @@ impl Default for Value {
             number_value:None,
             bool_value:None,
             function : None,
+            array : None,
             is_nil:false
         }
     }
@@ -513,7 +518,25 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
     //recursivley traverses the expr tree.
     match expr {
+        Expression::Array { values } => {
+           
+            let mut value_array : Vec<Value> = vec![];
 
+            let mut array = Value{
+                value_type: ValueType::ARRAY,
+                ..Value::default()
+            };
+                
+            for value_expression in values{
+                let value = eval(value_expression, enclosing.clone()); 
+
+                value_array.push(value);
+            }
+
+            array.array = Some(value_array);
+
+            array
+        },
         Expression::Call { callee, paren, arguments } => {
           
 

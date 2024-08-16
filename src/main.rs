@@ -14,7 +14,7 @@ use std::cell::RefCell;
 #[derive(Eq, PartialEq)]
 #[derive(Debug, Clone, Copy)]
 enum TokenType {
-    LPAREN, RPAREN, LBRACE, RBRACE, COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+    LPAREN, RPAREN, LBRACK,  RBRACK, LBRACE, RBRACE, COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
 
     BANG, BANGEQ, EQ, EQEQ, GREATER, GREATEREQ, LESS, LESSEQ, 
 
@@ -299,6 +299,8 @@ fn lexer(text : String) -> Vec<Token>{
             ")" => tokens.push(simple_token(TokenType::RPAREN, line_count)),
             "{" => tokens.push(simple_token(TokenType::LBRACE, line_count)),
             "}" => tokens.push(simple_token(TokenType::RBRACE, line_count)),
+            "[" => tokens.push(simple_token(TokenType::LBRACK, line_count)),
+            "]" => tokens.push(simple_token(TokenType::RBRACK, line_count)),
             ";" => tokens.push(simple_token(TokenType::SEMICOLON, line_count)),
             "," => tokens.push(simple_token(TokenType::COMMA, line_count)),
             "." => tokens.push(simple_token(TokenType::DOT, line_count)),
@@ -344,14 +346,10 @@ fn main() {
 
     let text = r#"
  
+        let arr = [0, 4, 5];
+
+        print arr;
         
-        fn somefunc(num){
-            printf(num);
-        }
-
-        somefunc("hello");
-
-
         "#.to_string();
 
     let tokens = lexer(text);

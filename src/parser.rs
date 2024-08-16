@@ -352,6 +352,9 @@ pub enum Expression {
         name : String, 
         value : Box<Expression>
     },
+    Array {
+        values : Vec<Expression>
+    },
     Call {
         callee : Box<Expression>, 
         paren : Token, 
@@ -614,6 +617,47 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
             },
             TokenType::NIL => Expression::Literal {
                 literal: LiteralType::NIL,
+            },
+            TokenType::LBRACK => {
+               
+                if token.token_type == TokenType::RBRACK {
+                    return Expression::Array{
+                        values : vec![]
+                    } 
+                }
+
+                let mut array : Vec<Expression> = vec![];
+
+                array.push(expr(current_index, tokens));
+                
+                
+
+                while let Some(token) = tokens.get(*current_index) {
+                     
+
+                    match token.token_type {
+                        TokenType::RBRACK => {
+                            *current_index += 1;
+                            return Expression::Array{
+                                values : array 
+                            }
+                        },
+                        TokenType::COMMA => {
+                            //consume the comma 
+                            *current_index += 1;
+                            let value = expr(current_index, tokens);
+
+                            array.push(value);
+                        },
+
+                        _ => unimplemented!()
+                    }
+
+                }
+                
+                Expression::Array{
+                    values : array
+                }
             },
             TokenType::LPAREN => {
                 let expression = expr(current_index, tokens);

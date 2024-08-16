@@ -14,7 +14,7 @@ pub fn init_native_functions() -> HashMap<String, Value>{
         let value = values.get("value").unwrap();
         
         match value.value_type {
-                
+                ValueType::ARRAY => println!("{:?}", value.array.clone().unwrap()),                
                 ValueType::NIL => println!("NIL"),
                 ValueType::BOOL => println!("{:?}", value.bool_value.unwrap()),
                 ValueType::NUMBER => println!("{:?}", value.number_value.unwrap()),
