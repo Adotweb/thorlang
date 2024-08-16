@@ -38,3 +38,15 @@ pub fn init_native_functions() -> HashMap<String, Value>{
     native_functions
 }
 
+
+pub fn init_number_methods() -> HashMap<String, impl Fn(Value) -> Value>{
+    
+    let mut methods = HashMap::new();
+ 
+    let sqrt_method = |self_value : Value| { Value::default()};
+
+    methods.insert("sqrt".to_string(), sqrt_method); 
+    
+
+    methods
+}

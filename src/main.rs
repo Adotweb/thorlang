@@ -5,7 +5,7 @@ use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
 use eval::{eval_statement, Environment, Value, Function, NativeFunction, ValueType};
 use std::collections::HashMap;
-use native_functions::init_native_functions;
+use native_functions::{init_native_functions, init_number_methods};
 
 
 use std::rc::Rc;
@@ -354,6 +354,7 @@ fn main() {
             return 4;
 
         }
+        
 
 
         "#.to_string();
@@ -370,9 +371,9 @@ fn main() {
         enclosing : None
     }));
 
-    //eval_statement(AST, global_env);
+    eval_statement(AST, global_env);
 
-    println!("{:#?}", AST);
+    //println!("{:#?}", AST);
 
     
     
