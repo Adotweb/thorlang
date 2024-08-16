@@ -345,10 +345,21 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
- 
-        let arr = [0, 4, 5];
 
-        print arr[3];
+        fn count(){
+            fn inner(){
+                
+                return 4;
+
+            }
+    
+
+            return inner;
+        }
+
+        let arr = [count, 4, [0, 2]];
+
+        print arr[2][0];
         
         "#.to_string();
 

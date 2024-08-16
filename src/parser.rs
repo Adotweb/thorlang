@@ -510,7 +510,7 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
         }
     }
 
-    retrieve(current_index, tokens)
+    call(current_index, tokens)
 }
 
 fn retrieve(current_index: &mut usize, tokens: &Vec<Token>) -> Expression{
@@ -553,20 +553,44 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     let mut expression = primary(current_index, tokens);
 
-    
+    let mut current_token = tokens.get(*current_index).unwrap().token_type;
+      
+
+
+    while current_token == TokenType::LPAREN || current_token == TokenType::LBRACK {
        
-    while tokens.get(*current_index).unwrap().token_type == TokenType::LPAREN {
-        
+
+        if current_token == TokenType::LPAREN {
+
         //consume the ( token
-        *current_index += 1;  
-
-
+            *current_index += 1;  
         
-        expression = finish_call(current_index, tokens, expression.clone());
+            expression = finish_call(current_index, tokens, expression.clone());
 
 
-        *current_index += 1;
+            *current_index += 1;
+        } 
 
+        if current_token == TokenType::LBRACK {
+            
+            *current_index += 1;
+
+            let key = expr(current_index, tokens);
+
+
+
+
+            expression = Expression::Retrieve{
+                retrievee : Box::new(expression),
+                key : Box::new(key)
+            };
+
+            *current_index += 1;
+
+        } 
+       
+
+        current_token = tokens.get(*current_index).unwrap().token_type;
     }
 
     
