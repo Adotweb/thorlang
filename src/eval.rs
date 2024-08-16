@@ -518,11 +518,10 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
           
 
             //let eval_callee = eval(callee, enclosing.clone());
+            
+            let function_value = eval(callee, enclosing.clone());
 
-            let function_value = enclosing
-                .borrow()
-                .get(&eval(callee, enclosing.clone()).string_value.unwrap())
-                .expect("function not found");
+            
 
 
             if let Function::NativeFunction { body, needed_arguments } = function_value.function.clone().unwrap() {

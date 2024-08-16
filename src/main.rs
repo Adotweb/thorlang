@@ -343,24 +343,15 @@ fn lexer(text : String) -> Vec<Token>{
 fn main() {
 
     let text = r#"
-
-        fn makeCounter(){
-            let num = 0;
-            fn count(){
-                
-                num = num + 1;
-                    
-                print num;
-            }
-            
-            return count;
-        } 
+ 
         
-        let count = makeCounter();
+        fn somefunc(num){
+            printf(num);
+        }
 
-        count();
+        somefunc("hello");
 
-        count();
+
         "#.to_string();
 
     let tokens = lexer(text);
