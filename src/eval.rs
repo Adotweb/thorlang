@@ -229,6 +229,7 @@ pub enum Function {
     ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
 }
 
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Value {
     pub value_type : ValueType,
@@ -237,6 +238,15 @@ pub struct Value {
     pub bool_value : Option<bool>, 
     pub function : Option<Function>,
     pub array : Option<Vec<Value>>,
+    //methods always have access to "self" this means that just returning a normal native function
+    //doesnt work, because we cannot change closures once passed in. So we use currying, makes
+    //things a bit more complicated, but no user will ever see this.
+    pub methods : Option<HashMap<String, fn(Value) -> ThorFunction>>,
+    //fields will be accessible by things other than strings, however i cannot just hash f64s for
+    //some reason and will need to implement own hashing algorithm to convert a Value to a string
+    //and then this string will be put inside the hashmap, this makes things more complicated than
+    //they need to be, but also easier than rewriting the entire typesystem
+    pub fields : Option<HashMap<String, Value>>,
     pub is_nil : bool
 }
 
@@ -278,6 +288,8 @@ impl Default for Value {
             bool_value:None,
             function : None,
             array : None,
+            methods : None,
+            fields : None,
             is_nil:false
         }
     }
@@ -545,6 +557,25 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             
 
             return_value   
+        },
+
+        Expression::FieldCall { callee, key } => {
+
+            let callee_value = eval(callee, enclosing.clone());
+            let key_string = eval(callee, enclosing.clone()).string_value.unwrap_or_else(|| panic!("{:?} does not seem to be a string", key));
+
+
+            if let Some(ref methods) = callee_value.methods{
+                let method = methods.get(&key_string).unwrap_or_else(|| panic!("method {key_string} does not exist"));
+                
+
+                
+
+            }
+
+            let ret_val  = Value::default();
+
+            ret_val
         },
 
         Expression::Array { values } => {

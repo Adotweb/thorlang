@@ -363,6 +363,10 @@ pub enum Expression {
     Retrieve {
         retrievee : Box<Expression>,
         key : Box<Expression>,
+    }, 
+    FieldCall{
+        callee: Box<Expression>,
+        key : Box<Expression>
     }
 }
 
@@ -513,37 +517,6 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     call(current_index, tokens)
 }
 
-fn retrieve(current_index: &mut usize, tokens: &Vec<Token>) -> Expression{
-
-    let mut expression = call(current_index, tokens); 
- 
-    
-
-    while tokens.get(*current_index).unwrap().token_type == TokenType::LBRACK {
-        *current_index += 1;
-
-        let key = expr(current_index, tokens);
-
-        if tokens.get(*current_index).unwrap().token_type != TokenType::RBRACK {
-            panic!("expected ] after key on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
-        }
-
-        //consume the rbrack token
-        //
-        
-        *current_index += 1;
-
-        expression = Expression::Retrieve{
-            retrievee : Box::new(expression),
-            key : Box::new(key)
-        }
-
-    }
-
-
-    expression
-}
-
      
 
 // needs to check whether or not the expression returned in finishcall is a function itself, and if
@@ -557,8 +530,18 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
       
 
 
-    while current_token == TokenType::LPAREN || current_token == TokenType::LBRACK {
-       
+    while current_token == TokenType::LPAREN || current_token == TokenType::LBRACK || current_token == TokenType::DOT {
+      
+        if current_token == TokenType::DOT {
+            *current_index += 1;
+
+            let key = primary(current_index, tokens);
+
+            expression  = Expression::FieldCall{
+                callee : Box::new(expression),
+                key : Box::new(key)
+            }
+        }
 
         if current_token == TokenType::LPAREN {
 
@@ -588,6 +571,8 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
             *current_index += 1;
 
         } 
+
+        
        
 
         current_token = tokens.get(*current_index).unwrap().token_type;
@@ -652,6 +637,8 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee : Expressi
     panic!("no delimiter in argument list on line {:?}", tokens.get(*current_index).unwrap().line)
 
 }
+
+
 
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     if let Some(token) = tokens.get(*current_index) {

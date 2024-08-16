@@ -346,21 +346,16 @@ fn main() {
 
     let text = r#"
 
+
+        let u = 4;
+  
         fn count(){
-            fn inner(){
-                
-                return 4;
+            
+            return 4;
 
-            }
-    
-
-            return inner;
         }
 
-        let arr = [count, 4, [0, 2]];
 
-        print arr[2][0];
-        
         "#.to_string();
 
     let tokens = lexer(text);
@@ -375,9 +370,9 @@ fn main() {
         enclosing : None
     }));
 
-    eval_statement(AST, global_env);
+    //eval_statement(AST, global_env);
 
-    //println!("{:#?}", AST);
+    println!("{:#?}", AST);
 
     
     
