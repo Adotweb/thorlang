@@ -359,6 +359,10 @@ pub enum Expression {
         callee : Box<Expression>, 
         paren : Token, 
         arguments : Vec<Expression>
+    }, 
+    Retrieve {
+        retrievee : Box<Expression>,
+        key : Box<Expression>,
     }
 }
 
@@ -506,8 +510,41 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
         }
     }
 
-    call(current_index, tokens)
+    retrieve(current_index, tokens)
 }
+
+fn retrieve(current_index: &mut usize, tokens: &Vec<Token>) -> Expression{
+
+    let mut expression = call(current_index, tokens); 
+ 
+    
+
+    while tokens.get(*current_index).unwrap().token_type == TokenType::LBRACK {
+        *current_index += 1;
+
+        let key = expr(current_index, tokens);
+
+        if tokens.get(*current_index).unwrap().token_type != TokenType::RBRACK {
+            panic!("expected ] after key on line {:?}", tokens.get(*current_index).unwrap().line.unwrap())
+        }
+
+        //consume the rbrack token
+        //
+        
+        *current_index += 1;
+
+        expression = Expression::Retrieve{
+            retrievee : Box::new(expression),
+            key : Box::new(key)
+        }
+
+    }
+
+
+    expression
+}
+
+     
 
 // needs to check whether or not the expression returned in finishcall is a function itself, and if
 // it is evaluate as well given more arguments/a call invocation i.e. "()"

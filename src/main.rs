@@ -348,7 +348,7 @@ fn main() {
  
         let arr = [0, 4, 5];
 
-        print arr;
+        print arr[3];
         
         "#.to_string();
 

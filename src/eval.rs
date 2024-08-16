@@ -518,6 +518,35 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
     //recursivley traverses the expr tree.
     match expr {
+        Expression::Retrieve { retrievee, key } => {
+            let key_value = eval(key, enclosing.clone());
+
+            let retrievee_value = eval(retrievee, enclosing.clone());
+
+            if key_value.value_type != ValueType::NUMBER{
+                panic!("can only access arrays with numbers")
+            }
+
+            if key_value.number_value.unwrap().round() != key_value.number_value.unwrap(){
+                panic!("can only access array with whole numbers")
+            }
+
+            let key_number = key_value.number_value.unwrap() as usize;
+
+            if retrievee_value.value_type != ValueType::ARRAY{
+                panic!("can only access arrays with brackets");
+            }
+
+
+        
+            let return_value = retrievee_value.array.unwrap()
+                .get(key_number).unwrap().clone();
+
+            
+
+            return_value   
+        },
+
         Expression::Array { values } => {
            
             let mut value_array : Vec<Value> = vec![];
