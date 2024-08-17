@@ -41,13 +41,25 @@ pub fn init_native_functions() -> HashMap<String, Value>{
 
 pub fn init_number_methods() -> HashMap<String, Value>{
     
-    let mut methods = HashMap::new();
+    let mut s = HashMap::new();
  
-    methods.insert("magic_number".to_string(), Value{
+    s.insert("magic_number".to_string(), Value{
         number_value : Some(89989898.0),
         value_type : ValueType::NUMBER,
         ..Value::default()
     });
 
-    methods
+    s.insert("sqrt".to_string(), Value::native_function("sqrt", vec![], |values| {
+        
+        let self_value = values.get("self").unwrap();
+       
+        Value{
+            value_type : ValueType::NUMBER,
+            number_value : Some(self_value.number_value.unwrap().sqrt()),
+            ..Value::default()
+        }
+
+    }));
+
+    s    
 }

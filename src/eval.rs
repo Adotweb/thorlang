@@ -214,6 +214,7 @@ pub enum ValueType {
 pub struct NativeFunction { 
     pub body : fn(HashMap<String, Value>) -> Value,
     pub arguments : Vec<String>, 
+    pub self_value : Option<Box<Value>>
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -225,7 +226,7 @@ pub struct ThorFunction {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Function {
-    NativeFunction {body : fn(HashMap<String, Value>) -> Value, needed_arguments : Vec<String>}, 
+    NativeFunction {body : fn(HashMap<String, Value>) -> Value, needed_arguments : Vec<String>, self_value : Option<Box<Value>>}, 
     ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
 }
 
@@ -257,6 +258,7 @@ impl Value {
             value_type:ValueType::NATIVEFUNCTION,
             string_value:Some(name.to_string()),
             function : Some(Function::NativeFunction{
+                self_value : None,
                 needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
                 body,
             }),
@@ -358,13 +360,32 @@ fn eval_literal (literal : LiteralType) -> Value{
             }, 
             LiteralType::NUMBER { value } => {
     
-                let number_fields = init_number_methods();
+                let mut number_fields = init_number_methods().clone();
 
-                return Value{
+                let mut number_value = Value{
                     value_type : ValueType::NUMBER,
-                    fields : number_fields, 
                     is_nil:false, number_value : Some(value), ..Value::default()
+                };
+
+                for (field_name, field) in number_fields.clone() {
+                    if let Some(Function::NativeFunction { body, needed_arguments, self_value }) = field.function {
+
+                        number_fields.insert(field_name, Value{
+                            value_type: ValueType::NATIVEFUNCTION,
+                            function : Some(Function::NativeFunction{
+                                body, 
+                                needed_arguments, 
+                                self_value : Some(Box::new(number_value.clone()))
+                            }),
+                            ..Value::default()
+                        });
+
+                    }        
                 }
+
+                number_value.fields = number_fields;
+
+                return number_value
             }, 
             LiteralType::STRING { value } => {
                 return Value{
@@ -615,7 +636,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             
 
 
-            if let Function::NativeFunction { body, needed_arguments } = function_value.function.clone().unwrap() {
+            if let Function::NativeFunction { body, needed_arguments, self_value } = function_value.function.clone().unwrap() {
 
 
                     //check if arity of args is ok
@@ -634,6 +655,10 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                         let arg_name = needed_arguments.get(i).unwrap();
                         
                         eval_args.insert(arg_name.to_string(), arg);
+                    }
+
+                    if let Some(sv) = self_value {
+                        eval_args.insert("self".to_string(), *sv);
                     }
 
                     let function_value = body(eval_args);

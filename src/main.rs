@@ -354,8 +354,8 @@ fn main() {
             return 4;
 
         }
-        
-        print  u.magic_number;
+
+        print u.sqrt();
 
         "#.to_string();
 
