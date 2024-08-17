@@ -39,14 +39,15 @@ pub fn init_native_functions() -> HashMap<String, Value>{
 }
 
 
-pub fn init_number_methods() -> HashMap<String, impl Fn(Value) -> Value>{
+pub fn init_number_methods() -> HashMap<String, Value>{
     
     let mut methods = HashMap::new();
  
-    let sqrt_method = |self_value : Value| { Value::default()};
-
-    methods.insert("sqrt".to_string(), sqrt_method); 
-    
+    methods.insert("magic_number".to_string(), Value{
+        number_value : Some(89989898.0),
+        value_type : ValueType::NUMBER,
+        ..Value::default()
+    });
 
     methods
 }

@@ -210,10 +210,10 @@ pub enum ValueType {
 //functions that are defined as code blocks
 //
 //probably both (closures for native functions, together with a enclosing param so we can use )
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct NativeFunction { 
     pub body : fn(HashMap<String, Value>) -> Value,
-    pub arguments : Vec<String>
+    pub arguments : Vec<String>, 
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -241,7 +241,6 @@ pub struct Value {
     //methods always have access to "self" this means that just returning a normal native function
     //doesnt work, because we cannot change closures once passed in. So we use currying, makes
     //things a bit more complicated, but no user will ever see this.
-    pub methods : HashMap<String, fn(Value) -> Value>,
     //fields will be accessible by things other than strings, however i cannot just hash f64s for
     //some reason and will need to implement own hashing algorithm to convert a Value to a string
     //and then this string will be put inside the hashmap, this makes things more complicated than
@@ -259,7 +258,7 @@ impl Value {
             string_value:Some(name.to_string()),
             function : Some(Function::NativeFunction{
                 needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
-                body
+                body,
             }),
             ..Value::default()
         }
@@ -288,7 +287,6 @@ impl Default for Value {
             bool_value:None,
             function : None,
             array : None,
-            methods : HashMap::new(),
             fields : HashMap::new(),
             is_nil:false
         }
@@ -360,12 +358,11 @@ fn eval_literal (literal : LiteralType) -> Value{
             }, 
             LiteralType::NUMBER { value } => {
     
-
-                let methods = init_number_methods(); 
+                let number_fields = init_number_methods();
 
                 return Value{
                     value_type : ValueType::NUMBER,
-                    
+                    fields : number_fields, 
                     is_nil:false, number_value : Some(value), ..Value::default()
                 }
             }, 
@@ -577,14 +574,13 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             }
 
 
-            let mut ret_val : Value = Value::default();
+            let mut ret_val : Value = callee_value.fields.get(&key_string).unwrap_or(&Value{
+                value_type: ValueType::NIL,
+                is_nil : true,
+                ..Value::default()
+            }).clone();
              
-            if let Some(method) = callee_value.methods.get(&key_string) {
-
-                ret_val = method(callee_value); 
-            } 
             
-            println!("{:?}", ret_val);
             
 
             ret_val

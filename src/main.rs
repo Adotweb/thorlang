@@ -355,7 +355,7 @@ fn main() {
 
         }
         
-
+        print  u.magic_number;
 
         "#.to_string();
 
