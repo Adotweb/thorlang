@@ -54,16 +54,32 @@ pub fn init_number_fields(init : f64) -> HashMap<String, Value>{
     s.insert("sqrt".to_string(), Value::native_function("sqrt", vec![], |values| {
         
         let self_value = values.get("self").unwrap();
-       
-        Value{
-            value_type : ValueType::NUMBER,
-            number_value : Some(self_value.number_value.unwrap().sqrt()),
-            ..Value::default()
-        }
+      
+
+        Value::number(self_value.number_value.unwrap().sqrt())
 
     }, init_value));
 
     
 
     s    
+}
+
+
+pub fn init_array_fields(arr : Vec<Value>) -> HashMap<String, Value>{
+    
+    let mut fields = HashMap::new();
+
+    let init_val = Some(Box::new(Value::array(arr)));
+
+    fields.insert("len".to_string(), Value::native_function("len", vec![], |values| {
+
+        let self_value = values.get("self").unwrap();
+
+
+        Value::number(self_value.array.clone().unwrap().len() as f64)
+
+    }, init_val));
+
+    fields
 }

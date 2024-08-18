@@ -5,7 +5,7 @@ use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
 use eval::{eval_statement, Environment, Value, Function, NativeFunction, ValueType};
 use std::collections::HashMap;
-use native_functions::{init_native_functions, init_number_fields};
+use native_functions::{init_native_functions, init_number_fields, init_array_fields};
 
 
 use std::rc::Rc;
@@ -346,17 +346,15 @@ fn main() {
 
     let text = r#"
 
+        let arr = [1, 2, 3, 4];
 
-        let u = 4;
-  
-        fn count(){
-            
-            return 4;
-
+        let i = 0;
+        while (i < arr.len()) {
+            print arr[i]; 
+            i = i + 1;
         }
-
-        print u.sqrt();
-
+  
+            
         "#.to_string();
 
     let tokens = lexer(text);

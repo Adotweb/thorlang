@@ -1,4 +1,4 @@
-use crate::{TokenType, LiteralType, Expression, Statement, init_number_fields};
+use crate::{TokenType, LiteralType, Expression, Statement, init_number_fields, init_array_fields};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -253,6 +253,15 @@ pub struct Value {
 
 
 impl Value {
+    pub fn array(value : Vec<Value>) -> Value{
+
+        Value {
+            value_type : ValueType::ARRAY,
+            array : Some(value),
+            ..Value::default()
+        }
+    }
+
     pub fn number(value : f64) -> Value{
         Value{
             value_type : ValueType::NUMBER, 
@@ -633,7 +642,9 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 value_array.push(value);
             }
 
-            array.array = Some(value_array);
+            array.array = Some(value_array.clone());
+
+            array.fields = init_array_fields(value_array);
 
             array
         },
