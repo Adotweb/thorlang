@@ -346,14 +346,18 @@ fn main() {
 
     let text = r#"
 
-        let arr = [1, 2, 3, 4];
+        fn iter(array, func){
 
-        let i = 0;
-        while (i < arr.len()) {
-            print arr[i]; 
-            i = i + 1;
-        }
-  
+            let i = 0;
+
+            while (i < array.len()){
+                func(array[i]);
+                i = i + 1; 
+            }
+
+        }  
+
+        iter([0, 1, 2, 3], printf);
             
         "#.to_string();
 
