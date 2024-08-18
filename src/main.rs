@@ -5,7 +5,7 @@ use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
 use eval::{eval_statement, Environment, Value, Function, NativeFunction, ValueType};
 use std::collections::HashMap;
-use native_functions::{init_native_functions, init_number_methods};
+use native_functions::{init_native_functions, init_number_fields};
 
 
 use std::rc::Rc;

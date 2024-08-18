@@ -24,7 +24,7 @@ pub fn init_native_functions() -> HashMap<String, Value>{
         }
 
         Value::default()
-    }));
+    }, None));
 
 
     native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], |values| {
@@ -32,17 +32,19 @@ pub fn init_native_functions() -> HashMap<String, Value>{
         
         Value{value_type: ValueType::NUMBER, number_value:Some(69420.0), ..Value::default()}
         
-    }));
+    }, None));
 
 
     native_functions
 }
 
 
-pub fn init_number_methods() -> HashMap<String, Value>{
+pub fn init_number_fields(init : f64) -> HashMap<String, Value>{
     
     let mut s = HashMap::new();
- 
+
+    let init_value = Some(Box::new(Value::number(init)));
+
     s.insert("magic_number".to_string(), Value{
         number_value : Some(89989898.0),
         value_type : ValueType::NUMBER,
@@ -59,7 +61,9 @@ pub fn init_number_methods() -> HashMap<String, Value>{
             ..Value::default()
         }
 
-    }));
+    }, init_value));
+
+    
 
     s    
 }

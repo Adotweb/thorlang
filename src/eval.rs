@@ -1,4 +1,4 @@
-use crate::{TokenType, LiteralType, Expression, Statement, init_number_methods};
+use crate::{TokenType, LiteralType, Expression, Statement, init_number_fields};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -253,12 +253,45 @@ pub struct Value {
 
 
 impl Value {
-    pub fn native_function(name : &str, arguments : Vec<&str>, body : fn(HashMap<String, Value>) -> Value) -> Value{
+    pub fn number(value : f64) -> Value{
+        Value{
+            value_type : ValueType::NUMBER, 
+            number_value : Some(value),
+            ..Value::default()
+        } 
+    }
+
+    pub fn string(value : String) -> Value{
+        Value{
+            value_type : ValueType::NUMBER, 
+            string_value : Some(value),
+            ..Value::default()
+        } 
+    }
+
+
+    pub fn bool(value : bool) -> Value{
+        Value{
+            value_type : ValueType::NUMBER, 
+            bool_value : Some(value),
+            ..Value::default()
+        } 
+    }
+
+    pub fn nil() -> Value {
+        Value{
+            is_nil : true,
+            value_type : ValueType::NIL,
+            ..Value::default()
+        }
+    }
+
+    pub fn native_function(name : &str, arguments : Vec<&str>, body : fn(HashMap<String, Value>) -> Value, self_value : Option<Box<Value>>) -> Value{
         Value{
             value_type:ValueType::NATIVEFUNCTION,
             string_value:Some(name.to_string()),
             function : Some(Function::NativeFunction{
-                self_value : None,
+                self_value,
                 needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
                 body,
             }),
@@ -347,45 +380,23 @@ fn eval_literal (literal : LiteralType) -> Value{
         //turn literaltype into value wrapped in value_type
         match literal {
             LiteralType::NIL => {
-                return Value{
-                    value_type : ValueType::NIL,
-                    is_nil:true, ..Value::default()
-                }
+                return Value::nil()
             }, 
             LiteralType::BOOL { value } => {
-                return Value{
-                    value_type : ValueType::BOOL,
-                    is_nil:false, bool_value : Some(value), ..Value::default()
-                }
+                return Value::bool(value)
             }, 
             LiteralType::NUMBER { value } => {
     
-                let mut number_fields = init_number_methods().clone();
+                let number_fields = init_number_fields(value).clone();
 
-                let mut number_value = Value{
-                    value_type : ValueType::NUMBER,
-                    is_nil:false, number_value : Some(value), ..Value::default()
-                };
-
-                for (field_name, field) in number_fields.clone() {
-                    if let Some(Function::NativeFunction { body, needed_arguments, self_value }) = field.function {
-
-                        number_fields.insert(field_name, Value{
-                            value_type: ValueType::NATIVEFUNCTION,
-                            function : Some(Function::NativeFunction{
-                                body, 
-                                needed_arguments, 
-                                self_value : Some(Box::new(number_value.clone()))
-                            }),
-                            ..Value::default()
-                        });
-
-                    }        
-                }
+                let mut number_value = Value::number(value);
 
                 number_value.fields = number_fields;
 
-                return number_value
+
+                
+                number_value
+
             }, 
             LiteralType::STRING { value } => {
                 return Value{
@@ -595,7 +606,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             }
 
 
-            let mut ret_val : Value = callee_value.fields.get(&key_string).unwrap_or(&Value{
+            let ret_val : Value = callee_value.fields.get(&key_string).unwrap_or(&Value{
                 value_type: ValueType::NIL,
                 is_nil : true,
                 ..Value::default()
