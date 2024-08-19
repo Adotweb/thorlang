@@ -360,7 +360,7 @@ fn main() {
         let s = [0, 1, 2, 3];
 
         s.push(4);
-        s.push(5);
+        s.push("hello");
 
         print s;
             

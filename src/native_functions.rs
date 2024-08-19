@@ -68,7 +68,9 @@ pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
     s    
 }
 
-
+//methods like push need to be able to alter the environment so we need to pass it in as an
+//argument, also since we need to know what variable (which array) is altered we need to know the
+//name (or later the expression) of the variable to be able to read the value in the env
 pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_name : String) -> HashMap<String, Value>{
     
     let mut fields = HashMap::new();

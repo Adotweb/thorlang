@@ -55,6 +55,9 @@ impl Environment {
 }
 
 
+
+
+
 //here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
 //of the env tree is not needed it automatically disappears, meaning that we can only 
 // - mutate variables that exist
@@ -146,7 +149,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
                 match result.value_type {
                     ValueType::ARRAY => {
-                        println!("{:?}", result.array.unwrap());
+                        println!("{}", stringify_value(result.clone()).to_string());
                     },
                     ValueType::NATIVEFUNCTION => {
                         println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
@@ -156,7 +159,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                         println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
                     }
                     ValueType::STRING => {
-                        println!("{:#?}", result.string_value.unwrap())
+                        println!("{}", result.string_value.unwrap())
                     },
                     ValueType::NUMBER => {
                         println!("{:#?}", result.number_value.unwrap())
@@ -260,6 +263,49 @@ pub struct Value {
 }
 
 
+//to print arrays and later objects nicely
+fn stringify_value(val : Value) -> String{
+
+    let mut ret_val = "".to_string();
+
+    match val.value_type {
+        ValueType::ARRAY => {
+            
+            let arr = val.array.unwrap();
+            
+            ret_val += "[";
+
+            for i in 0..arr.len() {
+
+                if i > 0{
+                    ret_val += ", "
+                } 
+                
+                ret_val += &stringify_value(arr.get(i).unwrap().clone())
+            }
+
+            ret_val += "]"
+
+        },
+        ValueType::BOOL => {
+            ret_val = val.bool_value.unwrap().to_string();
+        },
+        ValueType::STRING => {
+            ret_val = (r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#);
+        },
+        ValueType::NIL => {
+            ret_val = "NIL".to_string();
+        },
+        ValueType::NUMBER => {
+            ret_val = val.number_value.unwrap().to_string();
+        },
+        _ => {
+            ret_val = "Function".to_string();
+        }
+    }
+
+    ret_val
+}
 
 impl Value {
     pub fn array(value : Vec<Value>) -> Value{
@@ -317,19 +363,10 @@ impl Value {
         }
     }
 
-    pub fn thor_function(name : &str, arguments : Vec<&str>, body : Vec<Statement>, closure : Rc<RefCell<Environment>>) -> Value {
-        Value{
-            value_type : ValueType::THORFUNCTION,
-            string_value : Some(name.to_string()),
-            function : Some(Function::ThorFunction{
-                needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
-                body,
-                closure
-            }),
-            ..Value::default()
-        } 
-    }
 }
+
+
+
 
 impl Default for Value {
     fn default() -> Value {
