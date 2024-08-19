@@ -39,11 +39,11 @@ pub fn init_native_functions() -> HashMap<String, Value>{
 }
 
 
-pub fn init_number_fields(init : f64) -> HashMap<String, Value>{
+pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
     
     let mut s = HashMap::new();
 
-    let init_value = Some(Box::new(Value::number(init)));
+    let init_value = Some(Box::new(init));
 
     s.insert("magic_number".to_string(), Value{
         number_value : Some(89989898.0),
@@ -66,11 +66,11 @@ pub fn init_number_fields(init : f64) -> HashMap<String, Value>{
 }
 
 
-pub fn init_array_fields(arr : Vec<Value>) -> HashMap<String, Value>{
+pub fn init_array_fields(arr : Value) -> HashMap<String, Value>{
     
     let mut fields = HashMap::new();
 
-    let init_val = Some(Box::new(Value::array(arr)));
+    let init_val = Some(Box::new(arr));
 
     fields.insert("len".to_string(), Value::native_function("len", vec![], |values| {
 
@@ -79,6 +79,20 @@ pub fn init_array_fields(arr : Vec<Value>) -> HashMap<String, Value>{
 
         Value::number(self_value.array.clone().unwrap().len() as f64)
 
+    }, init_val.clone()));
+
+
+    fields.insert("push".to_string(), Value::native_function("push", vec!["thing"], |values|{
+
+
+        let self_value = values.get("self").unwrap();
+        let thing = values.get("thing").unwrap();
+
+        let mut newarr = self_value.array.clone().unwrap();
+
+        newarr.push(thing.clone());
+
+        Value::array(newarr)
     }, init_val));
 
     fields

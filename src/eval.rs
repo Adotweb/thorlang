@@ -396,11 +396,8 @@ fn eval_literal (literal : LiteralType) -> Value{
             }, 
             LiteralType::NUMBER { value } => {
     
-                let number_fields = init_number_fields(value).clone();
-
                 let mut number_value = Value::number(value);
 
-                number_value.fields = number_fields;
 
 
                 
@@ -615,13 +612,31 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             }
 
 
-            let ret_val : Value = callee_value.fields.get(&key_string).unwrap_or(&Value{
-                value_type: ValueType::NIL,
-                is_nil : true,
-                ..Value::default()
-            }).clone();
-             
+            let mut ret_val = Value::default();
+            if let Some(field) = callee_value.fields.get(&key_string){
+               
+                ret_val = field.clone();
+
+            }
+    
+
+            match callee_value.value_type {
+
+                ValueType::NUMBER => {
+                    if let Some(field) = init_number_fields(callee_value.clone()).get(&key_string){
+                        ret_val = field.clone();
+                    }
+                },
+                ValueType::ARRAY => {
+                    if let Some(field) = init_array_fields(callee_value.clone()).get(&key_string){
+                        ret_val = field.clone();
+                    }
+                }
+                _ => ()
+
+            } 
             
+             
             
 
             ret_val
@@ -644,7 +659,6 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
             array.array = Some(value_array.clone());
 
-            array.fields = init_array_fields(value_array);
 
             array
         },

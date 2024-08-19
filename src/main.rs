@@ -357,7 +357,7 @@ fn main() {
 
         }  
 
-        iter([0, 1, 2, 3], printf);
+        print 4.sqrt().sqrt();
             
         "#.to_string();
 
