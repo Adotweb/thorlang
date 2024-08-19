@@ -2,6 +2,8 @@ use crate::{TokenType, LiteralType, Expression, Statement, init_number_fields, i
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::fmt;
+use std::sync::Arc;
 //eval statements
 
 
@@ -30,7 +32,7 @@ impl Environment {
 
 
 
-    fn get(&self, key : &str) -> Option<Value> {
+    pub fn get(&self, key : &str) -> Option<Value> {
        if let Some(value) = self.values.borrow().get(key) {
            Some(value.clone())
        } else if let Some(ref parent) = self.enclosing{
@@ -41,7 +43,7 @@ impl Environment {
     }
 
 
-    fn set(&self, key : String, value : Value){
+    pub fn set(&self, key : String, value : Value){
         if self.values.borrow().contains_key(&key) {
             self.values.borrow_mut().insert(key, value);
         } else if let Some(ref parent) = self.enclosing {
@@ -205,30 +207,37 @@ pub enum ValueType {
     STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION, ARRAY
 }
 
-
-//still thinking about whether or not i should implement functions as closures (in rust) or as
-//functions that are defined as code blocks
-//
-//probably both (closures for native functions, together with a enclosing param so we can use )
-#[derive(PartialEq, Debug, Clone)]
-pub struct NativeFunction { 
-    pub body : fn(HashMap<String, Value>) -> Value,
-    pub arguments : Vec<String>, 
-    pub self_value : Option<Box<Value>>
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct ThorFunction {
-    pub body : Vec<Statement>, 
-    pub arguments : Vec<String>, 
-    pub closure : Rc<RefCell<Environment>>
-}
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone)]
 pub enum Function {
-    NativeFunction {body : fn(HashMap<String, Value>) -> Value, needed_arguments : Vec<String>, self_value : Option<Box<Value>>}, 
+    NativeFunction {body : Arc<dyn Fn(HashMap<String, Value>) -> Value>, needed_arguments : Vec<String>, self_value : Option<Box<Value>>}, 
     ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
 }
+
+impl PartialEq for Function {
+    fn eq(&self, other: &Self) -> bool {false}
+    fn ne(&self, other: &Self) -> bool {true}
+}
+
+impl fmt::Debug for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self{
+
+            Function::NativeFunction { body, needed_arguments, self_value } => {
+                f.debug_struct("Function")
+                    .field("args", needed_arguments)
+                    .finish()
+            }, 
+            Function::ThorFunction { body, needed_arguments, closure } => {
+                f.debug_struct("Function")
+                    .field("args", needed_arguments)
+                    .finish()
+            }
+        }
+
+    }
+}
+
+
 
 
 #[derive(PartialEq, Debug, Clone)]
@@ -295,7 +304,7 @@ impl Value {
         }
     }
 
-    pub fn native_function(name : &str, arguments : Vec<&str>, body : fn(HashMap<String, Value>) -> Value, self_value : Option<Box<Value>>) -> Value{
+    pub fn native_function(name : &str, arguments : Vec<&str>, body : Arc<dyn Fn(HashMap<String, Value>) -> Value>, self_value : Option<Box<Value>>) -> Value{
         Value{
             value_type:ValueType::NATIVEFUNCTION,
             string_value:Some(name.to_string()),
@@ -628,7 +637,12 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     }
                 },
                 ValueType::ARRAY => {
-                    if let Some(field) = init_array_fields(callee_value.clone()).get(&key_string){
+                    let mut var_name = "".to_string();
+                    if let Expression::Identifier { name } = *callee.clone() {
+                        var_name = name; 
+                    }
+
+                    if let Some(field) = init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
                         ret_val = field.clone();
                     }
                 }
@@ -694,7 +708,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     }
 
                     if let Some(sv) = self_value {
-                        eval_args.insert("self".to_string(), *sv);
+                        eval_args.insert("self".to_string(), *sv.clone());
                     }
 
                     let function_value = body(eval_args);

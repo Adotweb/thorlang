@@ -1,7 +1,10 @@
-use crate::{Value, ValueType};
+use crate::{Value, ValueType, Environment};
 
 use std::collections::HashMap;
 use std::time::Instant;
+use std::sync::Arc;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 
 pub fn init_native_functions() -> HashMap<String, Value>{
@@ -9,7 +12,7 @@ pub fn init_native_functions() -> HashMap<String, Value>{
     let mut native_functions = HashMap::new();
 
 
-    native_functions.insert("printf".to_string(), Value::native_function("printf", vec!["value"], |values| {
+    native_functions.insert("printf".to_string(), Value::native_function("printf", vec!["value"], Arc::new(|values| {
 
         let value = values.get("value").unwrap();
         
@@ -24,15 +27,15 @@ pub fn init_native_functions() -> HashMap<String, Value>{
         }
 
         Value::default()
-    }, None));
+    }), None));
 
 
-    native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], |values| {
+    native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], Arc::new(|values| {
        
         
         Value{value_type: ValueType::NUMBER, number_value:Some(69420.0), ..Value::default()}
         
-    }, None));
+    }), None));
 
 
     native_functions
@@ -51,14 +54,14 @@ pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
         ..Value::default()
     });
 
-    s.insert("sqrt".to_string(), Value::native_function("sqrt", vec![], |values| {
+    s.insert("sqrt".to_string(), Value::native_function("sqrt", vec![], Arc::new(|values| {
         
         let self_value = values.get("self").unwrap();
       
 
         Value::number(self_value.number_value.unwrap().sqrt())
 
-    }, init_value));
+    }), init_value));
 
     
 
@@ -66,23 +69,23 @@ pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
 }
 
 
-pub fn init_array_fields(arr : Value) -> HashMap<String, Value>{
+pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_name : String) -> HashMap<String, Value>{
     
     let mut fields = HashMap::new();
 
     let init_val = Some(Box::new(arr));
 
-    fields.insert("len".to_string(), Value::native_function("len", vec![], |values| {
+    fields.insert("len".to_string(), Value::native_function("len", vec![], Arc::new(|values| {
 
         let self_value = values.get("self").unwrap();
 
 
         Value::number(self_value.array.clone().unwrap().len() as f64)
 
-    }, init_val.clone()));
+    }), init_val.clone()));
 
 
-    fields.insert("push".to_string(), Value::native_function("push", vec!["thing"], |values|{
+    fields.insert("push".to_string(), Value::native_function("push", vec!["thing"], Arc::new(move |values|{
 
 
         let self_value = values.get("self").unwrap();
@@ -91,9 +94,13 @@ pub fn init_array_fields(arr : Value) -> HashMap<String, Value>{
         let mut newarr = self_value.array.clone().unwrap();
 
         newarr.push(thing.clone());
+        
+        if var_name != "" {
+            enclosing.borrow_mut().set(var_name.clone(), Value::array(newarr.clone()));
+        }
 
         Value::array(newarr)
-    }, init_val));
+    }), init_val));
 
     fields
 }

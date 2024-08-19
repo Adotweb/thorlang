@@ -3,7 +3,7 @@ mod eval;
 mod native_functions;
 use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
-use eval::{eval_statement, Environment, Value, Function, NativeFunction, ValueType};
+use eval::{eval_statement, Environment, Value, Function,  ValueType};
 use std::collections::HashMap;
 use native_functions::{init_native_functions, init_number_fields, init_array_fields};
 
@@ -356,8 +356,13 @@ fn main() {
             }
 
         }  
+        
+        let s = [0, 1, 2, 3];
 
-        print 4.sqrt().sqrt();
+        s.push(4);
+        s.push(5);
+
+        print s;
             
         "#.to_string();
 
