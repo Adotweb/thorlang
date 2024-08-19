@@ -722,13 +722,24 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             
         },
 
-        Expression::Assignment { name, value } => {
+        Expression::Assignment { target, value } => {
           
             let eval_value = eval(value, enclosing.clone());
          
             //assignment is the only thing that can change variables in higher scope, but will
             //always find the closest variable with this name
-            enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
+           
+            //also assignment will first find out what kind of assignment it is, 
+            //variable = something;
+            //array[number] = something;
+            //object.field = something;
+            //
+            //this means that assignment also has to work iteratively, kind of like call
+            //parsing works
+            if let Expression::Identifier { name } = *target.clone() {
+                enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
+            }
+            
 
             return eval_value
         },

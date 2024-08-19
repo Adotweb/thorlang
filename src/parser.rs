@@ -265,7 +265,6 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
 }
 
 //do turns expressions into statements;
-//assignment only works with do at the moment
 fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
     
     let expression = expr(current_index, tokens);
@@ -349,7 +348,7 @@ pub enum Expression {
         literal: LiteralType,
     },
     Assignment {
-        name : String, 
+        target : Box<Expression>, 
         value : Box<Expression>
     },
     Array {
@@ -390,16 +389,12 @@ fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Expression{
 
             let value = assign(current_index, tokens);
         
-            if let Expression::Identifier { name } = expression  {
                 
-                return Expression::Assignment{
-                    name, 
-                    value : Box::new(value)
-                }
-
-            } else {
-                panic!("incalid assigment target")
+            return Expression::Assignment{
+                target : Box::new(expression), 
+                value : Box::new(value)
             }
+
 
         }
 
