@@ -232,7 +232,7 @@ pub struct Value {
     pub number_value : Option<f64>,
     pub bool_value : Option<bool>, 
     pub function : Option<Function>,
-    pub array : Option<Vec<Value>>,
+    pub array : Vec<Value>,
     //methods always have access to "self" this means that just returning a normal native function
     //doesnt work, because we cannot change closures once passed in. So we use currying, makes
     //things a bit more complicated, but no user will ever see this.
@@ -253,7 +253,7 @@ impl Value {
 
         Value {
             value_type : ValueType::ARRAY,
-            array : Some(value),
+            array : (value),
             ..Value::default()
         }
     }
@@ -317,7 +317,7 @@ impl Default for Value {
             number_value:None,
             bool_value:None,
             function : None,
-            array : None,
+            array : vec![],
             fields : HashMap::new(),
             is_nil:false
         }
@@ -570,7 +570,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
 
         
-            let return_value = retrievee_value.array.unwrap()
+            let return_value = retrievee_value.array
                 .get(key_number).unwrap().clone();
 
             
@@ -651,7 +651,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 value_array.push(value);
             }
 
-            array.array = Some(value_array.clone());
+            array.array = (value_array.clone());
 
 
             array
@@ -745,13 +745,34 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             //this means that assignment also has to work iteratively, kind of like call
             //parsing works
             
-            handle_field_assignment(target.clone(), value.clone(), enclosing.clone());
+            let order = generate_field_order(target.clone(), enclosing.clone());
+          
+            let mut current : &mut Value = &mut enclosing
+                .borrow_mut()
+                .get(&order.get(0).unwrap().get_string().unwrap().to_string())
+                .unwrap();
 
+            println!("{:?}", current); 
             
-            if let Expression::Identifier { name } = *target.clone() {
-                enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
+
+            for i in 1..(order.len() - 1) {
+
+
+                //cannot be out of bounds
+                match order.get(i).unwrap(){
+                    FieldKey::String(string) => {
+                        
+                    },
+                    _ => unimplemented!() 
+                }                             
             }
+
+
+            let last_key = order.get(order.len() - 1).unwrap().get_string().unwrap();
+
+            current.fields.insert(last_key, eval_value.clone());
             
+            println!("{:#?}", enclosing);
 
             return eval_value
         },
@@ -781,10 +802,82 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
 }
 
+#[derive(Debug)]
+enum FieldKey {
+    Int(i32),
+    String(String)
+}
 
+//methods to get the strings and numbers easier without doing if lets all the time
+impl FieldKey {
+    fn get_num(&self) -> Option<i32>{
+        return match self{
+            FieldKey::Int(num) => Some(*num),
+            FieldKey::String(string) => None
+        }
+    }
+
+    fn get_string(&self) -> Option<String>{
+         return match self{
+            FieldKey::Int(num) => None,
+            FieldKey::String(string) => Some(string.to_string())
+        }
+    }
+}
+
+fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environment>>) -> Vec<FieldKey>{
+    let mut order = vec![];
+
+    let mut current = target;
+
+    let mut not_ended = true;
+
+    while not_ended {
+        match *current.clone() {
+            Expression::Identifier { name } => {
+                order.push(FieldKey::String(name));
+                not_ended = false;
+            },
+            Expression::FieldCall { callee, key } => {
+                let mut key_name = "".to_string();
+                if let Expression::Identifier { name } = *key{
+                    key_name = name; 
+                } else {
+                    key_name = hash_value(eval(&key, enclosing.clone()));
+                }
+
+                order.push(FieldKey::String(key_name));
+
+                current = callee
+            },
+            Expression::Retrieve { retrievee, key } => {
+                let index = eval(&key, enclosing.clone()).number_value.unwrap() as i32;
+
+                order.push(FieldKey::Int(index));
+
+                current = retrievee;
+            }
+            _ => ()
+        }
+
+    }
+   
+    order.reverse();
+    println!("{:?}", order);
+    order
+}
+
+//handles assignments to arrays and objects
 fn handle_field_assignment(target : Box<Expression>, value : Box<Expression>, enclosing : Rc<RefCell<Environment>>) -> Value{
+
+    if let Expression::Identifier { name } = *target.clone(){
+        
+        return enclosing.borrow_mut().get(&name).unwrap();
+
+    }
+
     
-    println!("{:#?}  : {:#?}", target, value);
-    
+
+
     Value::default()
 }

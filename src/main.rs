@@ -362,10 +362,9 @@ fn main() {
         
         let obj;
 
-        //this will work in the next update
-        obj.sum[0].hello = 4;
+        obj.hello = 4;
 
-        print obj;
+        print obj.hello;
 
             
         "#.to_string();

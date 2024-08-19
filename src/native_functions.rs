@@ -89,7 +89,7 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
         let self_value = values.get("self").unwrap();
 
 
-        Value::number(self_value.array.clone().unwrap().len() as f64)
+        Value::number(self_value.array.clone().len() as f64)
 
     }), init_val.clone()));
 
@@ -100,7 +100,7 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
         let self_value = values.get("self").unwrap();
         let thing = values.get("thing").unwrap();
 
-        let mut newarr = self_value.array.clone().unwrap();
+        let mut newarr = self_value.array.clone();
 
         newarr.push(thing.clone());
         
@@ -114,7 +114,7 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
     fields.insert("map".to_string(), Value::native_function("map", vec!["func"], Arc::new(|values| {
 
         let self_value = values.get("self").unwrap();
-        let arr = self_value.clone().array.unwrap();
+        let arr = self_value.clone().array;
 
 
         let proto_func = values.get("func").unwrap().function.clone().unwrap();
@@ -190,7 +190,7 @@ pub fn stringify_value(val : Value) -> String{
     match val.value_type {
         ValueType::ARRAY => {
             
-            let arr = val.array.unwrap();
+            let arr = val.array;
             
             ret_val += "[";
 
