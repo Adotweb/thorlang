@@ -6,7 +6,7 @@ use parser::{parse, Expression, Statement};
 use eval::{eval_statement, Environment, Value, ValueType, eval, Function};
 use std::collections::HashMap;
 use native_functions::{init_native_functions, init_number_fields, init_array_fields, init_bool_fields, init_string_fields, 
-stringify_value, };
+stringify_value, hash_value};
 
 
 use std::rc::Rc;
@@ -360,11 +360,12 @@ fn main() {
         
         let s = [0, 1, 2, 3];
         
-        fn addone(n){
-            return n + 1;
-        }
+        let obj;
 
-        s.map(addone).map(printf);
+        //this will work in the next update
+        obj.sum[0].hello = 4;
+
+        print obj;
 
             
         "#.to_string();

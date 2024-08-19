@@ -1,6 +1,6 @@
 use crate::{TokenType, LiteralType, Expression, Statement, 
     init_number_fields, init_array_fields, init_bool_fields, init_string_fields,
-    stringify_value};
+    stringify_value, hash_value};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -383,19 +383,11 @@ fn eval_literal (literal : LiteralType) -> Value{
             }, 
             LiteralType::NUMBER { value } => {
     
-                let mut number_value = Value::number(value);
-
-
-
-                
-                number_value
+                return Value::number(value)                
 
             }, 
             LiteralType::STRING { value } => {
-                return Value{
-                    value_type : ValueType::STRING,
-                    is_nil : false, string_value : Some(value), ..Value::default()
-                }
+                return Value::string(value) 
             }
 
         } 
@@ -752,6 +744,10 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             //
             //this means that assignment also has to work iteratively, kind of like call
             //parsing works
+            
+            handle_field_assignment(target.clone(), value.clone(), enclosing.clone());
+
+            
             if let Expression::Identifier { name } = *target.clone() {
                 enclosing.borrow_mut().set(name.to_string(), eval_value.clone());
             }
@@ -783,4 +779,12 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
         }
     } 
 
+}
+
+
+fn handle_field_assignment(target : Box<Expression>, value : Box<Expression>, enclosing : Rc<RefCell<Environment>>) -> Value{
+    
+    println!("{:#?}  : {:#?}", target, value);
+    
+    Value::default()
 }

@@ -173,6 +173,16 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
     fields
 }
 
+pub fn hash_value(val : Value) -> String{
+    return match val.value_type {
+        ValueType::BOOL => val.bool_value.unwrap().to_string(),
+        ValueType::STRING => val.string_value.unwrap(),
+        ValueType::NUMBER => val.number_value.unwrap().to_string(),
+        _ => panic!("cannot hash {:?}", val.value_type)
+    }
+
+}
+
 pub fn stringify_value(val : Value) -> String{
 
     let mut ret_val = "".to_string();
