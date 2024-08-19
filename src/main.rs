@@ -2,11 +2,11 @@ mod parser;
 mod eval;
 mod native_functions;
 use regex::Regex;
-use parser::{parse, Expression, Statement, statement};
-use eval::{eval_statement, Environment, Value, Function,  ValueType};
+use parser::{parse, Expression, Statement};
+use eval::{eval_statement, Environment, Value, ValueType, eval, Function};
 use std::collections::HashMap;
 use native_functions::{init_native_functions, init_number_fields, init_array_fields, init_bool_fields, init_string_fields, 
-stringify_value};
+stringify_value, };
 
 
 use std::rc::Rc;
@@ -359,16 +359,19 @@ fn main() {
         }  
         
         let s = [0, 1, 2, 3];
+        
+        fn addone(n){
+            return n + 1;
+        }
 
+        s.map(addone).map(printf);
 
-
-
-        print s;
             
         "#.to_string();
 
     let tokens = lexer(text);
 
+    
 
     let AST = parse(tokens.clone());
 

@@ -1,5 +1,5 @@
 use crate::{Value, ValueType, Environment, 
-eval, Expression};
+eval, Expression, eval_statement, Function};
 
 use std::collections::HashMap;
 use std::time::Instant;
@@ -114,8 +114,51 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
     fields.insert("map".to_string(), Value::native_function("map", vec!["func"], Arc::new(|values| {
 
         let self_value = values.get("self").unwrap();
+        let arr = self_value.clone().array.unwrap();
 
-        let func = values.get("func").unwrap();
+
+        let proto_func = values.get("func").unwrap().function.clone().unwrap();
+
+
+
+
+        if let Function::NativeFunction { body, needed_arguments, self_value } = proto_func {
+            
+            let newarr = arr.iter().map(|value|{
+                let mut eval_args = HashMap::new();
+                if needed_arguments.len() != 1 {panic!("map functions have to have exactly one argument")}
+                let var_name = needed_arguments.get(0).unwrap();
+
+                eval_args.insert(var_name.to_string(), value.clone());
+                
+                body(eval_args)
+
+            }).collect();
+
+             
+
+            return Value::array(newarr)
+        }
+
+        if let Function::ThorFunction { body, needed_arguments, closure } = proto_func {
+
+            let newarr : Vec<Value> = arr.iter().map(|value| {
+                if needed_arguments.len() != 1{panic!("map functions have to have exactly one argument")}
+                
+                let var_name = needed_arguments.get(0).unwrap();
+               
+                 
+                let function_env = Environment::new(Some(closure.clone()));
+
+                function_env.borrow_mut().values.borrow_mut().insert(var_name.to_string(), value.clone());
+
+                eval_statement(body.clone(), function_env)
+
+            }).collect();
+
+
+            return Value::array(newarr)
+        }
 
         //since we have to call a function to each value, we need to have the eval function 
         //and we have to be able to make a Func call expression
