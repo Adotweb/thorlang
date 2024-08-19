@@ -1,10 +1,12 @@
-use crate::{Value, ValueType, Environment};
+use crate::{Value, ValueType, Environment, 
+eval, Expression};
 
 use std::collections::HashMap;
 use std::time::Instant;
 use std::sync::Arc;
 use std::rc::Rc;
 use std::cell::RefCell;
+
 
 
 pub fn init_native_functions() -> HashMap<String, Value>{
@@ -15,16 +17,8 @@ pub fn init_native_functions() -> HashMap<String, Value>{
     native_functions.insert("printf".to_string(), Value::native_function("printf", vec!["value"], Arc::new(|values| {
 
         let value = values.get("value").unwrap();
-        
-        match value.value_type {
-                ValueType::ARRAY => println!("{:?}", value.array.clone().unwrap()),                
-                ValueType::NIL => println!("NIL"),
-                ValueType::BOOL => println!("{:?}", value.bool_value.unwrap()),
-                ValueType::NUMBER => println!("{:?}", value.number_value.unwrap()),
-                ValueType::STRING => println!("{:?}", value.clone().string_value.unwrap()),
-                ValueType::NATIVEFUNCTION => println!("{:?}", value.clone().function.unwrap()),
-                ValueType::THORFUNCTION => println!("{:?}", value.clone().function.unwrap())
-        }
+
+        println!("{}", stringify_value(value.clone()));
 
         Value::default()
     }), None));
@@ -68,6 +62,19 @@ pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
     s    
 }
 
+pub fn init_string_fields(init : Value) -> HashMap<String, Value>{
+    let mut fields = HashMap::new();
+
+
+    fields
+}
+
+pub fn init_bool_fields(init : Value) -> HashMap<String, Value>{
+    let mut fields = HashMap::new();
+
+    fields
+}
+
 //methods like push need to be able to alter the environment so we need to pass it in as an
 //argument, also since we need to know what variable (which array) is altered we need to know the
 //name (or later the expression) of the variable to be able to read the value in the env
@@ -102,7 +109,66 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
         }
 
         Value::array(newarr)
+    }), init_val.clone()));
+
+    fields.insert("map".to_string(), Value::native_function("map", vec!["func"], Arc::new(|values| {
+
+        let self_value = values.get("self").unwrap();
+
+        let func = values.get("func").unwrap();
+
+        //since we have to call a function to each value, we need to have the eval function 
+        //and we have to be able to make a Func call expression
+        
+        
+
+        self_value.clone()
+
     }), init_val));
+    
 
     fields
+}
+
+pub fn stringify_value(val : Value) -> String{
+
+    let mut ret_val = "".to_string();
+
+    match val.value_type {
+        ValueType::ARRAY => {
+            
+            let arr = val.array.unwrap();
+            
+            ret_val += "[";
+
+            for i in 0..arr.len() {
+
+                if i > 0{
+                    ret_val += ", "
+                } 
+                
+                ret_val += &stringify_value(arr.get(i).unwrap().clone())
+            }
+
+            ret_val += "]"
+
+        },
+        ValueType::BOOL => {
+            ret_val = val.bool_value.unwrap().to_string();
+        },
+        ValueType::STRING => {
+            ret_val = (r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#);
+        },
+        ValueType::NIL => {
+            ret_val = "NIL".to_string();
+        },
+        ValueType::NUMBER => {
+            ret_val = val.number_value.unwrap().to_string();
+        },
+        _ => {
+            ret_val = "Function".to_string();
+        }
+    }
+
+    ret_val
 }

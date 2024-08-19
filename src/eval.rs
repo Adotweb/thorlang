@@ -1,4 +1,6 @@
-use crate::{TokenType, LiteralType, Expression, Statement, init_number_fields, init_array_fields};
+use crate::{TokenType, LiteralType, Expression, Statement, 
+    init_number_fields, init_array_fields, init_bool_fields, init_string_fields,
+    stringify_value};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -146,32 +148,8 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             Statement::Print { expression } => {
             
                 let result = eval(&expression.unwrap(), enclosing.clone());
-
-                match result.value_type {
-                    ValueType::ARRAY => {
-                        println!("{}", stringify_value(result.clone()).to_string());
-                    },
-                    ValueType::NATIVEFUNCTION => {
-                        println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
-                    },
-                    ValueType::THORFUNCTION => {
-
-                        println!("function : {:#?} with body {:#?}", result.string_value.unwrap(), result.function.unwrap())
-                    }
-                    ValueType::STRING => {
-                        println!("{}", result.string_value.unwrap())
-                    },
-                    ValueType::NUMBER => {
-                        println!("{:#?}", result.number_value.unwrap())
-                    },
-                    ValueType::BOOL => {
-                        println!("{:#?}", result.bool_value.unwrap())
-                    },
-                    ValueType::NIL => {
-                        println!("{:#?}", ValueType::NIL)
-                    },
-
-                }
+                
+                println!("{}", stringify_value(result));
 
             },
 
@@ -216,6 +194,10 @@ pub enum Function {
     ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
 }
 
+
+//later i have to implement equality for functions
+//since we cannot create a function that is "equal" in any sense to a native function it will only
+//be the case for thorfunctions (equality on arguments and body, the env is not important when )
 impl PartialEq for Function {
     fn eq(&self, other: &Self) -> bool {false}
     fn ne(&self, other: &Self) -> bool {true}
@@ -264,48 +246,7 @@ pub struct Value {
 
 
 //to print arrays and later objects nicely
-fn stringify_value(val : Value) -> String{
 
-    let mut ret_val = "".to_string();
-
-    match val.value_type {
-        ValueType::ARRAY => {
-            
-            let arr = val.array.unwrap();
-            
-            ret_val += "[";
-
-            for i in 0..arr.len() {
-
-                if i > 0{
-                    ret_val += ", "
-                } 
-                
-                ret_val += &stringify_value(arr.get(i).unwrap().clone())
-            }
-
-            ret_val += "]"
-
-        },
-        ValueType::BOOL => {
-            ret_val = val.bool_value.unwrap().to_string();
-        },
-        ValueType::STRING => {
-            ret_val = (r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#);
-        },
-        ValueType::NIL => {
-            ret_val = "NIL".to_string();
-        },
-        ValueType::NUMBER => {
-            ret_val = val.number_value.unwrap().to_string();
-        },
-        _ => {
-            ret_val = "Function".to_string();
-        }
-    }
-
-    ret_val
-}
 
 impl Value {
     pub fn array(value : Vec<Value>) -> Value{
@@ -680,6 +621,16 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     }
 
                     if let Some(field) = init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
+                        ret_val = field.clone();
+                    }
+                }
+                ValueType::BOOL => {
+                    if let Some(field) = init_bool_fields(callee_value.clone()).get(&key_string){
+                        ret_val = field.clone();
+                    }
+                },
+                ValueType::STRING => {
+                    if let Some(field) = init_string_fields(callee_value.clone()).get(&key_string){
                         ret_val = field.clone();
                     }
                 }

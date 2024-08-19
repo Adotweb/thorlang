@@ -5,7 +5,8 @@ use regex::Regex;
 use parser::{parse, Expression, Statement, statement};
 use eval::{eval_statement, Environment, Value, Function,  ValueType};
 use std::collections::HashMap;
-use native_functions::{init_native_functions, init_number_fields, init_array_fields};
+use native_functions::{init_native_functions, init_number_fields, init_array_fields, init_bool_fields, init_string_fields, 
+stringify_value};
 
 
 use std::rc::Rc;
@@ -359,8 +360,8 @@ fn main() {
         
         let s = [0, 1, 2, 3];
 
-        s.push(4);
-        s.push("hello");
+
+
 
         print s;
             
