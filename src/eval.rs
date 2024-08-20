@@ -587,7 +587,8 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             if let Expression::Identifier { name } = *(*key).clone(){
                 key_string = name;
             } else {
-                key_string = eval(key, enclosing.clone()).string_value.unwrap_or_else(|| panic!("{:?} does not seem to be a string", key));
+                
+                key_string = hash_value(eval(key, enclosing.clone()));
             }
 
 
