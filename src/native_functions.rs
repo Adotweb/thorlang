@@ -218,6 +218,17 @@ pub fn stringify_value(val : Value) -> String{
         ValueType::NUMBER => {
             ret_val = val.number_value.unwrap().to_string();
         },
+        ValueType::OBJECT => {
+            let obj = val.fields;
+
+            ret_val += "{ ";
+
+            for (key, value) in obj.iter(){
+                ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
+            }
+
+            ret_val += " }"
+        }
         _ => {
             ret_val = "Function".to_string();
         }

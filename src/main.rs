@@ -364,8 +364,7 @@ fn main() {
 
         obj.hello.siuu = [4];
 
-        print obj.hello.siuu[0];
-
+        print obj;
             
         "#.to_string();
 

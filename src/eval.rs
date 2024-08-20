@@ -185,7 +185,7 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION, ARRAY
+    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION, ARRAY, OBJECT
 }
 
 #[derive(Clone)]
@@ -754,19 +754,23 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
 
             for i in 1..(order.len() - 1) {
-
+                
+                //nil values that get fields reassigned become objects
+                if current.value_type == ValueType::NIL {
+                    current.value_type = ValueType::OBJECT
+                }
                 //cannot be out of bounds
                 match order.get(i).unwrap(){
 
 
                     FieldKey::String(string) => {
+                        
 
                         if let Some(field) = current.fields.get(string){
                             
-
+                        
                             current = current.fields.get_mut(string).unwrap();
                         } else {
-                            println!("{string}");
                             // we can be sure that i is in bounds and this is a string
                             current.fields.insert(order.get(i).unwrap().get_string().unwrap(), Value::default());
 
@@ -796,6 +800,10 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     current.array[*num as usize] = eval_value.clone();
                 }
 
+            }
+
+            if current.value_type == ValueType::NIL{
+                current.value_type = ValueType::OBJECT
             }
             
 
