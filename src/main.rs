@@ -357,14 +357,13 @@ fn main() {
             }
 
         }  
-        
+      
+
+
         let s = [0, 1, 2, 3];
 
-        let obj;
-
-        obj.hello.siuu = [4];
-
-        print obj;
+        iter(s, printf);
+        
             
         "#.to_string();
 

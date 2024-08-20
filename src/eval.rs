@@ -743,12 +743,19 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
             //iterating over order (a vector of keys, can be numbers for arrays or strings for
             //objects)
             let order = generate_field_order(target.clone(), enclosing.clone());
-         
+        
 
             let value : &mut Value = &mut enclosing
                 .borrow()
                 .get(&order.get(0).unwrap().get_string().unwrap().to_string())
                 .unwrap().clone();
+
+
+            if order.len() == 1 {
+                enclosing.borrow_mut().set(order.get(0).unwrap().get_string().unwrap(), eval_value.clone());
+
+                return eval_value
+            }
 
             let mut current : &mut Value = value;
 
