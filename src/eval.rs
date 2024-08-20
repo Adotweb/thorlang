@@ -761,17 +761,26 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
                     FieldKey::String(string) => {
 
-                        if let Some(_field) = current.fields.get(string){
+                        if let Some(field) = current.fields.get(string){
                             
 
                             current = current.fields.get_mut(string).unwrap();
                         } else {
+                            println!("{string}");
                             // we can be sure that i is in bounds and this is a string
                             current.fields.insert(order.get(i).unwrap().get_string().unwrap(), Value::default());
+
+                            current = current.fields.get_mut(string).unwrap();
                         }
 
                     },
-                    _ => unimplemented!() 
+                    FieldKey::Int(num) => {
+                        if let Some(element) = current.array.get(*num as usize){
+                            current = current.array.get_mut(*num as usize).unwrap(); 
+                        } else {
+                            panic!("index out of bound");
+                        }
+                    } 
                 }                        
 
             }
