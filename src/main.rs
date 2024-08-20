@@ -33,22 +33,21 @@ fn main() {
         }  
       
 
+        let obj;
 
-        let s = [0, 1, 2, 3];
-
-        iter(s, printf);
-        
+        obj = "Hello";
+            
+        print obj; 
             
         "#.to_string();
 
     let tokens = lexer(text);
 
-    
-
     let AST = parse(tokens.clone());
 
     let natives : HashMap<String, Value> = init_native_functions();
 
+    //global environment
     let global_env = Rc::new(RefCell::new(Environment{
         values: natives.into(),
         enclosing : None

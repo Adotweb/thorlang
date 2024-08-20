@@ -186,6 +186,7 @@ pub fn hash_value(val : Value) -> String{
 pub fn stringify_value(val : Value) -> String{
 
     let mut ret_val = "".to_string();
+    println!("{:?}", val);
 
     match val.value_type {
         ValueType::ARRAY => {

@@ -268,7 +268,7 @@ impl Value {
 
     pub fn string(value : String) -> Value{
         Value{
-            value_type : ValueType::NUMBER, 
+            value_type : ValueType::STRING, 
             string_value : Some(value),
             ..Value::default()
         } 
