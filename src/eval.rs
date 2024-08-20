@@ -734,45 +734,62 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
           
             let eval_value = eval(value, enclosing.clone());
          
-            //assignment is the only thing that can change variables in higher scope, but will
-            //always find the closest variable with this name
-           
-            //also assignment will first find out what kind of assignment it is, 
-            //variable = something;
-            //array[number] = something;
-            //object.field = something;
-            //
-            //this means that assignment also has to work iteratively, kind of like call
-            //parsing works
-            
-            let order = generate_field_order(target.clone(), enclosing.clone());
-          
-            let mut current : &mut Value = &mut enclosing
-                .borrow_mut()
-                .get(&order.get(0).unwrap().get_string().unwrap().to_string())
-                .unwrap();
 
-            println!("{:?}", current); 
-            
+
+            //iteratively go over the fields (creating them when they do not exist) and putting in
+            //the value at the deepest level 
+            //
+            //iterating over order (a vector of keys, can be numbers for arrays or strings for
+            //objects)
+            let order = generate_field_order(target.clone(), enclosing.clone());
+         
+
+            let value : &mut Value = &mut enclosing
+                .borrow()
+                .get(&order.get(0).unwrap().get_string().unwrap().to_string())
+                .unwrap().clone();
+
+            let mut current : &mut Value = value;
+
 
             for i in 1..(order.len() - 1) {
 
-
                 //cannot be out of bounds
                 match order.get(i).unwrap(){
+
+
                     FieldKey::String(string) => {
-                        
+
+                        if let Some(_field) = current.fields.get(string){
+                            
+
+                            current = current.fields.get_mut(string).unwrap();
+                        } else {
+                            // we can be sure that i is in bounds and this is a string
+                            current.fields.insert(order.get(i).unwrap().get_string().unwrap(), Value::default());
+                        }
+
                     },
                     _ => unimplemented!() 
-                }                             
+                }                        
+
             }
 
 
-            let last_key = order.get(order.len() - 1).unwrap().get_string().unwrap();
+            let last_key = order.get(order.len() - 1).unwrap(); 
 
-            current.fields.insert(last_key, eval_value.clone());
+            match last_key{
+                FieldKey::String(key) => {
+                    current.fields.insert(key.to_string(), eval_value.clone());
+                },
+                FieldKey::Int(num) => {
+                    current.array[*num as usize] = eval_value.clone();
+                }
+
+            }
             
-            println!("{:#?}", enclosing);
+
+            enclosing.borrow_mut().set(order.get(0).unwrap().get_string().unwrap().to_string(), value.clone());
 
             return eval_value
         },
@@ -863,7 +880,6 @@ fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environ
     }
    
     order.reverse();
-    println!("{:?}", order);
     order
 }
 

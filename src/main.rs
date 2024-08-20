@@ -359,12 +359,11 @@ fn main() {
         }  
         
         let s = [0, 1, 2, 3];
-        
+
         let obj;
 
-        obj.hello = 4;
 
-        print obj.hello;
+        print s;
 
             
         "#.to_string();
