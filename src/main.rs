@@ -9,7 +9,8 @@ use std::collections::HashMap;
 use native_functions::{init_native_functions, init_number_fields, init_array_fields, init_bool_fields, init_string_fields, 
 stringify_value, hash_value};
 
-
+use std::env;
+use std::fs;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -18,65 +19,45 @@ use std::cell::RefCell;
 
 
 fn main() {
+    let args : Vec<String> = env::args().collect();
 
-    let text = r#"
 
-        fn iter(array, func){
-
-            let i = 0;
-
-            while (i < array.len()){
-                func(array[i]);
-                i = i + 1; 
-            }
-
-        }  
-      
-        
-        fn createObj(arr){
-            
-            let i = 0;
-
-            let b = 0;
-
-            let ret_obj;
-
-            while(i < arr.len()){
-                let field = arr[i];
-                
-
-                ret_obj[field[0]] = field[1];
-
-                i = i + 1;
-                
-            }
-           
-            return ret_obj;
-        }
+    let mut current_dir = env::current_dir().expect("something went wrong reading the current directory"); 
     
-        print createObj([
-            ["hello", [0, 1, 2, 3]]
-        ]);
 
-            
-        "#.to_string();
+    match args.get(1).unwrap().as_str(){
+        "run" => {
+            if let Some(filename) = args.get(2){
+                
+                current_dir.push(filename);
+                
 
-    let tokens = lexer(text);
 
-    let AST = parse(tokens.clone());
+                let file_text = fs::read_to_string(current_dir)
+                    .expect("no such file found");
 
-    let natives : HashMap<String, Value> = init_native_functions();
 
-    //global environment
-    let global_env = Rc::new(RefCell::new(Environment{
-        values: natives.into(),
-        enclosing : None
-    }));
+                interpret_code(file_text);
+            }
+        },
+        _ => panic!("need a first command!")
+    }
+     
 
-    eval_statement(AST, global_env);
-
-    //println!("{:#?}", AST);
 
     
     
 }
+
+
+fn interpret_code(text : String){
+    let tokens = lexer(text);
+    let AST = parse(tokens.clone());
+    let natives : HashMap<String, Value> = init_native_functions();
+    let global_env = Rc::new(RefCell::new(Environment{
+        values : natives.into(),
+        enclosing : None
+    }));
+    eval_statement(AST, global_env); 
+
+} 
