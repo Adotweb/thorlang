@@ -18,6 +18,13 @@ pub fn init_native_functions() -> HashMap<String, Value>{
 
         let value = values.get("value").unwrap();
 
+        println!("{:?}", value);
+
+        if value.value_type == ValueType::STRING{
+            println!("{}", value.clone().string_value.unwrap());
+            return Value::default()
+        }
+
         println!("{}", stringify_value(value.clone()));
 
         Value::default()
@@ -186,7 +193,6 @@ pub fn hash_value(val : Value) -> String{
 pub fn stringify_value(val : Value) -> String{
 
     let mut ret_val = "".to_string();
-    println!("{:?}", val);
 
     match val.value_type {
         ValueType::ARRAY => {

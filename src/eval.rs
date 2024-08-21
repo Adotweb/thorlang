@@ -148,7 +148,12 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             Statement::Print { expression } => {
             
                 let result = eval(&expression.unwrap(), enclosing.clone());
-                
+               
+                if result.value_type == ValueType::STRING{
+                    println!("{}", result.string_value.unwrap().clone());
+                    return Value::default();
+                }
+
                 println!("{}", stringify_value(result));
 
             },
@@ -549,33 +554,54 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
     //recursivley traverses the expr tree.
     match expr {
+
+        //retrieve has to work for arrays like this array[number];
+        //and for objects like this object[key];
         Expression::Retrieve { retrievee, key } => {
             let key_value = eval(key, enclosing.clone());
 
             let retrievee_value = eval(retrievee, enclosing.clone());
 
-            if key_value.value_type != ValueType::NUMBER{
-                panic!("can only access arrays with numbers")
-            }
+            match retrievee_value.value_type{
 
-            if key_value.number_value.unwrap().round() != key_value.number_value.unwrap(){
-                panic!("can only access array with whole numbers")
-            }
 
-            let key_number = key_value.number_value.unwrap() as usize;
+                ValueType::ARRAY => {
+                    if key_value.value_type != ValueType::NUMBER{
+                        panic!("can only access arrays with numbers")
+                    }
 
-            if retrievee_value.value_type != ValueType::ARRAY{
-                panic!("can only access arrays with brackets");
-            }
+                    if key_value.number_value.unwrap().round() != key_value.number_value.unwrap(){
+                        panic!("can only access array with whole numbers")
+                    }
+
+                    let key_number = key_value.number_value.unwrap() as usize;
+
+                    if retrievee_value.value_type != ValueType::ARRAY{
+                        panic!("can only access arrays with brackets");
+                    }
 
 
         
-            let return_value = retrievee_value.array
-                .get(key_number).unwrap().clone();
+                    let return_value = retrievee_value.array
+                        .get(key_number).unwrap().clone();
 
             
 
-            return_value   
+                    return_value 
+                }, 
+                ValueType::OBJECT => {
+                    let key = if key_value.value_type == ValueType::STRING {key_value.string_value.unwrap()} else {stringify_value(key_value)};
+
+                    
+
+
+                    retrievee_value.fields.get(&key)
+                        .unwrap_or_else(|| panic!("field {key} does not exist on {:?}", retrievee_value.clone())).clone()
+                }
+
+                _ => panic!("{:?} is not retrievable", retrievee_value)
+            }
+              
         },
 
         Expression::FieldCall { callee, key } => {
@@ -893,9 +919,25 @@ fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environ
                 current = callee
             },
             Expression::Retrieve { retrievee, key } => {
-                let index = eval(&key, enclosing.clone()).number_value.unwrap() as i32;
 
-                order.push(FieldKey::Int(index));
+
+                let key = eval(&key, enclosing.clone());
+
+                match key.value_type{
+                    ValueType::STRING => {
+                        let key = key.string_value.unwrap();
+
+                        order.push(FieldKey::String(key));
+                    },
+                    ValueType::NUMBER => {
+                        let index = key.number_value.unwrap() as i32;
+
+                        order.push(FieldKey::Int(index));
+                    }, 
+                    _ => unimplemented!()
+                }
+
+
 
                 current = retrievee;
             }

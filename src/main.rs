@@ -35,9 +35,10 @@ fn main() {
 
         let obj;
 
-        obj = "Hello";
-            
-        print obj; 
+        obj["siuu"] = "Hello";
+           
+
+        print obj["siuu"]; 
             
         "#.to_string();
 
