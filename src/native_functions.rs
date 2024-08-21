@@ -232,6 +232,7 @@ pub fn stringify_value(val : Value) -> String{
 
             for (key, value) in obj.iter(){
                 ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
+                ret_val += ", ";
             }
 
             ret_val += " }"
