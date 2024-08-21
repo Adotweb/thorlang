@@ -28,11 +28,22 @@ fn main() {
     match args.get(1).unwrap().as_str(){
         "run" => {
             if let Some(filename) = args.get(2){
+
+                let mut filename  = filename.clone().to_owned();
+    
+                //tries to append the .thor filetype to allow for only putting in the filename
+                if filename.contains(".thor"){
+
+                } else {
+                    filename += ".thor";
+                }
+
                 
+
                 current_dir.push(filename);
                 
-
-
+                
+                
                 let file_text = fs::read_to_string(current_dir)
                     .expect("no such file found");
 
