@@ -595,8 +595,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     
 
 
-                    retrievee_value.fields.get(&key)
-                        .unwrap_or_else(|| panic!("field {key} does not exist on {:?}", retrievee_value.clone())).clone()
+                    retrievee_value.fields.get(&key).unwrap_or(&Value::nil()).clone()
                 }
 
                 _ => panic!("{:?} is not retrievable", retrievee_value)

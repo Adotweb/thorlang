@@ -32,13 +32,32 @@ fn main() {
 
         }  
       
+        
+        fn createObj(arr){
+            
+            let i = 0;
 
-        let obj;
+            let b = 0;
 
-        obj["siuu"] = "Hello";
+            let ret_obj;
+
+            while(i < arr.len()){
+                let field = arr[i];
+                
+
+                ret_obj[field[0]] = field[1];
+
+                i = i + 1;
+                
+            }
            
+            return ret_obj;
+        }
+    
+        print createObj([
+            ["hello", [0, 1, 2, 3]]
+        ]);
 
-        print obj["siuu"]; 
             
         "#.to_string();
 
