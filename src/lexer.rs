@@ -231,10 +231,47 @@ fn iterate_identifier(current_index : usize, text : &str, current_line : i32) ->
     }
 }
 
+fn iterate_comment(current_index : usize, text : &str, current_line : i32) -> OuterIter{
+   
+
+
+    let mut iter_skip_steps = 0; 
+    
+    //iterates until it finds newline character here 0xA and then returns the number of
+    //iter_skip_steps
+    while let Some(char) = text.chars().nth(current_index + iter_skip_steps){
+
+        if char == 0xA as char {
+            
+            return OuterIter{
+                token:Token{
+                    token_type : TokenType::IDENTIFIER,
+                    line : Some(current_line),
+                    literal : None,
+                    string : None
+                }, 
+                iter_skip_steps
+            }
+        }
+
+        iter_skip_steps += 1;
+    }
+
+
+
+    return OuterIter{
+        token:Token{
+            token_type : TokenType::IDENTIFIER,
+            line : Some(current_line),
+            literal : None,
+            string : None
+        }, 
+        iter_skip_steps
+    }
+}
     
 pub fn lexer(text : String) -> Vec<Token>{
    
-
 
 
     let mut tokens : Vec<Token> = vec![]; 
@@ -310,7 +347,7 @@ pub fn lexer(text : String) -> Vec<Token>{
 
             "/" => {
                 if peek(iter, text) == "/" {
-                    iter = text.len() //in case of comment skips rest of line
+                    iter_skip_steps = iterate_comment(iter, text, line_count).iter_skip_steps; //in case of comment skips rest of line
                 } else {
                     tokens.push(simple_token(TokenType::SLASH, line_count))
                 }
