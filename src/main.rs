@@ -4,7 +4,7 @@ mod eval;
 mod native_functions;
 use lexer::{lexer, TokenType, LiteralType, Token};
 use parser::{parse, Expression, Statement};
-use eval::{eval_statement, Environment, Value, ValueType, eval, Function};
+use eval::{eval_statement, Environment, Value, ValueType, Function};
 use std::collections::HashMap;
 use native_functions::{init_native_functions, init_number_fields, init_array_fields, init_bool_fields, init_string_fields, 
 stringify_value, hash_value};
@@ -63,12 +63,12 @@ fn main() {
 
 fn interpret_code(text : String){
     let tokens = lexer(text);
-    let AST = parse(tokens.clone());
+    let ast = parse(tokens.clone());
     let natives : HashMap<String, Value> = init_native_functions();
     let global_env = Rc::new(RefCell::new(Environment{
         values : natives.into(),
         enclosing : None
     }));
-    eval_statement(AST, global_env); 
+    eval_statement(ast, global_env); 
 
 } 

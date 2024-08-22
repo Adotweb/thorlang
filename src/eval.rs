@@ -204,20 +204,20 @@ pub enum Function {
 //since we cannot create a function that is "equal" in any sense to a native function it will only
 //be the case for thorfunctions (equality on arguments and body, the env is not important when )
 impl PartialEq for Function {
-    fn eq(&self, other: &Self) -> bool {false}
-    fn ne(&self, other: &Self) -> bool {true}
+    fn eq(&self, _other: &Self) -> bool {false}
+    fn ne(&self, _other: &Self) -> bool {true}
 }
 
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self{
 
-            Function::NativeFunction { body, needed_arguments, self_value } => {
+            Function::NativeFunction { body : _, needed_arguments, self_value : _ } => {
                 f.debug_struct("Function")
                     .field("args", needed_arguments)
                     .finish()
             }, 
-            Function::ThorFunction { body, needed_arguments, closure } => {
+            Function::ThorFunction { body : _, needed_arguments, closure : _ } => {
                 f.debug_struct("Function")
                     .field("args", needed_arguments)
                     .finish()
@@ -677,12 +677,12 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                 value_array.push(value);
             }
 
-            array.array = (value_array.clone());
+            array.array = value_array.clone();
 
 
             array
         },
-        Expression::Call { callee, paren, arguments } => {
+        Expression::Call { callee, paren : _, arguments } => {
           
 
             //let eval_callee = eval(callee, enclosing.clone());
@@ -798,7 +798,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
                     FieldKey::String(string) => {
                         
 
-                        if let Some(field) = current.fields.get(string){
+                        if let Some(_field) = current.fields.get(string){
                             
                         
                             current = current.fields.get_mut(string).unwrap();
@@ -811,7 +811,7 @@ pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
 
                     },
                     FieldKey::Int(num) => {
-                        if let Some(element) = current.array.get(*num as usize){
+                        if let Some(_element) = current.array.get(*num as usize){
                             current = current.array.get_mut(*num as usize).unwrap(); 
                         } else {
                             panic!("index out of bound");
@@ -877,16 +877,9 @@ enum FieldKey {
 
 //methods to get the strings and numbers easier without doing if lets all the time
 impl FieldKey {
-    fn get_num(&self) -> Option<i32>{
-        return match self{
-            FieldKey::Int(num) => Some(*num),
-            FieldKey::String(string) => None
-        }
-    }
-
     fn get_string(&self) -> Option<String>{
          return match self{
-            FieldKey::Int(num) => None,
+            FieldKey::Int(_num) => None,
             FieldKey::String(string) => Some(string.to_string())
         }
     }
@@ -906,14 +899,11 @@ fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environ
                 not_ended = false;
             },
             Expression::FieldCall { callee, key } => {
-                let mut key_name = "".to_string();
                 if let Expression::Identifier { name } = *key{
-                    key_name = name; 
+                    order.push(FieldKey::String(name)); 
                 } else {
-                    key_name = hash_value(eval(&key, enclosing.clone()));
+                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone()))));
                 }
-
-                order.push(FieldKey::String(key_name));
 
                 current = callee
             },
@@ -949,17 +939,4 @@ fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environ
     order
 }
 
-//handles assignments to arrays and objects
-fn handle_field_assignment(target : Box<Expression>, value : Box<Expression>, enclosing : Rc<RefCell<Environment>>) -> Value{
 
-    if let Expression::Identifier { name } = *target.clone(){
-        
-        return enclosing.borrow_mut().get(&name).unwrap();
-
-    }
-
-    
-
-
-    Value::default()
-}

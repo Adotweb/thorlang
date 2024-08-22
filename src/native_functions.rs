@@ -1,8 +1,6 @@
-use crate::{Value, ValueType, Environment, 
-eval, Expression, eval_statement, Function};
+use crate::{Value, ValueType, Environment, eval_statement, Function};
 
 use std::collections::HashMap;
-use std::time::Instant;
 use std::sync::Arc;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -31,7 +29,7 @@ pub fn init_native_functions() -> HashMap<String, Value>{
     }), None));
 
 
-    native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], Arc::new(|values| {
+    native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], Arc::new(|_values| {
        
         
         Value{value_type: ValueType::NUMBER, number_value:Some(69420.0), ..Value::default()}
@@ -72,12 +70,30 @@ pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
 pub fn init_string_fields(init : Value) -> HashMap<String, Value>{
     let mut fields = HashMap::new();
 
+    let init_value = Some(Box::new(init));
+
+    fields.insert("split".to_string(), Value::native_function("split", vec!["split_string"], Arc::new(|values| {
+
+        let self_value = values.get("self").unwrap();
+
+        let split_string = values.get("split_string").unwrap().string_value.clone().unwrap();
+
+        let split_array = self_value.string_value.clone().unwrap()
+            .split(&split_string)
+            .map(|x| Value::string(x.to_string()))
+            .collect();
+
+        
+        
+        Value::array(split_array)
+
+    }), init_value));
 
     fields
 }
 
-pub fn init_bool_fields(init : Value) -> HashMap<String, Value>{
-    let mut fields = HashMap::new();
+pub fn init_bool_fields(_init : Value) -> HashMap<String, Value>{
+    let fields = HashMap::new();
 
     fields
 }
@@ -129,7 +145,7 @@ pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_
 
 
 
-        if let Function::NativeFunction { body, needed_arguments, self_value } = proto_func {
+        if let Function::NativeFunction { body, needed_arguments, self_value : _ } = proto_func {
             
             let newarr = arr.iter().map(|value|{
                 let mut eval_args = HashMap::new();
@@ -217,7 +233,7 @@ pub fn stringify_value(val : Value) -> String{
             ret_val = val.bool_value.unwrap().to_string();
         },
         ValueType::STRING => {
-            ret_val = (r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#);
+            ret_val = r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#;
         },
         ValueType::NIL => {
             ret_val = "NIL".to_string();
