@@ -132,4 +132,10 @@ And of course Thorlangs native types have methods on them to make your life easi
 |Array | len | none | returns the length of the array the method was called on |
 |Array | push | value | pushes the value to the array and returns the new array|
 
+## Roadmap 
 
+- [x] turing completeness
+- [ ] removing all weird bugs/making everything stable
+- [ ] better errors and error handling
+- [ ] easifying installation and documentation
+- [ ] std library (for example weblib)
