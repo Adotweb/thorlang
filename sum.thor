@@ -1,3 +1,8 @@
+
+let p = import("module.thor");
+
+print p;
+
 fn generateObj(arr){
 
 	let i = 0;
@@ -36,3 +41,5 @@ let obj = generateObj([
 
 
 print while_test();
+
+return obj;

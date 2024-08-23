@@ -1,16 +1,38 @@
-use crate::{Value, ValueType, Environment, eval_statement, Function};
+use crate::{Value, ValueType, Environment, eval_statement, Function, interpret_code};
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::rc::Rc;
 use std::cell::RefCell;
-
-
+use std::fs;
+use std::env;
 
 pub fn init_native_functions() -> HashMap<String, Value>{
 
     let mut native_functions = HashMap::new();
 
+    native_functions.insert("import".to_string(), Value::native_function("import", vec!["namespace"], Arc::new(|values|{
+
+        let namespace = values.get("namespace").unwrap_or_else(||panic!("namespace required"));
+
+        //import only works for strings
+        if let Some(string) = &namespace.string_value{
+            
+            let mut module_path = env::current_dir().unwrap();
+
+            module_path.push(string);
+
+            let module_text = fs::read_to_string(module_path)
+                
+                .unwrap_or_else(|_| panic!("module {string} does not exist in the current directory"));
+
+            interpret_code(module_text)
+
+        } else {
+            panic!("can only import from strings")
+        }
+
+    }), None));
 
     native_functions.insert("printf".to_string(), Value::native_function("printf", vec!["value"], Arc::new(|values| {
 

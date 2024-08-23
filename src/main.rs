@@ -61,7 +61,9 @@ fn main() {
 }
 
 
-fn interpret_code(text : String){
+//allows functions files to return values that can be used by other files 
+//basically modules
+pub fn interpret_code(text : String) -> Value{
     let tokens = lexer(text);
     let ast = parse(tokens.clone());
     let natives : HashMap<String, Value> = init_native_functions();
@@ -69,6 +71,6 @@ fn interpret_code(text : String){
         values : natives.into(),
         enclosing : None
     }));
-    eval_statement(ast, global_env); 
+    eval_statement(ast, global_env)
 
 } 
