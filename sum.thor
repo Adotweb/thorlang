@@ -1,4 +1,3 @@
-
 let p = import("module.thor");
 
 print p;

@@ -88,6 +88,30 @@ while (condition){
   //do something
 }
 ```
+
+
+#### Modules
+
+Thorlang supports modules, to import a module use the import function:
+
+```thor
+
+let something = import("module.thor");
+
+print something;
+
+```
+
+To export something use the return statement at the end of a thor file: 
+
+```thor
+
+let something = 10;
+
+
+return something;
+```
+
 #### Native functions
 
 Of course thorlang has some native functions (this list will be expanded):
