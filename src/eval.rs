@@ -77,9 +77,9 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
         match stmt {
 
             Statement::Return { expression } => {
-                let ret_value = eval(&expression.unwrap(), enclosing.clone());
-    
-
+                let mut ret_value = eval(&expression.unwrap(), enclosing.clone());
+                 
+                ret_value.return_true = false; 
 
                 
                 return ret_value
@@ -119,11 +119,19 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
             //if statements are one to one in the host language, makes it meta-programming...?
             Statement::If { condition, then_branch, else_branch } => {
                 if eval(&condition.unwrap(),  enclosing.clone()).bool_value.expect("can only run if statements on bool values"){
-                    return eval_statement(*then_branch.unwrap(), enclosing.clone())
+                    let mut return_val = eval_statement(*then_branch.unwrap(), enclosing.clone());
+
+                    return_val.return_true = true; 
+
+                    return return_val
                 } else {
 
-                    if let Some(else_block) = else_branch {
-                        return eval_statement(*else_block, enclosing.clone());
+                    if let Some(ref _else_block) = else_branch {
+                        let mut return_val = eval_statement(*else_branch.unwrap(), enclosing.clone());
+
+                        return_val.return_true = true; 
+
+                        return return_val
                     }
                 }
             },
@@ -137,9 +145,15 @@ pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment
                     eval(&condition.clone().unwrap(), enclosing.clone());
                 while condition_true.bool_value.expect("while only accepts bool conditions"){
 
-                    eval_statement(*block.clone().unwrap(), enclosing.clone());
+                    let return_val = eval_statement(*block.clone().unwrap(), enclosing.clone());
 
-                    condition_true = eval(&condition.clone().unwrap(), enclosing.clone())
+                    condition_true = eval(&condition.clone().unwrap(), enclosing.clone());
+
+                    //if return_true is true that means that the above eval function has hit a
+                    //return statement and we need to return the value here
+                    if return_val.return_true {
+                        return return_val
+                    }
                 }
                 
             },
@@ -246,7 +260,11 @@ pub struct Value {
     //and then this string will be put inside the hashmap, this makes things more complicated than
     //they need to be, but also easier than rewriting the entire typesystem
     pub fields : HashMap<String, Value>,
-    pub is_nil : bool
+    pub is_nil : bool,
+
+    //this field will only be used in return and while statements to figure out whether or not we
+    //have to return in while statements 
+    pub return_true : bool
 }
 
 
@@ -324,7 +342,8 @@ impl Default for Value {
             function : None,
             array : vec![],
             fields : HashMap::new(),
-            is_nil:false
+            is_nil:false,
+            return_true : false,
         }
     }
 }

@@ -16,6 +16,18 @@ fn generateObj(arr){
 	return obj;
 }
 
+fn while_test(){
+	let i = 0;	
+	while (i < 10){
+		if(i > 5){
+			return i;
+		}
+
+		i = i + 1;
+	}
+
+}
+
 
 let obj = generateObj([
 	["key1", "value1"],
@@ -23,4 +35,4 @@ let obj = generateObj([
 ]);
 
 
-print obj;
+print while_test();
