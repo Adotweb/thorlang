@@ -136,6 +136,7 @@ And of course Thorlangs native types have methods on them to make your life easi
 
 - [x] turing completeness
 - [ ] removing all weird bugs/making everything stable
+- [ ] removing bad code/pretty- and smartifying everything ive writte so far
 - [ ] better errors and error handling
 - [ ] easifying installation and documentation
 - [ ] std library (for example weblib)
