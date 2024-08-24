@@ -41,6 +41,20 @@ fn consume_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a T
     temp
 }
 
+
+fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> &'a Token{
+    
+    let prev_token = tokens.get(*current_index - 1).unwrap();
+    let token = tokens.get(*current_index).unwrap();
+
+    if token.token_type != token_type{
+        panic!("expected {:?} after {:?} on line {:?}", token_type, prev_token.token_type, token.line)
+    }
+    
+    *current_index += 1;
+    &tokens[*current_index]
+}
+
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
 //individually executed in eval_stmts later (in the context of a global "program")
 
@@ -115,22 +129,16 @@ fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement
 }
 
 fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
-    let mut token = tokens.get(*current_index).unwrap();
-    if token.token_type != TokenType::LPAREN {
-        panic!("expected ( after while on line {:?}", token)
-    }
-
-    token = &consume_token(current_index, tokens);
+    
+    match_token(current_index, tokens, TokenType::LPAREN);
 
     let condition = expr(current_index, tokens);
 
-    if token.token_type != TokenType::RPAREN {
-        panic!("expected ) after condition on line {:?}", token.line)
-    }
 
-    //consume the ")" and the "{" tokens;
-    consume_token(current_index, tokens); 
-    consume_token(current_index, tokens);
+    match_token(current_index, tokens, TokenType::RPAREN);
+
+
+    match_token(current_index, tokens, TokenType::LBRACE);
 
     let block = Box::new(statement(current_index, tokens));
 
@@ -138,22 +146,17 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement 
 }
 
 fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
-    let mut token = tokens.get(*current_index).unwrap();
-    if token.token_type != TokenType::LPAREN {
-        panic!("expected ( after if on line {:?}",token.line)
-    }
 
-    token = &consume_token(current_index, tokens);
+    match_token(current_index, tokens, TokenType::LPAREN);
+
 
     let condition = expr(current_index, tokens);
 
-    if token.token_type != TokenType::RPAREN {
-        panic!("expected ) after if condition on line {:?}", token.line);
-    }
+    match_token(current_index, tokens, TokenType::RPAREN);
 
     //consume the ")" and the "{" (two tokens)
-    consume_token(current_index, tokens);
-    token = &consume_token(current_index, tokens);
+
+    let token = match_token(current_index, tokens, TokenType::LBRACE);
 
     let then_branch = Box::new(statement(current_index, tokens));
 
@@ -174,13 +177,7 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let expression = expr(current_index, tokens);
 
-    let token = tokens.get(*current_index).unwrap();
-    if token.token_type != TokenType::SEMICOLON {
-        panic!("expected ; after {:?} on line {:?}", token, token.line);
-    }
-
-    //consume token (is ";" because throws otherwise) and move on.
-    consume_token(current_index, tokens);
+    match_token(current_index, tokens, TokenType::SEMICOLON);
 
     return Statement::Print {
         expression
@@ -202,13 +199,10 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
 
     let mut args = vec![];
 
-    if token.token_type != TokenType::LPAREN {
-        panic!("expected ( after function name for argument list on line {:?}", token.line)
-    }
+    token = match_token(current_index, tokens, TokenType::LPAREN);
 
-    //consume the paren token
+
     
-    token = &consume_token(current_index, tokens);
 
     while token.token_type != TokenType::RPAREN {
 
@@ -225,16 +219,10 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
         token = tokens.get(*current_index).unwrap();
     }
 
-    //consume rparen
-    
-    token = &consume_token(current_index, tokens);
-
-    if token.token_type != TokenType::LBRACE {
-        panic!("expected block after function declaration on line {:?}", token.line)
-    }
-
-    //consume the rbrace token
+    //consume rparen 
     consume_token(current_index, tokens);
+
+    match_token(current_index, tokens, TokenType::LBRACE);
 
     let block = statement(current_index, tokens);
 
@@ -249,13 +237,7 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
 fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let expression = expr(current_index, tokens);
     
-    let token = tokens.get(*current_index).unwrap();
-
-    if token.token_type != TokenType::SEMICOLON {
-        panic!("expected ; after {:?} on line {:?}", token.token_type, token.line)
-    }
-
-    consume_token(current_index, tokens);
+    match_token(current_index, tokens, TokenType::SEMICOLON);
 
     return Statement::Do {
         expression,
@@ -286,13 +268,7 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
         init = expr(current_index, tokens);
     }
 
-    if token.token_type != TokenType::SEMICOLON {
-        panic!("exptected ; after value {:?}", tokens.get(*current_index));
-    }
-
-    consume_token(current_index, tokens);
-
-    //consume token (is ";" because throws otherwise) and move on.
+    match_token(current_index, tokens, TokenType::SEMICOLON);
 
     return Statement::Variable {
         name,
