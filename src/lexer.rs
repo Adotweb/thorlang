@@ -1,5 +1,6 @@
 use regex::Regex;
 
+//the different token types
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum TokenType {
     LPAREN,
@@ -63,6 +64,7 @@ fn simple_token(token_type: TokenType, line: i32) -> Token {
     };
 }
 
+//returns the next character in the text
 fn peek(current_index: usize, text: &str) -> String {
     //returns char at iter + 1
 

@@ -35,9 +35,10 @@ pub enum Statement {
 }
 
 //consumes the current token and returns the next one
-fn consume_token(current_index: &mut usize, tokens: &Vec<Token>) -> Token {
+fn consume_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token {
     *current_index += 1;
-    tokens.get(*current_index).unwrap().clone()
+    let temp = &tokens[*current_index];
+    temp
 }
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
@@ -53,7 +54,6 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
                 statements.push(return_statement(current_index, tokens));
             }
             TokenType::PRINT => {
-                //consume the token
                 consume_token(current_index, tokens);
                 statements.push(print_statement(current_index, tokens))
             }
@@ -115,22 +115,17 @@ fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement
 }
 
 fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
-    if tokens.get(*current_index).unwrap().token_type != TokenType::LPAREN {
-        panic!(
-            "expected ( after while on line {:?}",
-            tokens.get(*current_index).unwrap().line
-        )
+    let mut token = tokens.get(*current_index).unwrap();
+    if token.token_type != TokenType::LPAREN {
+        panic!("expected ( after while on line {:?}", token)
     }
 
-    consume_token(current_index, tokens);
+    token = &consume_token(current_index, tokens);
 
     let condition = expr(current_index, tokens);
 
-    if tokens.get(*current_index).unwrap().token_type != TokenType::RPAREN {
-        panic!(
-            "expected ) after condition on line {:?}",
-            tokens.get(*current_index).unwrap().line
-        )
+    if token.token_type != TokenType::RPAREN {
+        panic!("expected ) after condition on line {:?}", token.line)
     }
 
     //consume the ")" and the "{" tokens;
@@ -143,33 +138,28 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement 
 }
 
 fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
-    if tokens.get(*current_index).unwrap().token_type != TokenType::LPAREN {
-        panic!(
-            "expected ( after if on line {:?}",
-            tokens.get(*current_index).unwrap().line
-        )
+    let mut token = tokens.get(*current_index).unwrap();
+    if token.token_type != TokenType::LPAREN {
+        panic!("expected ( after if on line {:?}",token.line)
     }
-    //consume the paren token
-    consume_token(current_index, tokens);
+
+    token = &consume_token(current_index, tokens);
 
     let condition = expr(current_index, tokens);
 
-    if tokens.get(*current_index).unwrap().token_type != TokenType::RPAREN {
-        panic!(
-            "expected ) after if condition on line {:?}",
-            tokens.get(*current_index).unwrap().line
-        );
+    if token.token_type != TokenType::RPAREN {
+        panic!("expected ) after if condition on line {:?}", token.line);
     }
 
     //consume the ")" and the "{" (two tokens)
     consume_token(current_index, tokens);
-    consume_token(current_index, tokens);
+    token = &consume_token(current_index, tokens);
 
     let then_branch = Box::new(statement(current_index, tokens));
 
     let mut else_branch = None;
 
-    if tokens.get(*current_index).unwrap().token_type == TokenType::ELSE {
+    if token.token_type == TokenType::ELSE {
         consume_token(current_index, tokens);
         else_branch = Some(Box::new(statement(current_index, tokens)));
     }
@@ -184,8 +174,9 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let expression = expr(current_index, tokens);
 
-    if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
-        panic!("expected ; after {:?}", tokens.get(*current_index));
+    let token = tokens.get(*current_index).unwrap();
+    if token.token_type != TokenType::SEMICOLON {
+        panic!("expected ; after {:?} on line {:?}", token, token.line);
     }
 
     //consume token (is ";" because throws otherwise) and move on.
@@ -198,8 +189,8 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement 
 
 fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
-    let mut token = tokens.get(*current_index).unwrap();
-    let mut function_name : String;
+    let token = tokens.get(*current_index).unwrap();
+    let function_name : String;
 
     if let TokenType::IDENTIFIER(str) = &token.token_type{
         function_name = str.to_string(); 
@@ -217,7 +208,7 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
 
     //consume the paren token
     
-    let mut token = &consume_token(current_index, tokens).clone();
+    token = &consume_token(current_index, tokens);
 
     while token.token_type != TokenType::RPAREN {
 
@@ -236,7 +227,7 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
 
     //consume rparen
     
-    let token = &consume_token(current_index, tokens);
+    token = &consume_token(current_index, tokens);
 
     if token.token_type != TokenType::LBRACE {
         panic!("expected block after function declaration on line {:?}", token.line)
@@ -261,8 +252,7 @@ fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let token = tokens.get(*current_index).unwrap();
 
     if token.token_type != TokenType::SEMICOLON {
-        panic!(
-            "expected ; after {:?} on line {:?}", token.token_type, token.line)
+        panic!("expected ; after {:?} on line {:?}", token.token_type, token.line)
     }
 
     consume_token(current_index, tokens);
@@ -274,7 +264,7 @@ fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
 fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let name : String;
-    let token = tokens.get(*current_index).unwrap().clone();
+    let mut token = tokens.get(*current_index).unwrap().clone();
 
 
     if let TokenType::IDENTIFIER(str) = token.token_type {
@@ -283,19 +273,20 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
         panic!("exptected a variable name")
     }
 
-    let token = &consume_token(current_index, tokens);
+    token = consume_token(current_index, tokens).clone();
     
     let mut init : Expression = Expression::Literal{
         literal : TokenType::NIL
     };
 
+
     if token.token_type == TokenType::EQ {
-    
-        consume_token(current_index, tokens);
+      
+        token = consume_token(current_index, tokens).clone();
         init = expr(current_index, tokens);
     }
 
-    if tokens.get(*current_index).unwrap().token_type != TokenType::SEMICOLON {
+    if token.token_type != TokenType::SEMICOLON {
         panic!("exptected ; after value {:?}", tokens.get(*current_index));
     }
 
