@@ -222,9 +222,16 @@ pub fn stringify_value(val: Value) -> String {
 
             ret_val += "{ ";
 
-            for (key, value) in obj.iter() {
+            for i in 0..obj.values().len(){
+
+                if i > 0 {
+
+                    ret_val += ", ";
+                }
+                let key = obj.keys().nth(i).unwrap();
+                let value = obj.values().nth(i).unwrap();
                 ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
-                ret_val += ", ";
+
             }
 
             ret_val += " }"

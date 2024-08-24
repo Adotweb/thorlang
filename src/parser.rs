@@ -1,4 +1,5 @@
 use crate::{Token, TokenType};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
@@ -32,6 +33,11 @@ pub enum Statement {
     Return {
         expression: Expression,
     },
+    Overload {
+        operator : TokenType, 
+        operands : Vec<Expression>,
+        operation : Vec<Statement>                
+    }
 }
 
 //consumes the current token and returns the next one
@@ -63,6 +69,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
+            TokenType::OVERLOAD => {
+                consume_token(current_index, tokens);
+                statements.push(overload_statment(current_index, tokens));
+            },
             TokenType::RETURN => {
                 consume_token(current_index, tokens);
                 statements.push(return_statement(current_index, tokens));
@@ -119,6 +129,44 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
     return statements;
 }
 
+
+fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
+
+    let operations = vec![
+        TokenType::PLUS, 
+        TokenType::MINUS,
+        TokenType::STAR,
+        TokenType::SLASH,
+        TokenType::BANG,
+        TokenType::EQEQ,
+        TokenType::GREATER,  
+        TokenType::GREATEREQ,
+        TokenType::LESSEQ,
+        TokenType::LESS
+    ];
+
+    let token = tokens.get(*current_index).unwrap();
+    if !operations.contains(&token.token_type){
+        
+        panic!("expected operation token after overload keyword on line {:?}", token.line) 
+
+    }
+
+    let operator = token.token_type.clone();
+
+    consume_token(current_index, tokens);
+
+
+
+    
+
+    Statement::Overload{
+        operator,
+        operands : vec![],
+        operation : vec![]
+    }
+}
+
 fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     let expression = expr(current_index, tokens);
 
@@ -156,7 +204,7 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
     //consume the ")" and the "{" (two tokens)
 
-    let token = match_token(current_index, tokens, TokenType::LBRACE);
+    let token = match_token(current_index, tokens, TokenType::RBRACE);
 
     let then_branch = Box::new(statement(current_index, tokens));
 

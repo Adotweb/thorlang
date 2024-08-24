@@ -3,6 +3,7 @@ use regex::Regex;
 //the different token types
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum TokenType {
+    OVERLOAD,
     LPAREN,
     RPAREN,
     LBRACK,
@@ -191,6 +192,7 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32) -> Ou
     let mut token_type = TokenType::IDENTIFIER(identifier.clone());
     //check if identifier is part of keywords
     match identifier.as_str() {
+        "overload" => token_type = TokenType::OVERLOAD,
         "if" => token_type = TokenType::IF,
         "else" => token_type = TokenType::ELSE,
         "and" => token_type = TokenType::AND,
