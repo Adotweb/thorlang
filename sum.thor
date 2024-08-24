@@ -3,12 +3,14 @@ let p = import("module.thor");
 
 p.count(10);
 
+
 let obj;
 
-obj.array = [0, 1, 2, 3];
+obj.arr = [0, 1, 2];
 
 
 print obj;
+
 
 fn whileTest(n){
 

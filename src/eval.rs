@@ -507,7 +507,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
         }
 
         Expression::FieldCall { callee, key } => {
-            let callee = eval(callee, enclosing.clone());
+            let callee_value = eval(callee, enclosing.clone());
             let key_string: String;
 
             if let Expression::Identifier { name } = *(*key).clone() {
@@ -517,29 +517,29 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
             }
 
             let mut ret_val = Value::default();
-            if let Some(field) = callee.fields.get(&key_string) {
+            if let Some(field) = callee_value.fields.get(&key_string) {
                 ret_val = field.clone();
             }
 
-            match callee.value.clone() {
+            match callee_value.value.clone() {
                 ValueType::String(_str) => {
-                    if let Some(field) = init_string_fields(callee.clone()).get(&key_string) {
+                    if let Some(field) = init_string_fields(callee_value.clone()).get(&key_string) {
                         ret_val = field.clone();
                     }
                 },
                 ValueType::Number(num) => {
-                    if let Some(field) = init_number_fields(callee.clone()).get(&key_string){
+                    if let Some(field) = init_number_fields(callee_value.clone()).get(&key_string){
                         ret_val = field.clone()
                     }
                 },
                 ValueType::Array(arr) => {
                     let mut var_name = "".to_string();
                     
-                    if let Expression::Identifier { name } = *(*key).clone() {
+                    if let Expression::Identifier { name } = *callee.clone() {
                         var_name = name;
                     }
 
-                    if let Some(field) = init_array_fields(callee.clone(), enclosing.clone(), var_name).get(&key_string){
+                    if let Some(field) = init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
                         ret_val = field.clone();
                     }
                 }
