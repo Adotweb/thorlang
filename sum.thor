@@ -1,44 +1,24 @@
 let p = import("module.thor");
 
-print p;
 
-fn generateObj(arr){
+p.count(10);
 
-	let i = 0;
+let obj;
 
-	let obj;
+obj.array = [0, 1, 2, 3];
 
-	while(i < arr.len()){
-			
-		let field = arr[i];	
 
-		obj[field[0]] = field[1];
+print obj;
 
-		i = i + 1;
-	}
+fn whileTest(n){
 
-	return obj;
-}
-
-fn while_test(){
 	let i = 0;	
-	while (i < 10){
-		if(i > 5){
+	while (i < n){
+		if (i == 4){
 			return i;
 		}
-
+		print i;
 		i = i + 1;
 	}
-
 }
 
-
-let obj = generateObj([
-	["key1", "value1"],
-	["key2", nil]
-]);
-
-
-print while_test();
-
-return obj;

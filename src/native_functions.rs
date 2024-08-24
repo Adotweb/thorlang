@@ -1,120 +1,115 @@
-use crate::{Value, ValueType, Environment, eval_statement, Function, interpret_code};
+use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType};
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::rc::Rc;
 use std::cell::RefCell;
-use std::fs;
+use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::rc::Rc;
+use std::sync::Arc;
 
-pub fn init_native_functions() -> HashMap<String, Value>{
-
+pub fn init_native_functions() -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
-    native_functions.insert("import".to_string(), Value::native_function("import", vec!["namespace"], Arc::new(|values|{
+    native_functions.insert(
+        "import".to_string(),
+        Value::native_function(
+            vec!["namespace"],
+            Arc::new(|values| {
+                let namespace = values
+                    .get("namespace")
+                    .unwrap_or_else(|| panic!("namespace required"));
 
-        let namespace = values.get("namespace").unwrap_or_else(||panic!("namespace required"));
+                //import only works for string
 
-        //import only works for strings
-        if let Some(string) = &namespace.string_value{
-            
-            let mut module_path = env::current_dir().unwrap();
+                if let ValueType::String(string) = &namespace.value {
+                    let mut module_path = env::current_dir().unwrap();
 
-            module_path.push(string);
+                    module_path.push(string);
 
-            let module_text = fs::read_to_string(module_path)
-                
-                .unwrap_or_else(|_| panic!("module {string} does not exist in the current directory"));
+                    let module_text = fs::read_to_string(module_path).unwrap_or_else(|_| {
+                        panic!("module {string} does not exist in the current directory")
+                    });
 
-            interpret_code(module_text)
+                    interpret_code(module_text)
+                } else {
+                    panic!("can only import from strings")
+                }
+            }),
+            None,
+        ),
+    );
 
-        } else {
-            panic!("can only import from strings")
-        }
+    native_functions.insert(
+        "printf".to_string(),
+        Value::native_function(
+            vec!["value"],
+            Arc::new(|values| {
+                let value = values.get("value").unwrap();
 
-    }), None));
+                println!("{:?}", value);
 
-    native_functions.insert("printf".to_string(), Value::native_function("printf", vec!["value"], Arc::new(|values| {
+                if let ValueType::String(str) = &value.value{
+                    println!("{str}");
+                } else {
+                    println!("{}", stringify_value(value.clone()));
+                }
 
-        let value = values.get("value").unwrap();
+                Value::default()
+            }),
+            None,
+        ),
+    );
 
-        println!("{:?}", value);
-
-        if value.value_type == ValueType::STRING{
-            println!("{}", value.clone().string_value.unwrap());
-            return Value::default()
-        }
-
-        println!("{}", stringify_value(value.clone()));
-
-        Value::default()
-    }), None));
-
-
-    native_functions.insert("getTime".to_string(), Value::native_function("getTime", vec![], Arc::new(|_values| {
-       
-        
-        Value{value_type: ValueType::NUMBER, number_value:Some(69420.0), ..Value::default()}
-        
-    }), None));
-
+    native_functions.insert(
+        "getTime".to_string(),
+        Value::native_function(
+            vec![],
+            Arc::new(|_values| Value::number(69420.0)),
+            None,
+        ),
+    );
 
     native_functions
 }
 
-
-pub fn init_number_fields(init : Value) -> HashMap<String, Value>{
-    
+pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
     let mut s = HashMap::new();
 
     let init_value = Some(Box::new(init));
 
-    s.insert("magic_number".to_string(), Value{
-        number_value : Some(89989898.0),
-        value_type : ValueType::NUMBER,
-        ..Value::default()
-    });
+   
 
-    s.insert("sqrt".to_string(), Value::native_function("sqrt", vec![], Arc::new(|values| {
-        
-        let self_value = values.get("self").unwrap();
-      
+    s.insert(
+        "sqrt".to_string(),
+        Value::native_function(
+            vec![],
+            Arc::new(|values| {
+                let self_value = values.get("self").unwrap();
 
-        Value::number(self_value.number_value.unwrap().sqrt())
 
-    }), init_value));
+                if let ValueType::Number(num) = self_value.value{
+                    return Value::number(num.sqrt())
+                } else {
+                    panic!("no number?")
+                }
+            }),
+            init_value,
+        ),
+    );
 
-    
-
-    s    
+    s
 }
 
-pub fn init_string_fields(init : Value) -> HashMap<String, Value>{
+pub fn init_string_fields(init: Value) -> HashMap<String, Value> {
     let mut fields = HashMap::new();
 
     let init_value = Some(Box::new(init));
 
-    fields.insert("split".to_string(), Value::native_function("split", vec!["split_string"], Arc::new(|values| {
-
-        let self_value = values.get("self").unwrap();
-
-        let split_string = values.get("split_string").unwrap().string_value.clone().unwrap();
-
-        let split_array = self_value.string_value.clone().unwrap()
-            .split(&split_string)
-            .map(|x| Value::string(x.to_string()))
-            .collect();
-
-        
-        
-        Value::array(split_array)
-
-    }), init_value));
 
     fields
 }
 
-pub fn init_bool_fields(_init : Value) -> HashMap<String, Value>{
+pub fn init_bool_fields(_init: Value) -> HashMap<String, Value> {
     let fields = HashMap::new();
 
     fields
@@ -123,152 +118,111 @@ pub fn init_bool_fields(_init : Value) -> HashMap<String, Value>{
 //methods like push need to be able to alter the environment so we need to pass it in as an
 //argument, also since we need to know what variable (which array) is altered we need to know the
 //name (or later the expression) of the variable to be able to read the value in the env
-pub fn init_array_fields(arr : Value, enclosing : Rc<RefCell<Environment>>, var_name : String) -> HashMap<String, Value>{
-    
+pub fn init_array_fields(
+    arr: Value,
+    enclosing: Rc<RefCell<Environment>>,
+    var_name: String,
+) -> HashMap<String, Value> {
     let mut fields = HashMap::new();
 
     let init_val = Some(Box::new(arr));
 
-    fields.insert("len".to_string(), Value::native_function("len", vec![], Arc::new(|values| {
+    fields.insert(
+        "len".to_string(),
+        Value::native_function(
+            vec![],
+            Arc::new(|values| {
+                let self_value = values.get("self").unwrap();
 
-        let self_value = values.get("self").unwrap();
+                if let ValueType::Array(arr) = &self_value.value {
+                    return Value::number(arr.len() as f64)
+                }
+                else {
+                    panic!("?")
+                } 
+            }),
+            init_val.clone(),
+        ),
+    );
 
-
-        Value::number(self_value.array.clone().len() as f64)
-
-    }), init_val.clone()));
-
-
-    fields.insert("push".to_string(), Value::native_function("push", vec!["thing"], Arc::new(move |values|{
-
-
-        let self_value = values.get("self").unwrap();
-        let thing = values.get("thing").unwrap();
-
-        let mut newarr = self_value.array.clone();
-
-        newarr.push(thing.clone());
-        
-        if var_name != "" {
-            enclosing.borrow_mut().set(var_name.clone(), Value::array(newarr.clone()));
-        }
-
-        Value::array(newarr)
-    }), init_val.clone()));
-
-    fields.insert("map".to_string(), Value::native_function("map", vec!["func"], Arc::new(|values| {
-
-        let self_value = values.get("self").unwrap();
-        let arr = self_value.clone().array;
+    fields.insert(
+        "push".to_string(),
+        Value::native_function(
+            vec!["thing"],
+            Arc::new(move |values| {
+                let self_value = values.get("self").unwrap();
+                let thing = values.get("thing").unwrap();
 
 
-        let proto_func = values.get("func").unwrap().function.clone().unwrap();
+                if let ValueType::Array(arr) = &self_value.value {
+                    let mut newarr = arr.clone();        
 
+                    newarr.push(thing.clone());
 
+                    if var_name != "" {
+                        enclosing
+                            .borrow_mut()
+                            .set(var_name.clone(), Value::array(newarr.clone()));
+                    }
 
+                    return Value::array(newarr)
+                } else {
+                    panic!("")
+                }
 
-        if let Function::NativeFunction { body, needed_arguments, self_value : _ } = proto_func {
-            
-            let newarr = arr.iter().map(|value|{
-                let mut eval_args = HashMap::new();
-                if needed_arguments.len() != 1 {panic!("map functions have to have exactly one argument")}
-                let var_name = needed_arguments.get(0).unwrap();
+            }),
+            init_val.clone(),
+        ),
+    );
 
-                eval_args.insert(var_name.to_string(), value.clone());
-                
-                body(eval_args)
-
-            }).collect();
-
-             
-
-            return Value::array(newarr)
-        }
-
-        if let Function::ThorFunction { body, needed_arguments, closure } = proto_func {
-
-            let newarr : Vec<Value> = arr.iter().map(|value| {
-                if needed_arguments.len() != 1{panic!("map functions have to have exactly one argument")}
-                
-                let var_name = needed_arguments.get(0).unwrap();
-               
-                 
-                let function_env = Environment::new(Some(closure.clone()));
-
-                function_env.borrow_mut().values.borrow_mut().insert(var_name.to_string(), value.clone());
-
-                eval_statement(body.clone(), function_env)
-
-            }).collect();
-
-
-            return Value::array(newarr)
-        }
-
-        //since we have to call a function to each value, we need to have the eval function 
-        //and we have to be able to make a Func call expression
-        
-        
-
-        self_value.clone()
-
-    }), init_val));
-    
 
     fields
 }
 
-pub fn hash_value(val : Value) -> String{
-    return match val.value_type {
-        ValueType::BOOL => val.bool_value.unwrap().to_string(),
-        ValueType::STRING => val.string_value.unwrap(),
-        ValueType::NUMBER => val.number_value.unwrap().to_string(),
-        _ => panic!("cannot hash {:?}", val.value_type)
-    }
-
+pub fn hash_value(val: Value) -> String {
+    return match val.value {
+        ValueType::Bool(b) => b.to_string(),
+        ValueType::Number(n) => n.to_string(),
+        ValueType::String(s) => s.to_string(), 
+        _ => panic!("cannot hash {:?}", val.value),
+    };
 }
 
-pub fn stringify_value(val : Value) -> String{
-
+pub fn stringify_value(val: Value) -> String {
     let mut ret_val = "".to_string();
 
-    match val.value_type {
-        ValueType::ARRAY => {
-            
-            let arr = val.array;
-            
+    match val.value {
+        ValueType::Array(arr) => {
             ret_val += "[";
 
             for i in 0..arr.len() {
-
-                if i > 0{
+                if i > 0 {
                     ret_val += ", "
-                } 
-                
+                }
+
                 ret_val += &stringify_value(arr.get(i).unwrap().clone())
             }
 
             ret_val += "]"
-
+        }, 
+        ValueType::Bool(b) => {
+            ret_val = b.to_string();
         },
-        ValueType::BOOL => {
-            ret_val = val.bool_value.unwrap().to_string();
+        ValueType::Number(b) => {
+            ret_val = b.to_string();
         },
-        ValueType::STRING => {
-            ret_val = r#"""#.to_string()+ &val.string_value.unwrap() + r#"""#;
+        ValueType::String(b) => {
+            ret_val = b.to_string();
         },
-        ValueType::NIL => {
-            ret_val = "NIL".to_string();
-        },
-        ValueType::NUMBER => {
-            ret_val = val.number_value.unwrap().to_string();
-        },
-        ValueType::OBJECT => {
+        ValueType::Nil => {
+            ret_val = "nil".to_string();
+        }
+        ValueType::Object => {
             let obj = val.fields;
 
             ret_val += "{ ";
 
-            for (key, value) in obj.iter(){
+            for (key, value) in obj.iter() {
                 ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
                 ret_val += ", ";
             }

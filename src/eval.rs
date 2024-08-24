@@ -1,51 +1,45 @@
-use crate::{TokenType, LiteralType, Expression, Statement, 
-    init_number_fields, init_array_fields, init_bool_fields, init_string_fields,
-    stringify_value, hash_value};
-use std::collections::HashMap;
+use crate::{
+    hash_value, init_array_fields, init_bool_fields, init_number_fields, init_string_fields,
+    stringify_value, Expression, Statement, TokenType,
+};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 use std::sync::Arc;
 //eval statements
-
-
 
 //this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
 //environment object at will (its just some trickery so we can do that) terrible performance
 //decision, but makes it work
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
-    pub values : RefCell<HashMap<String, Value>>,
-    pub enclosing : Option<Rc<RefCell<Environment>>>,
+    pub values: RefCell<HashMap<String, Value>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
-
 
 //its easier to instantiate a get and set function that automatically search the entire env tree
 //(for existence for example) to
 //look for a value than doing that over and over again in the later following code
 impl Environment {
-    pub fn new(enclosing : Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>>{
-       
-        Rc::new(RefCell::new(Environment{
+    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Environment {
             values: RefCell::new(HashMap::new()),
-            enclosing
+            enclosing,
         }))
     }
 
-
-
-    pub fn get(&self, key : &str) -> Option<Value> {
-       if let Some(value) = self.values.borrow().get(key) {
-           Some(value.clone())
-       } else if let Some(ref parent) = self.enclosing{
-           parent.borrow().get(key)
-       } else {
-           None
-       }
+    pub fn get(&self, key: &str) -> Option<Value> {
+        if let Some(value) = self.values.borrow().get(key) {
+            Some(value.clone())
+        } else if let Some(ref parent) = self.enclosing {
+            parent.borrow().get(key)
+        } else {
+            None
+        }
     }
 
-
-    pub fn set(&self, key : String, value : Value){
+    pub fn set(&self, key: String, value: Value) {
         if self.values.borrow().contains_key(&key) {
             self.values.borrow_mut().insert(key, value);
         } else if let Some(ref parent) = self.enclosing {
@@ -56,855 +50,713 @@ impl Environment {
     }
 }
 
-
-
-
-
 //here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
-//of the env tree is not needed it automatically disappears, meaning that we can only 
+//of the env tree is not needed it automatically disappears, meaning that we can only
 // - mutate variables that exist
 // - add variables to the currently used branch of the env tree
 //
 //this ensures that as soon as a branch is exited (i.e a block is done executing) we will have the
 //old values back.
-pub fn eval_statement(stmts : Vec<Statement>, enclosing : Rc<RefCell<Environment>>) -> Value{
-    
-    
-
-    
-
+pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>) -> Value {
     for stmt in stmts {
         match stmt {
-
             Statement::Return { expression } => {
-                let mut ret_value = eval(&expression.unwrap(), enclosing.clone());
-                 
-                ret_value.return_true = false; 
+                let mut ret_value = eval(&expression, enclosing.clone());
 
-                
-                return ret_value
+                ret_value.return_true = false;
+
+                return ret_value;
             }
 
-            Statement::Function { name, body, arguments } => {
-                
+            Statement::Function {
+                name,
+                body,
+                arguments,
+            } => {
                 let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
 
-                let function = Value{
-                    value_type : ValueType::THORFUNCTION,
-                    string_value : Some(name.clone()),
-                    function : Some(Function::ThorFunction {
-                        body : *body.unwrap(),
-                        needed_arguments : arguments.unwrap(),
-                        closure
+                let function = Value::thor_function(arguments, *body, closure);
 
-                    }),
-                    ..Value::default()
-                };
-               
-
-                enclosing.borrow_mut().values.borrow_mut().insert(name, function);
-
-
-                 
+                enclosing
+                    .borrow_mut()
+                    .values
+                    .borrow_mut()
+                    .insert(name, function);
             }
             //a block just opens a new env tree branch
             Statement::Block { statements } => {
-
-
                 let local_scope = Environment::new(Some(enclosing.clone()));
                 eval_statement(statements, local_scope.clone());
-               
-            },
+            }
 
             //if statements are one to one in the host language, makes it meta-programming...?
-            Statement::If { condition, then_branch, else_branch } => {
-                if eval(&condition.unwrap(),  enclosing.clone()).bool_value.expect("can only run if statements on bool values"){
-                    let mut return_val = eval_statement(*then_branch.unwrap(), enclosing.clone());
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if let ValueType::Bool(bool) = eval(&condition, enclosing.clone()).value {
+                    if bool {
+                        let mut return_val =
+                            eval_statement(*then_branch, enclosing.clone());
 
-                    return_val.return_true = true; 
+                        return_val.return_true = true;
 
-                    return return_val
-                } else {
+                        return return_val;
+                    } else {
+                        if let Some(ref _else_block) = else_branch {
+                            let mut return_val =
+                                eval_statement(*else_branch.unwrap(), enclosing.clone());
 
-                    if let Some(ref _else_block) = else_branch {
-                        let mut return_val = eval_statement(*else_branch.unwrap(), enclosing.clone());
+                            return_val.return_true = true;
 
-                        return_val.return_true = true; 
-
-                        return return_val
+                            return return_val;
+                        }
                     }
                 }
-            },
-
+            }
 
             //still need to fix returns from while as i dont have a good way of detecing whether or
             //not something got returned....
             Statement::While { condition, block } => {
+                let mut condition_value = eval(&condition.clone(), enclosing.clone());
+                while let ValueType::Bool(bool) = condition_value.value {
+                    if bool {
 
-                let mut condition_true = 
-                    eval(&condition.clone().unwrap(), enclosing.clone());
-                while condition_true.bool_value.expect("while only accepts bool conditions"){
+                        let return_val = eval_statement(*block.clone(), enclosing.clone());
+                        condition_value = eval(&condition.clone(), enclosing.clone());
 
-                    let return_val = eval_statement(*block.clone().unwrap(), enclosing.clone());
 
-                    condition_true = eval(&condition.clone().unwrap(), enclosing.clone());
-
-                    //if return_true is true that means that the above eval function has hit a
-                    //return statement and we need to return the value here
-                    if return_val.return_true {
-                        return return_val
+                        //if return_true is true that means that the above eval function has hit a
+                        //return statement and we need to return the value here
+                        if return_val.return_true {
+                            return return_val;
+                        }
+                    } else {
+                        return Value::default()
                     }
                 }
-                
-            },
-            
+            }
+
             //print is built in
             Statement::Print { expression } => {
-            
-                let result = eval(&expression.unwrap(), enclosing.clone());
-               
-                if result.value_type == ValueType::STRING{
-                    println!("{}", result.string_value.unwrap().clone());
-                    return Value::default();
+                let result = eval(&expression, enclosing.clone());
+
+                if let ValueType::String(ref str) = result.value {
+                    println!("{str}");
                 }
 
                 println!("{}", stringify_value(result));
-
-            },
+            }
 
             Statement::Do { expression } => {
-                //runs expressions 
-                eval(&expression.unwrap(), enclosing.clone());
-            },
+                //runs expressions
+                eval(&expression, enclosing.clone());
+            }
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "enclosing"
             Statement::Variable { name, expression } => {
-                
-                let val = eval(&expression.unwrap(), enclosing.clone());
+                let val = eval(&expression, enclosing.clone());
 
                 enclosing.borrow_mut().values.borrow_mut().insert(name, val);
             }
-
-        }      
-
-    
-       
-
-                  
-
+        }
     }
 
     Value::default()
 }
 
-
-
 //eval expressions
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum ValueType {
-    STRING, NUMBER, BOOL, NIL, NATIVEFUNCTION, THORFUNCTION, ARRAY, OBJECT
-}
 
 #[derive(Clone)]
 pub enum Function {
-    NativeFunction {body : Arc<dyn Fn(HashMap<String, Value>) -> Value>, needed_arguments : Vec<String>, self_value : Option<Box<Value>>}, 
-    ThorFunction {body : Vec<Statement>, needed_arguments : Vec<String>, closure : Rc<RefCell<Environment>>}
+    NativeFunction {
+        body: Arc<dyn Fn(HashMap<String, Value>) -> Value>,
+        needed_arguments: Vec<String>,
+        self_value: Option<Box<Value>>,
+    },
+    ThorFunction {
+        body: Vec<Statement>,
+        needed_arguments: Vec<String>,
+        closure: Rc<RefCell<Environment>>,
+    },
 }
-
 
 //later i have to implement equality for functions
 //since we cannot create a function that is "equal" in any sense to a native function it will only
 //be the case for thorfunctions (equality on arguments and body, the env is not important when )
 impl PartialEq for Function {
-    fn eq(&self, _other: &Self) -> bool {false}
-    fn ne(&self, _other: &Self) -> bool {true}
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+    fn ne(&self, _other: &Self) -> bool {
+        true
+    }
 }
 
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self{
-
-            Function::NativeFunction { body : _, needed_arguments, self_value : _ } => {
-                f.debug_struct("Function")
-                    .field("args", needed_arguments)
-                    .finish()
-            }, 
-            Function::ThorFunction { body : _, needed_arguments, closure : _ } => {
-                f.debug_struct("Function")
-                    .field("args", needed_arguments)
-                    .finish()
-            }
+        match self {
+            Function::NativeFunction {
+                body: _,
+                needed_arguments,
+                self_value: _,
+            } => f
+                .debug_struct("Function")
+                .field("args", needed_arguments)
+                .finish(),
+            Function::ThorFunction {
+                body: _,
+                needed_arguments,
+                closure: _,
+            } => f
+                .debug_struct("Function")
+                .field("args", needed_arguments)
+                .finish(),
         }
-
     }
 }
 
 
-
-
+//i rewrote this to improve the code readability and logic, unlike before we can just get the value
+//given that it has some type, data that is not represantable simply cant exist and we dont have no
+//unwraps all over the place anymore
 #[derive(PartialEq, Debug, Clone)]
-pub struct Value {
-    pub value_type : ValueType,
-    pub string_value : Option<String>,
-    pub number_value : Option<f64>,
-    pub bool_value : Option<bool>, 
-    pub function : Option<Function>,
-    pub array : Vec<Value>,
-    //methods always have access to "self" this means that just returning a normal native function
-    //doesnt work, because we cannot change closures once passed in. So we use currying, makes
-    //things a bit more complicated, but no user will ever see this.
-    //fields will be accessible by things other than strings, however i cannot just hash f64s for
-    //some reason and will need to implement own hashing algorithm to convert a Value to a string
-    //and then this string will be put inside the hashmap, this makes things more complicated than
-    //they need to be, but also easier than rewriting the entire typesystem
-    pub fields : HashMap<String, Value>,
-    pub is_nil : bool,
-
-    //this field will only be used in return and while statements to figure out whether or not we
-    //have to return in while statements 
-    pub return_true : bool
+pub enum ValueType {
+    String(String),
+    Number(f64),
+    Bool(bool),
+    Function(Function),
+    Array(Vec<Value>),
+    Object,
+    Nil,
 }
 
+//this is still the same, everything 
+#[derive(PartialEq, Debug, Clone)]
+pub struct Value {
+    pub value: ValueType,
+    pub fields: HashMap<String, Value>,
+    pub return_true: bool,
+}
 
 //to print arrays and later objects nicely
 
-
 impl Value {
-    pub fn array(value : Vec<Value>) -> Value{
-
+    pub fn array(value: Vec<Value>) -> Value {
         Value {
-            value_type : ValueType::ARRAY,
-            array : (value),
+            value: ValueType::Array(value),
             ..Value::default()
         }
     }
 
-    pub fn number(value : f64) -> Value{
-        Value{
-            value_type : ValueType::NUMBER, 
-            number_value : Some(value),
+    pub fn number(value: f64) -> Value {
+        Value {
+            value: ValueType::Number(value),
             ..Value::default()
-        } 
+        }
     }
 
-    pub fn string(value : String) -> Value{
-        Value{
-            value_type : ValueType::STRING, 
-            string_value : Some(value),
+    pub fn string(value: String) -> Value {
+        Value {
+            value: ValueType::String(value),
             ..Value::default()
-        } 
+        }
     }
 
-
-    pub fn bool(value : bool) -> Value{
-        Value{
-            value_type : ValueType::NUMBER, 
-            bool_value : Some(value),
+    pub fn bool(value: bool) -> Value {
+        Value {
+            value: ValueType::Bool(value),
             ..Value::default()
-        } 
+        }
     }
 
     pub fn nil() -> Value {
-        Value{
-            is_nil : true,
-            value_type : ValueType::NIL,
+        Value {
+            value: ValueType::Nil,
             ..Value::default()
         }
     }
 
-    pub fn native_function(name : &str, arguments : Vec<&str>, body : Arc<dyn Fn(HashMap<String, Value>) -> Value>, self_value : Option<Box<Value>>) -> Value{
-        Value{
-            value_type:ValueType::NATIVEFUNCTION,
-            string_value:Some(name.to_string()),
-            function : Some(Function::NativeFunction{
+    pub fn native_function(
+        arguments: Vec<&str>,
+        body: Arc<dyn Fn(HashMap<String, Value>) -> Value>,
+        self_value: Option<Box<Value>>,
+    ) -> Value {
+        Value {
+            value: ValueType::Function(Function::NativeFunction {
                 self_value,
-                needed_arguments : arguments.iter().map(|x| x.to_string()).collect(),
+                needed_arguments: arguments.iter().map(|x| x.to_string()).collect(),
                 body,
             }),
             ..Value::default()
         }
     }
 
+    pub fn thor_function(
+        arguments: Vec<String>,
+        body: Vec<Statement>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> Value {
+        Value {
+            value: ValueType::Function(Function::ThorFunction {
+                needed_arguments: arguments,
+                body,
+                closure,
+            }),
+            ..Value::default()
+        }
+    }
 }
-
-
-
 
 impl Default for Value {
     fn default() -> Value {
         Value {
-            value_type:ValueType::NIL, 
-            string_value:None,
-            number_value:None,
-            bool_value:None,
-            function : None,
-            array : vec![],
-            fields : HashMap::new(),
-            is_nil:false,
-            return_true : false,
+            value: ValueType::Nil,
+            fields: HashMap::new(),
+            return_true: false,
         }
     }
 }
 
-//order of precedence is as follows 
+//order of precedence is as follows
 // eval_statement -> eval -> eval_binary -> eval_unary -> eval_literal
 
-
-
-fn eval_unary(operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>)  -> Value{
-
-    let r = eval(right, enclosing);      
+fn eval_unary(
+    operator: TokenType,
+    right: &Expression,
+    enclosing: Rc<RefCell<Environment>>,
+) -> Value {
+    let r = eval(right, enclosing);
     match operator {
-
         //only negate logically when is bool
         TokenType::BANG => {
-            if r.value_type == ValueType::BOOL{
-                return Value {
-                    value_type : ValueType::BOOL, 
-                    bool_value : Some(!r.bool_value.unwrap()), 
-                    ..Value::default()
-                }
-            }  else {
+            if let ValueType::Bool(bool) = r.value {
+                return Value::bool(!bool);
+            } else {
                 panic!("can only logically negate bools")
             }
-        },
+        }
         //only negate arithmetically when is number
         TokenType::MINUS => {
-
-            if r.value_type == ValueType::NUMBER {
-                
-                return Value{
-                    value_type:ValueType::NUMBER,
-                    number_value : Some(r.number_value.unwrap() * -1.0_f64),
-                    ..Value::default()
-                }
-
+            if let ValueType::Number(num) = r.value {
+                return Value::number(-num);
             } else {
                 panic!("can only negate numbers")
             }
-        },
+        }
         _ => {
             panic!("unary operation not allowed")
         }
     }
-
 }
-
 
 //evaluates the "atoms" these can not be further reduced and bubble up to form more complex data
 //(not types but composed values like 1 + 2)
-fn eval_literal (literal : LiteralType) -> Value{
-
-        //turn literaltype into value wrapped in value_type
-        match literal {
-            LiteralType::NIL => {
-                return Value::nil()
-            }, 
-            LiteralType::BOOL { value } => {
-                return Value::bool(value)
-            }, 
-            LiteralType::NUMBER { value } => {
-    
-                return Value::number(value)                
-
-            }, 
-            LiteralType::STRING { value } => {
-                return Value::string(value) 
-            }
-
-        } 
-
-}
-
-
-//just a helper to ensure that adding a string and a number throws
-fn check_type_equality(value_1 : &Value, value_2 : &Value, expected_type : ValueType) -> bool{
-    
-
-    if value_1.value_type == value_2.value_type && value_1.value_type == expected_type {
-        return true;
-    } else {
-        return false
+fn eval_literal(literal: TokenType) -> Value {
+    //turn literaltype into value wrapped in value_type
+    match literal {
+        TokenType::NIL => return Value::nil(),
+        TokenType::TRUE  => {
+            let mut ret_val = Value::bool(true);
+            ret_val.fields = init_bool_fields(ret_val.clone());
+            return ret_val
+        },
+        TokenType::FALSE  => {
+            let mut ret_val = Value::bool(false);
+            ret_val.fields = init_bool_fields(ret_val.clone());
+            return ret_val
+        },
+        TokenType::NUMBER(value) => { 
+            let mut ret_val = Value::number(value.parse().unwrap());
+            ret_val.fields = init_bool_fields(ret_val.clone());
+            return ret_val
+        },
+        TokenType::STRING(value) => {
+            let mut ret_val = Value::string(value);
+            ret_val.fields = init_bool_fields(ret_val.clone());
+            return ret_val
+        },
+        _ => panic!("this is not a literal")
     }
-
 }
-
 
 //all the possible binary operation combinations.
-fn eval_binary(left : &Expression, operator : TokenType, right : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value {
-
+fn eval_binary(
+    left: &Expression,
+    operator: TokenType,
+    right: &Expression,
+    enclosing: Rc<RefCell<Environment>>,
+) -> Value {
     let l = eval(left, enclosing.clone());
     let r = eval(right, enclosing);
 
-
-
     match operator {
-
-
-        //almost every binary operation can only be applied to values of the same type 
-        //check type equality, checks if two types are of the same type and if they are equal to
-        //some expected_type numbers in the case of division for example
-        //
-        //if the two numbers are not equal and of the expected type the programm will throw
+        // the if let matches if the value of l and r both match the valuetype if there is no match
+        // at all the match arm throws
         TokenType::PLUS => {
-             if check_type_equality(&l, &r, ValueType::STRING) {
-                return Value{
-                    value_type: ValueType::STRING,
-                    string_value : Some(l.string_value.unwrap() + &r.string_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-             if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type: ValueType::NUMBER,
-                    number_value : Some(l.number_value.unwrap() + r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-             panic!("can only add strings and numbers")
-        }, 
+            if let (ValueType::String(l), ValueType::String(r)) = (l.value.clone(), r.value.clone())
+            {
+                return Value::string(l + &r);
+            }
+
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::number(l + r);
+            }
+
+            panic!("can only add strings and numbers")
+        }
         TokenType::MINUS => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type: ValueType::NUMBER,
-                    number_value : Some(l.number_value.unwrap() - r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::number(l + r);
+            }
 
-             panic!("can only subtract numbers")
-        }, 
+            panic!("can only subtract numbers")
+        }
         TokenType::STAR => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type: ValueType::NUMBER,
-                    number_value : Some(l.number_value.unwrap() * r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-
-             panic!("can only multiply numbers")
-        }, 
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::number(l * r);
+            }
+            panic!("can only multiply numbers")
+        }
         TokenType::SLASH => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type: ValueType::NUMBER,
-                    number_value : Some(l.number_value.unwrap() / r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-
-             panic!("can only divide numbers")
-        }, 
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::number(l / r);
+            }
+            panic!("can only divide numbers")
+        }
         TokenType::LESSEQ => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type : ValueType::BOOL,
-                    bool_value : Some(l.number_value.unwrap() <= r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-
-
-             panic!("can only compare numbers")
-        },
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::bool(l <= r);
+            }
+            panic!("can only compare numbers")
+        }
         TokenType::LESS => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type : ValueType::BOOL,
-                    bool_value : Some(l.number_value.unwrap() < r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
-
-             panic!("can only compare numbers")
-        }, 
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::bool(l < r);
+            }
+            panic!("can only compare numbers")
+        }
         TokenType::GREATEREQ => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type : ValueType::BOOL,
-                    bool_value : Some(l.number_value.unwrap() >= r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::bool(l >= r);
+            }
 
-             panic!("can only compare numbers")
-        }, 
+            panic!("can only compare numbers")
+        }
         TokenType::GREATER => {
-            if check_type_equality(&l, &r, ValueType::NUMBER) {
-                return Value{
-                    value_type : ValueType::BOOL,
-                    bool_value : Some(l.number_value.unwrap() > r.number_value.unwrap()),
-                    ..Value::default()
-                } 
-             }
+            if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
+                return Value::bool(l > r);
+            }
 
-             panic!("can only compare numbers")
-        }, 
+            panic!("can only compare numbers")
+        }
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
         //same
         TokenType::EQEQ => {
-            return Value{
-                value_type: ValueType::BOOL, 
-                bool_value : Some(l == r),
-                ..Value::default()
-            } 
-        }, 
-        TokenType::BANGEQ => {
-            return Value{
-                value_type: ValueType::BOOL, 
-                bool_value : Some(l != r),
-                ..Value::default()
-            }
+            return Value::bool(l == r);
         }
-
-
-        _ => ()
+        TokenType::BANGEQ => {
+            return Value::bool(l != r);
+        }
+        _ => (),
     }
 
-
-    return Value::default()
+    return Value::default();
 }
 
-pub fn eval(expr : &Expression, enclosing : Rc<RefCell<Environment>>) -> Value{
-
+pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
     //recursivley traverses the expr tree.
     match expr {
-
         //retrieve has to work for arrays like this array[number];
         //and for objects like this object[key];
         Expression::Retrieve { retrievee, key } => {
-            let key_value = eval(key, enclosing.clone());
+            let key = eval(key, enclosing.clone());
 
-            let retrievee_value = eval(retrievee, enclosing.clone());
+            let retrievee = eval(retrievee, enclosing.clone());
 
-            match retrievee_value.value_type{
-
-
-                ValueType::ARRAY => {
-                    if key_value.value_type != ValueType::NUMBER{
-                        panic!("can only access arrays with numbers")
+            match (retrievee.value.clone(), key.value) {
+                //the case of array and number
+                (ValueType::Array(arr), ValueType::Number(num)) => {
+                    if num.round() != num {
+                        panic!("can only access arrays with whole numbers");
                     }
-
-                    if key_value.number_value.unwrap().round() != key_value.number_value.unwrap(){
-                        panic!("can only access array with whole numbers")
-                    }
-
-                    let key_number = key_value.number_value.unwrap() as usize;
-
-                    if retrievee_value.value_type != ValueType::ARRAY{
-                        panic!("can only access arrays with brackets");
-                    }
-
-
-        
-                    let return_value = retrievee_value.array
-                        .get(key_number).unwrap().clone();
-
-            
-
-                    return_value 
-                }, 
-                ValueType::OBJECT => {
-                    let key = if key_value.value_type == ValueType::STRING {key_value.string_value.unwrap()} else {stringify_value(key_value)};
-
-                    
-
-
-                    retrievee_value.fields.get(&key).unwrap_or(&Value::nil()).clone()
+                    arr.get(num as usize)
+                        .unwrap_or_else(|| {
+                            panic!("index : {} is out of bound : {}", num, arr.len())
+                        })
+                        .clone()
                 }
-
-                _ => panic!("{:?} is not retrievable", retrievee_value)
+                //the case of object and string
+                (ValueType::Object, ValueType::String(str)) => retrievee
+                    .clone()
+                    .fields
+                    .get(&str)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "field {} does not exist on object {}",
+                            str,
+                            stringify_value(retrievee)
+                        )
+                    })
+                    .clone(),
+                _ => panic!("{:?} is not retrievable", retrievee),
             }
-              
-        },
+        }
 
         Expression::FieldCall { callee, key } => {
+            let callee = eval(callee, enclosing.clone());
+            let key_string: String;
 
-            let callee_value = eval(callee, enclosing.clone());
-            let key_string : String;
-
-
-            if let Expression::Identifier { name } = *(*key).clone(){
+            if let Expression::Identifier { name } = *(*key).clone() {
                 key_string = name;
             } else {
-                
                 key_string = hash_value(eval(key, enclosing.clone()));
             }
 
-
             let mut ret_val = Value::default();
-            if let Some(field) = callee_value.fields.get(&key_string){
-               
+            if let Some(field) = callee.fields.get(&key_string) {
                 ret_val = field.clone();
-
             }
-    
 
-            match callee_value.value_type {
-
-                ValueType::NUMBER => {
-                    if let Some(field) = init_number_fields(callee_value.clone()).get(&key_string){
+            match callee.value.clone() {
+                ValueType::String(_str) => {
+                    if let Some(field) = init_string_fields(callee.clone()).get(&key_string) {
                         ret_val = field.clone();
                     }
                 },
-                ValueType::ARRAY => {
+                ValueType::Number(num) => {
+                    if let Some(field) = init_number_fields(callee.clone()).get(&key_string){
+                        ret_val = field.clone()
+                    }
+                },
+                ValueType::Array(arr) => {
                     let mut var_name = "".to_string();
-                    if let Expression::Identifier { name } = *callee.clone() {
-                        var_name = name; 
+                    
+                    if let Expression::Identifier { name } = *(*key).clone() {
+                        var_name = name;
                     }
 
-                    if let Some(field) = init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
+                    if let Some(field) = init_array_fields(callee.clone(), enclosing.clone(), var_name).get(&key_string){
                         ret_val = field.clone();
                     }
                 }
-                ValueType::BOOL => {
-                    if let Some(field) = init_bool_fields(callee_value.clone()).get(&key_string){
-                        ret_val = field.clone();
-                    }
-                },
-                ValueType::STRING => {
-                    if let Some(field) = init_string_fields(callee_value.clone()).get(&key_string){
-                        ret_val = field.clone();
-                    }
-                }
-                _ => ()
-
-            } 
-            
-             
-            
+                _ => (),
+            }
 
             ret_val
-        },
+        }
 
         Expression::Array { values } => {
-           
-            let mut value_array : Vec<Value> = vec![];
+            let mut value_array: Vec<Value> = vec![];
 
-            let mut array = Value{
-                value_type: ValueType::ARRAY,
-                ..Value::default()
-            };
-                
-            for value_expression in values{
-                let value = eval(value_expression, enclosing.clone()); 
+            for value_expression in values {
+                let value = eval(value_expression, enclosing.clone());
 
                 value_array.push(value);
             }
 
-            array.array = value_array.clone();
-
-
-            array
-        },
-        Expression::Call { callee, paren : _, arguments } => {
-          
-
+            Value::array(value_array)
+        }
+        Expression::Call {
+            callee,
+            paren: _,
+            arguments,
+        } => {
             //let eval_callee = eval(callee, enclosing.clone());
-            
-            let function_value = eval(callee, enclosing.clone());
 
-            
+            let function = eval(callee, enclosing.clone());
 
-
-            if let Function::NativeFunction { body, needed_arguments, self_value } = function_value.function.clone().unwrap() {
-
-
-                    //check if arity of args is ok
-                    if needed_arguments.len() != arguments.len() {
-                        panic!("function {:?} requires {:?} arguments but got {:?}", 
-                               function_value.string_value.unwrap(), 
-                               needed_arguments.len(),
-                               arguments.len())
-                    }
-
-                    let mut eval_args : HashMap<String, Value> = HashMap::new(); 
-
-                    for i in 0..arguments.len() {
-
-                        let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
-                        let arg_name = needed_arguments.get(i).unwrap();
-                        
-                        eval_args.insert(arg_name.to_string(), arg);
-                    }
-
-                    if let Some(sv) = self_value {
-                        eval_args.insert("self".to_string(), *sv.clone());
-                    }
-
-                    let function_value = body(eval_args);
-               
-
-                    return function_value
-
-            } 
-                
-            if let Function::ThorFunction { body, needed_arguments, closure } = function_value.function.clone().unwrap() {
+            if let ValueType::Function(Function::NativeFunction {
+                body,
+                needed_arguments,
+                self_value,
+            }) = function.clone().value
+            {
+                //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
-                        panic!("Expected {} arguments but got {}", needed_arguments.len(), arguments.len());
-                    }
+                    panic!(
+                        "function {:?} requires {:?} arguments but got {:?}",
+                        function,
+                        needed_arguments.len(),
+                        arguments.len()
+                    )
+                }
 
-                    // Evaluate the arguments in the current environment
-                    let mut eval_args: HashMap<String, Value> = HashMap::new();
-                    for i in 0..arguments.len() {
-                        let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
-                        let arg_name = needed_arguments.get(i).unwrap();
-                        eval_args.insert(arg_name.to_string(), arg);
-                    }
+                let mut eval_args: HashMap<String, Value> = HashMap::new();
 
-                    // Create a new environment for the function call, using the closure's environment
-                    let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
-                    for (name, value) in eval_args {
-                        function_env.borrow_mut().values.borrow_mut().insert(name, value);
-                    }
+                for i in 0..arguments.len() {
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                    let arg_name = needed_arguments.get(i).unwrap();
+
+                    eval_args.insert(arg_name.to_string(), arg);
+                }
+
+                if let Some(sv) = self_value {
+                    eval_args.insert("self".to_string(), *sv.clone());
+                }
+
+                let function = body(eval_args);
+
+                return function;
+            }
+
+            if let ValueType::Function(Function::ThorFunction {
+                body,
+                needed_arguments,
+                closure,
+            }) = function.value
+            {
+                if needed_arguments.len() != arguments.len() {
+                    panic!(
+                        "Expected {} arguments but got {}",
+                        needed_arguments.len(),
+                        arguments.len()
+                    );
+                }
+
+                // Evaluate the arguments in the current environment
+                let mut eval_args: HashMap<String, Value> = HashMap::new();
+                for i in 0..arguments.len() {
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                    let arg_name = needed_arguments.get(i).unwrap();
+                    eval_args.insert(arg_name.to_string(), arg);
+                }
+
+                // Create a new environment for the function call, using the closure's environment
+                let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
+                for (name, value) in eval_args {
+                    function_env
+                        .borrow_mut()
+                        .values
+                        .borrow_mut()
+                        .insert(name, value);
+                }
 
                 eval_statement(body, function_env)
-
-
+            } else {
+                panic!("error in function {:?}", function)
             }
-
-
-            else {
-                panic!("error in function {:?}", function_value.string_value.unwrap())
-            }
-
-            
-        },
+        }
 
         Expression::Assignment { target, value } => {
-          
             let eval_value = eval(value, enclosing.clone());
-         
-
 
             //iteratively go over the fields (creating them when they do not exist) and putting in
-            //the value at the deepest level 
+            //the value at the deepest level
             //
             //iterating over order (a vector of keys, can be numbers for arrays or strings for
             //objects)
             let order = generate_field_order(target.clone(), enclosing.clone());
-        
 
-            let value : &mut Value = &mut enclosing
+            let value: &mut Value = &mut enclosing
                 .borrow()
                 .get(&order.get(0).unwrap().get_string().unwrap().to_string())
-                .unwrap().clone();
-
+                .unwrap()
+                .clone();
 
             if order.len() == 1 {
-                enclosing.borrow_mut().set(order.get(0).unwrap().get_string().unwrap(), eval_value.clone());
+                enclosing.borrow_mut().set(
+                    order.get(0).unwrap().get_string().unwrap(),
+                    eval_value.clone(),
+                );
 
-                return eval_value
+                return eval_value;
             }
 
-            let mut current : &mut Value = value;
-
+            let mut current: &mut Value = value;
 
             for i in 1..(order.len() - 1) {
-                
                 //nil values that get fields reassigned become objects
-                if current.value_type == ValueType::NIL {
-                    current.value_type = ValueType::OBJECT
+
+                if let FieldKey::Int(num) = order.get(i).unwrap() {
+                    if let ValueType::Array(ref mut arr) = current.value {
+                        let current_mut = arr
+                            .get_mut(*num as usize)
+                            .unwrap_or_else(|| panic!("something went wrong"));
+
+                        current = current_mut
+                    }
                 }
-                //cannot be out of bounds
-                match order.get(i).unwrap(){
 
+                if let FieldKey::String(str) = order.get(i).unwrap() {
+                    let field = current
+                        .fields
+                        .get_mut(str)
+                        .unwrap_or_else(|| panic!("field {str} does not exist on object"));
 
-                    FieldKey::String(string) => {
-                        
-
-                        if let Some(_field) = current.fields.get(string){
-                            
-                        
-                            current = current.fields.get_mut(string).unwrap();
-                        } else {
-                            // we can be sure that i is in bounds and this is a string
-                            current.fields.insert(order.get(i).unwrap().get_string().unwrap(), Value::default());
-
-                            current = current.fields.get_mut(string).unwrap();
-                        }
-
-                    },
-                    FieldKey::Int(num) => {
-                        if let Some(_element) = current.array.get(*num as usize){
-                            current = current.array.get_mut(*num as usize).unwrap(); 
-                        } else {
-                            panic!("index out of bound");
-                        }
-                    } 
-                }                        
-
+                    current = field;
+                }
             }
 
+            let last_key = order.get(order.len() - 1).unwrap();
 
-            let last_key = order.get(order.len() - 1).unwrap(); 
-
-            match last_key{
+            match last_key {
                 FieldKey::String(key) => {
                     current.fields.insert(key.to_string(), eval_value.clone());
-                },
-                FieldKey::Int(num) => {
-                    current.array[*num as usize] = eval_value.clone();
                 }
-
+                FieldKey::Int(num) => {
+                    if let ValueType::Array(arr) = &mut current.value {
+                        arr[*num as usize] = eval_value.clone()
+                    }
+                }
             }
 
-            if current.value_type == ValueType::NIL{
-                current.value_type = ValueType::OBJECT
+            if current.value == ValueType::Nil {
+                current.value = ValueType::Object
             }
-            
 
-            enclosing.borrow_mut().set(order.get(0).unwrap().get_string().unwrap().to_string(), value.clone());
+            enclosing.borrow_mut().set(
+                order.get(0).unwrap().get_string().unwrap().to_string(),
+                value.clone(),
+            );
 
-            return eval_value
-        },
+            return eval_value;
+        }
 
         //kind of like literals, but will replace instantly with the value behind the variable name
         //instead of going down to literals first
         Expression::Identifier { name } => {
-            
+            let value = enclosing
+                .borrow()
+                .get(name)
+                .expect(&("this value does not exist ".to_string() + name));
 
-            let value = enclosing.borrow().get(name).expect(&("this value does not exist ".to_string() + name));
-
-            return value.clone()
-        },
-        Expression::Unary { operator, right } => {
-            return eval_unary(*operator, &right, enclosing)
-        }, 
-        Expression::Literal { literal } => {
-            return eval_literal(literal.clone())
-        }, 
-        Expression::Grouping { inner } => {
-            return eval(&inner, enclosing) 
-        }, 
-        Expression::Binary { left, operator, right } => {
-            return eval_binary(&left, *operator, &right, enclosing)
+            return value.clone();
         }
-    } 
-
+        Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing),
+        Expression::Literal { literal } => return eval_literal(literal.clone()),
+        Expression::Grouping { inner } => return eval(&inner, enclosing),
+        Expression::Binary {
+            left,
+            operator,
+            right,
+        } => return eval_binary(&left, operator.clone(), &right, enclosing),
+    }
 }
 
 #[derive(Debug)]
 enum FieldKey {
     Int(i32),
-    String(String)
+    String(String),
 }
 
 //methods to get the strings and numbers easier without doing if lets all the time
 impl FieldKey {
-    fn get_string(&self) -> Option<String>{
-         return match self{
+    fn get_string(&self) -> Option<String> {
+        return match self {
             FieldKey::Int(_num) => None,
-            FieldKey::String(string) => Some(string.to_string())
-        }
+            FieldKey::String(string) => Some(string.to_string()),
+        };
     }
 }
 
-fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environment>>) -> Vec<FieldKey>{
+fn generate_field_order(
+    target: Box<Expression>,
+    enclosing: Rc<RefCell<Environment>>,
+) -> Vec<FieldKey> {
     let mut order = vec![];
 
     let mut current = target;
@@ -916,46 +768,39 @@ fn generate_field_order(target : Box<Expression>, enclosing : Rc<RefCell<Environ
             Expression::Identifier { name } => {
                 order.push(FieldKey::String(name));
                 not_ended = false;
-            },
+            }
             Expression::FieldCall { callee, key } => {
-                if let Expression::Identifier { name } = *key{
-                    order.push(FieldKey::String(name)); 
+                if let Expression::Identifier { name } = *key {
+                    order.push(FieldKey::String(name));
                 } else {
                     order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone()))));
                 }
 
                 current = callee
-            },
+            }
             Expression::Retrieve { retrievee, key } => {
-
-
                 let key = eval(&key, enclosing.clone());
 
-                match key.value_type{
-                    ValueType::STRING => {
-                        let key = key.string_value.unwrap();
+                match key.value {
+                    ValueType::String(str) => {
+                        let key = str;
 
                         order.push(FieldKey::String(key));
-                    },
-                    ValueType::NUMBER => {
-                        let index = key.number_value.unwrap() as i32;
+                    }
+                    ValueType::Number(num) => {
+                        let index = num as i32;
 
                         order.push(FieldKey::Int(index));
-                    }, 
-                    _ => unimplemented!()
+                    }
+                    _ => unimplemented!(),
                 }
-
-
 
                 current = retrievee;
             }
-            _ => ()
+            _ => (),
         }
-
     }
-   
+
     order.reverse();
     order
 }
-
-
