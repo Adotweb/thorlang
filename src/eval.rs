@@ -60,6 +60,9 @@ impl Environment {
 pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>) -> Value {
     for stmt in stmts {
         match stmt {
+            Statement::Overload { operator, operands, operation } => {
+
+            },
             Statement::Return { expression } => {
                 let mut ret_value = eval(&expression, enclosing.clone());
 
