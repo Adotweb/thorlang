@@ -145,7 +145,6 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 if let ValueType::String(ref str) = result.value {
                     println!("{str}");
                 } else {
-
                     println!("{}", stringify_value(result));
                 }
 

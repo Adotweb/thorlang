@@ -46,7 +46,6 @@ pub fn init_native_functions() -> HashMap<String, Value> {
             Arc::new(|values| {
                 let value = values.get("value").unwrap();
 
-                println!("{:?}", value);
 
                 if let ValueType::String(str) = &value.value{
                     println!("{str}");
