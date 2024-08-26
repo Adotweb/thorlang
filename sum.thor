@@ -1,23 +1,70 @@
-let obj = import("module.thor");
 
+fn Try(a){
+	
+	let result = try{
+		return a;
+	};
 
-let arr = [1, 2, 3];
+	if(true){
+		return a;
+	}
 
-print arr[0];
-
-let p = try {
-	return arr[0];
-};
-
-
-
-overload + (a, b) {
-	return a[0] + b[2];
+	return result;
 }
 
-let arr1 = [0, 1, 2];
-let arr2 = [0, 2, 3];
+overload + (a, b) {	
+	let vec1 = a;
 
-let s = arr1 + arr2;
 
-print s;
+	let i = 0;
+	while(i < a.len()){
+		vec1[i] = vec1[i] + b[i];
+		i = i + 1;
+			
+	}
+
+	return vec1;
+}
+
+overload * (a, b){
+
+
+	let triedone = try {
+
+		let vec = b;
+		let i = 0;
+		while(i < b.len()){
+			vec[i] = vec[i] * a;
+			i = i + 1;
+		}
+
+		return vec;
+	};
+		
+	if(!isError(triedone)){
+		return triedone;
+	} 
+
+	let triedtwo = try{
+		let vec = a;
+		let i = 0;
+		while(i < a.len()){
+			vec[i] = vec[i] *b;
+			i = i + 1;
+		}
+
+		return vec;
+	};
+
+	if(!isError(triedtwo)){
+		return triedtwo;
+	}
+}
+
+
+let a = [1, 0, 0];
+let b = [0, 1, 0];
+
+
+
+print a + b;

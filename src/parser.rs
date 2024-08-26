@@ -180,7 +180,6 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
     let operation = statement(current_index, tokens);
 
     
-    
     Statement::Overload{
         operator,
         operands,
@@ -225,7 +224,7 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
     //consume the ")" and the "{" (two tokens)
 
-    let token = match_token(current_index, tokens, TokenType::RBRACE);
+    let token = match_token(current_index, tokens, TokenType::LBRACE);
 
     let then_branch = Box::new(statement(current_index, tokens));
 
@@ -688,7 +687,9 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
                             array.push(value);
                         }
-
+                        TokenType::SEMICOLON => {
+                            break;
+                        },
                         _ => unimplemented!(),
                     }
                 }

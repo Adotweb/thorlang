@@ -19,8 +19,10 @@ pub struct Environment {
     pub enclosing: Option<Rc<RefCell<Environment>>>
 }
 
+
+type OperationInfo = (Vec<Statement>, Vec<String>);
 //Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
-type Overloadings = HashMap<(TokenType, usize), (Vec<Vec<Statement>>, Vec<String>)>;
+type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
 
 //its easier to instantiate a get and set function that automatically search the entire env tree
 //(for existence for example) to
@@ -75,12 +77,12 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 let arity = operands.len();
 
                 if let Some(opartionlist) = overloadings.get_mut(&(operator.clone(), arity)){
-                    opartionlist.0.push(operation);
+                    opartionlist.push((operation, operands.clone()));
                     return Ok(Value::nil())
                 }
                 
 
-                overloadings.insert((operator, arity), (vec![operation], operands));
+                overloadings.insert((operator, arity), vec![(operation, operands)]);
 
             },
             Statement::Return { expression } => {
@@ -156,7 +158,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                             return Ok(return_val);
                         }
                     } else {
-                        return Ok(Value::default())
+                        condition_value.value = ValueType::Nil
                     }
                 }
             }
@@ -427,26 +429,29 @@ fn eval_binary(
     let l = eval(left, enclosing.clone(), overloadings)?;
     let r = eval(right, enclosing.clone(), overloadings)?;
 
+   
+    //better writing for future rewrites
     if let Some(operationlist) = overloadings.get(&(operator.clone(), 2)){
-        let mut first_correct_operation : Vec<Statement>;
-       
-
-        
         let operation_env = enclosing.borrow().clone();
 
-        
-        let operands = operationlist.1.clone();
-        operation_env.values.borrow_mut().insert(operands[0].clone(), l.clone());
-        operation_env.values.borrow_mut().insert(operands[1].clone(), r.clone());
+        let op_vec = vec![l.clone(), r.clone()];
 
-        for operation in operationlist.0.clone() {
-            let tried_operation = eval_statement(operation, Rc::new(RefCell::new(operation_env.clone())), 
-                                                 &mut HashMap::new());
-            
+        for operation in operationlist{
+            let operands = operation.1.clone();
+            let operation = operation.0.clone();
+
+            for i in 0..operands.len() {
+                operation_env.values.borrow_mut().insert(operands[i].clone(), op_vec[i].clone());
+            }
+
+
+            let tried_operation = eval_statement(operation, Rc::new(RefCell::new(operation_env.clone())), &mut HashMap::new());
+
             if let Ok(result) = tried_operation{
                 return Ok(result)
             }
-        } 
+        }
+
     }
 
     match operator {
