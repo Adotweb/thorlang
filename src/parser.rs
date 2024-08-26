@@ -385,6 +385,8 @@ pub enum Expression {
     },
 }
 
+
+
 fn try_expression(current_index: &mut usize ,tokens: &Vec<Token>) -> Expression {
 
     
@@ -532,6 +534,7 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     expression
 }
+
 
 fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     if let Some(token) = tokens.get(*current_index) {

@@ -1,17 +1,3 @@
-
-fn Try(a){
-	
-	let result = try{
-		return a;
-	};
-
-	if(true){
-		return a;
-	}
-
-	return result;
-}
-
 overload + (a, b) {	
 	let vec1 = a;
 
@@ -24,6 +10,17 @@ overload + (a, b) {
 	}
 
 	return vec1;
+}
+
+overload - (a) {
+	let i = 0;
+	let vec = a;
+	while(i < a.len()){
+		vec[i] = -vec[i];
+		i = i + 1;
+	}
+
+	return vec;
 }
 
 overload * (a, b){
@@ -45,26 +42,23 @@ overload * (a, b){
 		return triedone;
 	} 
 
-	let triedtwo = try{
-		let vec = a;
-		let i = 0;
-		while(i < a.len()){
-			vec[i] = vec[i] *b;
-			i = i + 1;
-		}
-
-		return vec;
-	};
-
-	if(!isError(triedtwo)){
-		return triedtwo;
+	let vec = a;
+	let i = 0;
+	while(i < a.len()){
+		vec[i] = vec[i] *b;
+		i = i + 1;
 	}
+
+	return vec;
+	
 }
 
 
 let a = [1, 0, 0];
 let b = [0, 1, 0];
 
+let r = 1;
+let c = 6;
 
 
-print a + b;
+
