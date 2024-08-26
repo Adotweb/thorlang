@@ -1,5 +1,4 @@
 use crate::{Token, TokenType};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
@@ -35,7 +34,7 @@ pub enum Statement {
     },
     Overload {
         operator : TokenType, 
-        operands : Vec<Expression>,
+        operands : Vec<String>,
         operation : Vec<Statement>                
     }
 }
@@ -158,7 +157,7 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
 
     let mut token = match_token(current_index, tokens, TokenType::LPAREN);
     
-    let mut operands : Vec<Expression> = vec![];
+    let mut operands : Vec<String> = vec![];
   
     while token.token_type != TokenType::RPAREN{
     
@@ -166,10 +165,8 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
             TokenType::COMMA => {
 
             },
-            TokenType::IDENTIFIER(_name) => {
-                operands.push(Expression::Literal{
-                        literal : token.token_type.clone()
-                })
+            TokenType::IDENTIFIER(name) => {
+                operands.push(name.to_string())
             },
             _ => panic!("encountered unknown token {:?} in operands declaration on line {:?}", token.token_type, token.line)
         }

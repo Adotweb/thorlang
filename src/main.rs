@@ -57,7 +57,8 @@ pub fn interpret_code(text: String) -> Value {
         values: natives.into(),
         enclosing: None,
     }));
-    return match eval_statement(ast, global_env) {
+    let overloadings = &mut HashMap::new();
+    return match eval_statement(ast, global_env, overloadings) {
         Ok(val) => val,
         Err(err) => panic!("{:?}", err)
     }

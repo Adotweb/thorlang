@@ -16,8 +16,11 @@ use std::sync::Arc;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     pub values: RefCell<HashMap<String, Value>>,
-    pub enclosing: Option<Rc<RefCell<Environment>>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>
 }
+
+//Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
+type Overloadings = HashMap<(TokenType, usize), (Vec<Vec<Statement>>, Vec<String>)>;
 
 //its easier to instantiate a get and set function that automatically search the entire env tree
 //(for existence for example) to
@@ -59,14 +62,29 @@ impl Environment {
 //
 //this ensures that as soon as a branch is exited (i.e a block is done executing) we will have the
 //old values back.
-pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>) -> Result<Value, ThorLangError> {
+pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>, overloadings : &mut Overloadings) -> Result<Value, ThorLangError> {
+
+
     for stmt in stmts {
         match stmt {
+
+            //this works basically like a function, except that the call operation takes place in
+            //the corresponding eval function
             Statement::Overload { operator, operands, operation } => {
+                
+                let arity = operands.len();
+
+                if let Some(opartionlist) = overloadings.get_mut(&(operator.clone(), arity)){
+                    opartionlist.0.push(operation);
+                    return Ok(Value::nil())
+                }
+                
+
+                overloadings.insert((operator, arity), (vec![operation], operands));
 
             },
             Statement::Return { expression } => {
-                let mut ret_value = eval(&expression, enclosing.clone())?;
+                let mut ret_value = eval(&expression, enclosing.clone(), overloadings)?;
 
                 ret_value.return_true = false;
 
@@ -91,7 +109,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             //a block just opens a new env tree branch
             Statement::Block { statements } => {
                 let local_scope = Environment::new(Some(enclosing.clone()));
-                eval_statement(statements, local_scope.clone());
+                eval_statement(statements, local_scope.clone(), overloadings);
             }
 
             //if statements are one to one in the host language, makes it meta-programming...?
@@ -100,10 +118,10 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 then_branch,
                 else_branch,
             } => {
-                if let ValueType::Bool(bool) = eval(&condition, enclosing.clone())?.value {
+                if let ValueType::Bool(bool) = eval(&condition, enclosing.clone(), overloadings)?.value {
                     if bool {
                         let mut return_val =
-                            eval_statement(*then_branch, enclosing.clone())?;
+                            eval_statement(*then_branch, enclosing.clone(), overloadings)?;
 
                         return_val.return_true = true;
 
@@ -111,7 +129,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                     } else {
                         if let Some(ref _else_block) = else_branch {
                             let mut return_val =
-                                eval_statement(*else_branch.unwrap(), enclosing.clone())?;
+                                eval_statement(*else_branch.unwrap(), enclosing.clone(), overloadings)?;
 
                             return_val.return_true = true;
 
@@ -124,12 +142,12 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             //still need to fix returns from while as i dont have a good way of detecing whether or
             //not something got returned....
             Statement::While { condition, block } => {
-                let mut condition_value = eval(&condition.clone(), enclosing.clone())?;
+                let mut condition_value = eval(&condition.clone(), enclosing.clone(), overloadings)?;
                 while let ValueType::Bool(bool) = condition_value.value {
                     if bool {
 
-                        let return_val = eval_statement(*block.clone(), enclosing.clone())?;
-                        condition_value = eval(&condition.clone(), enclosing.clone())?;
+                        let return_val = eval_statement(*block.clone(), enclosing.clone(), overloadings)?;
+                        condition_value = eval(&condition.clone(), enclosing.clone(), overloadings)?;
 
 
                         //if return_true is true that means that the above eval function has hit a
@@ -145,7 +163,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             //print is built in
             Statement::Print { expression } => {
-                let result = eval(&expression, enclosing.clone())?;
+                let result = eval(&expression, enclosing.clone(), overloadings)?;
 
                 if let ValueType::String(ref str) = result.value {
                     println!("{str}");
@@ -157,13 +175,13 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             Statement::Do { expression } => {
                 //runs expressions
-                eval(&expression, enclosing.clone());
+                eval(&expression, enclosing.clone(), overloadings);
             }
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "enclosing"
             Statement::Variable { name, expression } => {
-                let val = eval(&expression, enclosing.clone())?;
+                let val = eval(&expression, enclosing.clone(), overloadings)?;
 
                 enclosing.borrow_mut().values.borrow_mut().insert(name, val);
             }
@@ -341,8 +359,9 @@ fn eval_unary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
+    overloadings : &mut Overloadings
 ) -> Result<Value, ThorLangError> {
-    let r = eval(right, enclosing)?;
+    let r = eval(right, enclosing, overloadings)?;
     match operator {
         //only negate logically when is bool
         TokenType::BANG => {
@@ -403,9 +422,32 @@ fn eval_binary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
+    overloadings : &mut Overloadings
 ) -> Result<Value, ThorLangError> {
-    let l = eval(left, enclosing.clone())?;
-    let r = eval(right, enclosing)?;
+    let l = eval(left, enclosing.clone(), overloadings)?;
+    let r = eval(right, enclosing.clone(), overloadings)?;
+
+    if let Some(operationlist) = overloadings.get(&(operator.clone(), 2)){
+        let mut first_correct_operation : Vec<Statement>;
+       
+
+        
+        let operation_env = enclosing.borrow().clone();
+
+        
+        let operands = operationlist.1.clone();
+        operation_env.values.borrow_mut().insert(operands[0].clone(), l.clone());
+        operation_env.values.borrow_mut().insert(operands[1].clone(), r.clone());
+
+        for operation in operationlist.0.clone() {
+            let tried_operation = eval_statement(operation, Rc::new(RefCell::new(operation_env.clone())), 
+                                                 &mut HashMap::new());
+            
+            if let Ok(result) = tried_operation{
+                return Ok(result)
+            }
+        } 
+    }
 
     match operator {
         // the if let matches if the value of l and r both match the valuetype if there is no match
@@ -487,15 +529,15 @@ fn eval_binary(
     return Ok(Value::default());
 }
 
-pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Value, ThorLangError> {
+pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings : &mut Overloadings) -> Result<Value, ThorLangError> {
     //recursivley traverses the expr tree.
     match expr {
         //retrieve has to work for arrays like this array[number];
         //and for objects like this object[key];
         Expression::Retrieve { retrievee, key } => {
-            let key = eval(key, enclosing.clone())?;
+            let key = eval(key, enclosing.clone(), overloadings)?;
 
-            let retrievee = eval(retrievee, enclosing.clone())?;
+            let retrievee = eval(retrievee, enclosing.clone(), overloadings)?;
 
             match (retrievee.value.clone(), key.value) {
                 //the case of array and number
@@ -524,7 +566,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
         
         Expression::Try { block } => {
             
-            let eval_value = eval_statement(block.to_vec(), enclosing.clone()); 
+            let eval_value = eval_statement(block.to_vec(), enclosing.clone(), overloadings); 
                 return match eval_value {
                     Ok(val) => Ok(val),
                     Err(err) => {
@@ -535,13 +577,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
         },
 
         Expression::FieldCall { callee, key } => {
-            let callee_value = eval(callee, enclosing.clone())?;
+            let callee_value = eval(callee, enclosing.clone(), overloadings)?;
             let key_string: String;
 
             if let Expression::Identifier { name } = *(*key).clone() {
                 key_string = name;
             } else {
-                key_string = hash_value(eval(key, enclosing.clone())?);
+                key_string = hash_value(eval(key, enclosing.clone(), overloadings)?);
             }
 
             let mut ret_val = Value::default();
@@ -567,7 +609,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
                         var_name = name;
                     }
 
-                    if let Some(field) = init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
+                    if let Some(field) = 
+                        init_array_fields(callee_value.clone(), enclosing.clone(), var_name).get(&key_string){
                         ret_val = field.clone();
                     }
                 }
@@ -581,7 +624,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
             let mut value_array: Vec<Value> = vec![];
 
             for value_expression in values {
-                let value = eval(value_expression, enclosing.clone())?;
+                let value = eval(value_expression, enclosing.clone(), overloadings)?;
 
                 value_array.push(value);
             }
@@ -593,9 +636,9 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
             paren: _,
             arguments,
         } => {
-            //let eval_callee = eval(callee, enclosing.clone());
+            //let eval_callee = eval(callee, enclosing.clone(), overloadings);
 
-            let function = eval(callee, enclosing.clone())?;
+            let function = eval(callee, enclosing.clone(), overloadings)?;
 
             if let ValueType::Function(Function::NativeFunction {
                 body,
@@ -616,7 +659,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
 
                 for i in 0..arguments.len() {
-                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone())?;
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone(), overloadings)?;
                     let arg_name = needed_arguments.get(i).unwrap();
 
                     eval_args.insert(arg_name.to_string(), arg);
@@ -648,7 +691,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
                 // Evaluate the arguments in the current environment
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
                 for i in 0..arguments.len() {
-                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone())?;
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone(), overloadings)?;
                     let arg_name = needed_arguments.get(i).unwrap();
                     eval_args.insert(arg_name.to_string(), arg);
                 }
@@ -663,21 +706,21 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
                         .insert(name, value);
                 }
 
-                eval_statement(body, function_env)
+                eval_statement(body, function_env, overloadings)
             } else {
                 return Err(ThorLangError::EvalError(format!("error in function {:?}", function)))
             }
         }
 
         Expression::Assignment { target, value } => {
-            let eval_value = eval(value, enclosing.clone())?;
+            let eval_value = eval(value, enclosing.clone(), overloadings)?;
 
             //iteratively go over the fields (creating them when they do not exist) and putting in
             //the value at the deepest level
             //
             //iterating over order (a vector of keys, can be numbers for arrays or strings for
             //objects)
-            let order = generate_field_order(target.clone(), enclosing.clone())?;
+            let order = generate_field_order(target.clone(), enclosing.clone(), overloadings)?;
 
             let value: &mut Value = &mut enclosing
                 .borrow()
@@ -755,14 +798,15 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
 
             return Ok(value.clone());
         }
-        Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing),
+        
+        Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings),
         Expression::Literal { literal } => return eval_literal(literal.clone()),
-        Expression::Grouping { inner } => return eval(&inner, enclosing),
+        Expression::Grouping { inner } => return eval(&inner, enclosing, overloadings),
         Expression::Binary {
             left,
             operator,
             right,
-        } => return eval_binary(&left, operator.clone(), &right, enclosing),
+        } => return eval_binary(&left, operator.clone(), &right, enclosing, overloadings),
     }
 }
 
@@ -785,6 +829,7 @@ impl FieldKey {
 fn generate_field_order(
     target: Box<Expression>,
     enclosing: Rc<RefCell<Environment>>,
+    overloadings : &mut Overloadings
 ) -> Result<Vec<FieldKey>, ThorLangError> {
     let mut order = vec![];
 
@@ -802,13 +847,13 @@ fn generate_field_order(
                 if let Expression::Identifier { name } = *key {
                     order.push(FieldKey::String(name));
                 } else {
-                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone())?)));
+                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone(), overloadings)?)));
                 }
 
                 current = callee
             }
             Expression::Retrieve { retrievee, key } => {
-                let key = eval(&key, enclosing.clone())?;
+                let key = eval(&key, enclosing.clone(), overloadings)?;
 
                 match key.value {
                     ValueType::String(str) => {

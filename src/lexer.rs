@@ -1,7 +1,7 @@
 use regex::Regex;
 
 //the different token types
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum TokenType {
     LPAREN,
     RPAREN,
