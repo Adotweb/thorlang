@@ -129,7 +129,7 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
     return statements;
 }
 
-
+//returns a overload statement
 fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
 
     let operations = vec![
@@ -146,24 +146,46 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
     ];
 
     let token = tokens.get(*current_index).unwrap();
-    if !operations.contains(&token.token_type){
-        
+    if !operations.contains(&token.token_type){ 
         panic!("expected operation token after overload keyword on line {:?}", token.line) 
-
     }
 
     let operator = token.token_type.clone();
-
     consume_token(current_index, tokens);
 
 
+    let mut token = match_token(current_index, tokens, TokenType::LPAREN);
+    
+    let mut operands : Vec<Expression> = vec![];
+  
+    while token.token_type != TokenType::RPAREN{
+    
+        match &token.token_type {
+            TokenType::COMMA => {
+
+            },
+            TokenType::IDENTIFIER(_name) => {
+                operands.push(Expression::Literal{
+                        literal : token.token_type.clone()
+                })
+            },
+            _ => panic!("encountered unknown token {:?} in operands declaration on line {:?}", token.token_type, token.line)
+        }
+        token = consume_token(current_index, tokens);
+    }
+
+    match_token(current_index, tokens, TokenType::RPAREN);
+
+    match_token(current_index, tokens, TokenType::LBRACE);
+
+    let operation = statement(current_index, tokens);
 
     
-
+    
     Statement::Overload{
         operator,
-        operands : vec![],
-        operation : vec![]
+        operands,
+        operation
     }
 }
 
@@ -255,16 +277,12 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
     while token.token_type != TokenType::RPAREN {
 
         match &token.token_type {
-            TokenType::COMMA => {
-                *current_index += 1;
-            }
             TokenType::IDENTIFIER(str) => {
                 args.push(str.clone());
-                *current_index += 1;
             }
             _ => (),
         }
-        token = tokens.get(*current_index).unwrap();
+        token = consume_token(current_index, tokens);
     }
 
     //consume rparen 

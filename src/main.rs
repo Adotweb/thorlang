@@ -1,7 +1,10 @@
+mod error;
 mod eval;
 mod lexer;
 mod native_functions;
 mod parser;
+
+use error::ThorLangError;
 use eval::{eval_statement, Environment, Function, Value, ValueType};
 use lexer::{lexer, Token, TokenType};
 use native_functions::{
