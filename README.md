@@ -89,13 +89,79 @@ while (condition){
 }
 ```
 
+#### Try expressions and isError 
+
+Sometimes we want to run something that might throw, try expressions (yes expressions because they are superior) allow you to do that: 
+
+**Note** Since try blocks are expressions, after any try block there needs to be a `; semicolon`.
+```thor
+
+let maybeanerror = try {
+    
+    let array = [0, 1, 2, 3];
+
+    return array[0];
+};
+
+//prints 0
+print maybeanerror;
+
+let maybeanerror2 = try {
+    
+    let array = [0, 1, 2, 3];
+
+    return array[4];
+};
+
+//prints EvalError
+print maybeanerror2;
+
+//prints true
+print isError(maybeanerror2);
+```
+
+#### Operator Overloading
+
+Thor allows operator overloading, to overload an operator do the following: 
+```thor 
+
+overload + (a, b) {
+    return a[1] + b[1]
+}
+
+let a = [0, 1];
+let b = [0, 1];
+
+//prints 2
+print a + b;
+
+```
+
+when the code inside the overload (the operation) fails the operation will go to default behaviour.
+
+**Note** The number of arguments in an overload determines whether it will be used as the arity of the operation.
+This means that to overload the (numerical) number operator you just put a inside the parenthesis : 
+
+```thor 
+
+overload - (a) {
+    return a[0]
+}
+
+let a = [0, 1];
+
+//prints 0
+print -a;
+
+```
+
 
 #### Modules
 
 Thorlang supports modules, to import a module use the import function:
 
 ```thor
-
+//main.thor
 let something = import("module.thor");
 
 print something;
@@ -105,7 +171,7 @@ print something;
 To export something use the return statement at the end of a thor file: 
 
 ```thor
-
+//module.thor
 let something = 10;
 
 
@@ -120,6 +186,8 @@ Of course thorlang has some native functions (this list will be expanded):
 | :-------- | :------- | :-------------------------------- |
 | `printf`      | `thing` | prints `thing` |
 | `getTime` | No arguments | returns the current unix time (unimplemented)| 
+| `import` | `String : Namespace` | returns the returned value of the given file and throws if the file does not exist| 
+| `isError` | any value | returns true if the argument provided is an error and false else| 
 
 
 #### Native Methods
