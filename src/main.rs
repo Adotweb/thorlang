@@ -57,5 +57,8 @@ pub fn interpret_code(text: String) -> Value {
         values: natives.into(),
         enclosing: None,
     }));
-    eval_statement(ast, global_env)
+    return match eval_statement(ast, global_env) {
+        Ok(val) => val,
+        Err(err) => panic!("{:?}", err)
+    }
 }

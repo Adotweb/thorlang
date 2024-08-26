@@ -68,7 +68,7 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
     let mut statements = vec![];
 
     while let Some(token) = tokens.get(*current_index) {
-        match token.token_type {
+        match token.token_type { 
             TokenType::OVERLOAD => {
                 consume_token(current_index, tokens);
                 statements.push(overload_statment(current_index, tokens));
@@ -128,6 +128,8 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
 
     return statements;
 }
+
+
 
 //returns a overload statement
 fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statement{
@@ -344,6 +346,9 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
+    Try {
+        block : Vec<Statement>
+    },
     Identifier {
         name: String,
     },
@@ -384,7 +389,35 @@ pub enum Expression {
     },
 }
 
+fn try_expression(current_index: &mut usize ,tokens: &Vec<Token>) -> Expression {
+
+    
+    match_token(current_index, tokens, TokenType::LBRACE);
+
+    let block = statement(current_index, tokens);
+
+
+    return Expression::Try {
+        block
+    }
+}
+
 fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
+
+    //here all block exprs go for example try
+    
+    let token = tokens.get(*current_index).unwrap();
+
+    match token.token_type {
+        TokenType::TRY => {
+            consume_token(current_index, tokens);
+            return try_expression(current_index, tokens);
+
+        },
+            _=> ()
+    }
+    
+
     assign(current_index, tokens)
 }
 

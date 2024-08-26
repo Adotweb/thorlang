@@ -1,6 +1,7 @@
 use crate::{
     hash_value, init_array_fields, init_bool_fields, init_number_fields, init_string_fields,
     stringify_value, Expression, Statement, TokenType,
+    ThorLangError
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -39,13 +40,14 @@ impl Environment {
         }
     }
 
-    pub fn set(&self, key: String, value: Value) {
+    pub fn set(&self, key: String, value: Value) -> Result<String, ThorLangError> {
         if self.values.borrow().contains_key(&key) {
             self.values.borrow_mut().insert(key, value);
+            Ok("".to_string())
         } else if let Some(ref parent) = self.enclosing {
             parent.borrow().set(key, value)
         } else {
-            panic!("no such variable {key} found")
+            return Err(ThorLangError::EvalError(format!("no such variable {key} found")))
         }
     }
 }
@@ -57,18 +59,18 @@ impl Environment {
 //
 //this ensures that as soon as a branch is exited (i.e a block is done executing) we will have the
 //old values back.
-pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>) -> Value {
+pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>) -> Result<Value, ThorLangError> {
     for stmt in stmts {
         match stmt {
             Statement::Overload { operator, operands, operation } => {
 
             },
             Statement::Return { expression } => {
-                let mut ret_value = eval(&expression, enclosing.clone());
+                let mut ret_value = eval(&expression, enclosing.clone())?;
 
                 ret_value.return_true = false;
 
-                return ret_value;
+                return Ok(ret_value);
             }
 
             Statement::Function {
@@ -98,22 +100,22 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 then_branch,
                 else_branch,
             } => {
-                if let ValueType::Bool(bool) = eval(&condition, enclosing.clone()).value {
+                if let ValueType::Bool(bool) = eval(&condition, enclosing.clone())?.value {
                     if bool {
                         let mut return_val =
-                            eval_statement(*then_branch, enclosing.clone());
+                            eval_statement(*then_branch, enclosing.clone())?;
 
                         return_val.return_true = true;
 
-                        return return_val;
+                        return Ok(return_val);
                     } else {
                         if let Some(ref _else_block) = else_branch {
                             let mut return_val =
-                                eval_statement(*else_branch.unwrap(), enclosing.clone());
+                                eval_statement(*else_branch.unwrap(), enclosing.clone())?;
 
                             return_val.return_true = true;
 
-                            return return_val;
+                            return Ok(return_val);
                         }
                     }
                 }
@@ -122,28 +124,28 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             //still need to fix returns from while as i dont have a good way of detecing whether or
             //not something got returned....
             Statement::While { condition, block } => {
-                let mut condition_value = eval(&condition.clone(), enclosing.clone());
+                let mut condition_value = eval(&condition.clone(), enclosing.clone())?;
                 while let ValueType::Bool(bool) = condition_value.value {
                     if bool {
 
-                        let return_val = eval_statement(*block.clone(), enclosing.clone());
-                        condition_value = eval(&condition.clone(), enclosing.clone());
+                        let return_val = eval_statement(*block.clone(), enclosing.clone())?;
+                        condition_value = eval(&condition.clone(), enclosing.clone())?;
 
 
                         //if return_true is true that means that the above eval function has hit a
                         //return statement and we need to return the value here
                         if return_val.return_true {
-                            return return_val;
+                            return Ok(return_val);
                         }
                     } else {
-                        return Value::default()
+                        return Ok(Value::default())
                     }
                 }
             }
 
             //print is built in
             Statement::Print { expression } => {
-                let result = eval(&expression, enclosing.clone());
+                let result = eval(&expression, enclosing.clone())?;
 
                 if let ValueType::String(ref str) = result.value {
                     println!("{str}");
@@ -161,14 +163,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "enclosing"
             Statement::Variable { name, expression } => {
-                let val = eval(&expression, enclosing.clone());
+                let val = eval(&expression, enclosing.clone())?;
 
                 enclosing.borrow_mut().values.borrow_mut().insert(name, val);
             }
         }
     }
 
-    Value::default()
+    Ok(Value::default())
 }
 
 //eval expressions
@@ -331,58 +333,59 @@ fn eval_unary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
-) -> Value {
-    let r = eval(right, enclosing);
+) -> Result<Value, ThorLangError> {
+    let r = eval(right, enclosing)?;
     match operator {
         //only negate logically when is bool
         TokenType::BANG => {
             if let ValueType::Bool(bool) = r.value {
-                return Value::bool(!bool);
+                return Ok(Value::bool(!bool));
             } else {
-                panic!("can only logically negate bools")
+
+                Err(ThorLangError::EvalError("can only logically negate bools".to_string()))
             }
         }
         //only negate arithmetically when is number
         TokenType::MINUS => {
             if let ValueType::Number(num) = r.value {
-                return Value::number(-num);
+                return Ok(Value::number(-num));
             } else {
-                panic!("can only negate numbers")
+                Err(ThorLangError::EvalError("can only negate numbers".to_string()))
             }
         }
         _ => {
-            panic!("unary operation not allowed")
+            Err(ThorLangError::EvalError("unary operation not defined".to_string()))
         }
     }
 }
 
 //evaluates the "atoms" these can not be further reduced and bubble up to form more complex data
 //(not types but composed values like 1 + 2)
-fn eval_literal(literal: TokenType) -> Value {
+fn eval_literal(literal: TokenType) -> Result<Value, ThorLangError> {
     //turn literaltype into value wrapped in value_type
     match literal {
-        TokenType::NIL => return Value::nil(),
+        TokenType::NIL => return Ok(Value::nil()),
         TokenType::TRUE  => {
             let mut ret_val = Value::bool(true);
             ret_val.fields = init_bool_fields(ret_val.clone());
-            return ret_val
+            return Ok(ret_val)
         },
         TokenType::FALSE  => {
             let mut ret_val = Value::bool(false);
             ret_val.fields = init_bool_fields(ret_val.clone());
-            return ret_val
+            return Ok(ret_val)
         },
         TokenType::NUMBER(value) => { 
             let mut ret_val = Value::number(value.parse().unwrap());
             ret_val.fields = init_bool_fields(ret_val.clone());
-            return ret_val
+            return Ok(ret_val)
         },
         TokenType::STRING(value) => {
             let mut ret_val = Value::string(value);
             ret_val.fields = init_bool_fields(ret_val.clone());
-            return ret_val
+            return Ok(ret_val)
         },
-        _ => panic!("this is not a literal")
+        _ => Err(ThorLangError::EvalError("this is not a literal".to_string()))
     }
 }
 
@@ -392,9 +395,9 @@ fn eval_binary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
-) -> Value {
-    let l = eval(left, enclosing.clone());
-    let r = eval(right, enclosing);
+) -> Result<Value, ThorLangError> {
+    let l = eval(left, enclosing.clone())?;
+    let r = eval(right, enclosing)?;
 
     match operator {
         // the if let matches if the value of l and r both match the valuetype if there is no match
@@ -402,122 +405,132 @@ fn eval_binary(
         TokenType::PLUS => {
             if let (ValueType::String(l), ValueType::String(r)) = (l.value.clone(), r.value.clone())
             {
-                return Value::string(l + &r);
+                return Ok(Value::string(l + &r));
             }
 
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::number(l + r);
+                return Ok(Value::number(l + r));
             }
 
-            panic!("can only add strings and numbers")
+            return Err(ThorLangError::EvalError("can only add strings and numbers".to_string()))
         }
         TokenType::MINUS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::number(l + r);
+                return Ok(Value::number(l + r));
             }
 
-            panic!("can only subtract numbers")
+            return Err(ThorLangError::EvalError("can only subtract numbers".to_string()))
         }
         TokenType::STAR => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::number(l * r);
+                return Ok(Value::number(l * r));
             }
-            panic!("can only multiply numbers")
+            
+            return Err(ThorLangError::EvalError("can only multiply numbers".to_string()))
         }
         TokenType::SLASH => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::number(l / r);
+                return Ok(Value::number(l / r));
             }
-            panic!("can only divide numbers")
+
+
+            return Err(ThorLangError::EvalError("can only divide numbers".to_string()))
         }
         TokenType::LESSEQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::bool(l <= r);
+                return Ok(Value::bool(l <= r));
             }
-            panic!("can only compare numbers")
+
+            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
         }
         TokenType::LESS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::bool(l < r);
+                return Ok(Value::bool(l < r));
             }
-            panic!("can only compare numbers")
+
+            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
         }
         TokenType::GREATEREQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::bool(l >= r);
+                return Ok(Value::bool(l >= r));
             }
 
-            panic!("can only compare numbers")
+            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
         }
         TokenType::GREATER => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Value::bool(l > r);
+                return Ok(Value::bool(l > r));
             }
 
-            panic!("can only compare numbers")
+            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
         }
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
         //same
         TokenType::EQEQ => {
-            return Value::bool(l == r);
+            return Ok(Value::bool(l == r));
         }
         TokenType::BANGEQ => {
-            return Value::bool(l != r);
+            return Ok(Value::bool(l != r));
         }
         _ => (),
     }
 
-    return Value::default();
+    return Ok(Value::default());
 }
 
-pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
+pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Value, ThorLangError> {
     //recursivley traverses the expr tree.
     match expr {
         //retrieve has to work for arrays like this array[number];
         //and for objects like this object[key];
         Expression::Retrieve { retrievee, key } => {
-            let key = eval(key, enclosing.clone());
+            let key = eval(key, enclosing.clone())?;
 
-            let retrievee = eval(retrievee, enclosing.clone());
+            let retrievee = eval(retrievee, enclosing.clone())?;
 
             match (retrievee.value.clone(), key.value) {
                 //the case of array and number
                 (ValueType::Array(arr), ValueType::Number(num)) => {
                     if num.round() != num {
-                        panic!("can only access arrays with whole numbers");
+                        return Err(ThorLangError::EvalError(format!("can only access arrays with whole numbers")));
                     }
-                    arr.get(num as usize)
-                        .unwrap_or_else(|| {
-                            panic!("index : {} is out of bound : {}", num, arr.len())
-                        })
-                        .clone()
+                    if let Some(el) =  arr.get(num as usize){
+                        Ok(el.clone())
+                    } else {
+                        return Err(ThorLangError::EvalError(format!("index : {} is out of bound : {}", num, arr.len())))
+                    }    
                 }
                 //the case of object and string
-                (ValueType::Object, ValueType::String(str)) => retrievee
-                    .clone()
-                    .fields
-                    .get(&str)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "field {} does not exist on object {}",
-                            str,
-                            stringify_value(retrievee)
-                        )
-                    })
-                    .clone(),
-                _ => panic!("{:?} is not retrievable", retrievee),
+                (ValueType::Object, ValueType::String(str)) =>{
+                    if let Some(val) = retrievee.clone().fields.get(&str){
+                        return Ok(val.clone())
+                    } else {
+                        return Err(ThorLangError::EvalError(format!("field {} does not exist on {:?}", str, stringify!(retrievee))))
+                    }
+
+                }
+                _ => Err(ThorLangError::EvalError(format!("{:?} is not retrievable", retrievee))),
             }
         }
+        
+        Expression::Try { block } => {
+            
+            let eval_value = eval_statement(block.to_vec(), enclosing.clone()); 
+                return match eval_value {
+                    Ok(val) => Ok(val),
+                    Err(err) => Ok(Value::string(format!("{:?}", err)))
+                }
+        },
 
         Expression::FieldCall { callee, key } => {
-            let callee_value = eval(callee, enclosing.clone());
+            let callee_value = eval(callee, enclosing.clone())?;
             let key_string: String;
 
             if let Expression::Identifier { name } = *(*key).clone() {
                 key_string = name;
             } else {
-                key_string = hash_value(eval(key, enclosing.clone()));
+                key_string = hash_value(eval(key, enclosing.clone())?);
             }
 
             let mut ret_val = Value::default();
@@ -550,19 +563,19 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
                 _ => (),
             }
 
-            ret_val
+            Ok(ret_val)
         }
 
         Expression::Array { values } => {
             let mut value_array: Vec<Value> = vec![];
 
             for value_expression in values {
-                let value = eval(value_expression, enclosing.clone());
+                let value = eval(value_expression, enclosing.clone())?;
 
                 value_array.push(value);
             }
 
-            Value::array(value_array)
+            Ok(Value::array(value_array))
         }
         Expression::Call {
             callee,
@@ -571,7 +584,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
         } => {
             //let eval_callee = eval(callee, enclosing.clone());
 
-            let function = eval(callee, enclosing.clone());
+            let function = eval(callee, enclosing.clone())?;
 
             if let ValueType::Function(Function::NativeFunction {
                 body,
@@ -581,18 +594,18 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
             {
                 //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
-                    panic!(
+                    return Err(ThorLangError::EvalError(format!(
                         "function {:?} requires {:?} arguments but got {:?}",
                         function,
                         needed_arguments.len(),
                         arguments.len()
-                    )
+                    )))
                 }
 
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
 
                 for i in 0..arguments.len() {
-                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone())?;
                     let arg_name = needed_arguments.get(i).unwrap();
 
                     eval_args.insert(arg_name.to_string(), arg);
@@ -604,7 +617,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
 
                 let function = body(eval_args);
 
-                return function;
+                return Ok(function);
             }
 
             if let ValueType::Function(Function::ThorFunction {
@@ -614,17 +627,17 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
             }) = function.value
             {
                 if needed_arguments.len() != arguments.len() {
-                    panic!(
+                    return Err(ThorLangError::EvalError(format!(
                         "Expected {} arguments but got {}",
                         needed_arguments.len(),
                         arguments.len()
-                    );
+                    )));
                 }
 
                 // Evaluate the arguments in the current environment
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
                 for i in 0..arguments.len() {
-                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone());
+                    let arg = eval(arguments.get(i).unwrap(), enclosing.clone())?;
                     let arg_name = needed_arguments.get(i).unwrap();
                     eval_args.insert(arg_name.to_string(), arg);
                 }
@@ -641,19 +654,19 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
 
                 eval_statement(body, function_env)
             } else {
-                panic!("error in function {:?}", function)
+                return Err(ThorLangError::EvalError(format!("error in function {:?}", function)))
             }
         }
 
         Expression::Assignment { target, value } => {
-            let eval_value = eval(value, enclosing.clone());
+            let eval_value = eval(value, enclosing.clone())?;
 
             //iteratively go over the fields (creating them when they do not exist) and putting in
             //the value at the deepest level
             //
             //iterating over order (a vector of keys, can be numbers for arrays or strings for
             //objects)
-            let order = generate_field_order(target.clone(), enclosing.clone());
+            let order = generate_field_order(target.clone(), enclosing.clone())?;
 
             let value: &mut Value = &mut enclosing
                 .borrow()
@@ -667,7 +680,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
                     eval_value.clone(),
                 );
 
-                return eval_value;
+                return Ok(eval_value);
             }
 
             let mut current: &mut Value = value;
@@ -677,21 +690,22 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
 
                 if let FieldKey::Int(num) = order.get(i).unwrap() {
                     if let ValueType::Array(ref mut arr) = current.value {
-                        let current_mut = arr
-                            .get_mut(*num as usize)
-                            .unwrap_or_else(|| panic!("something went wrong"));
 
-                        current = current_mut
+                        if let Some(current_mut) = arr.get_mut(*num as usize) {
+
+                            current = current_mut
+                        } else { 
+                            return Err(ThorLangError::EvalError(format!("something went wrong")));
+                        }
                     }
                 }
 
                 if let FieldKey::String(str) = order.get(i).unwrap() {
-                    let field = current
-                        .fields
-                        .get_mut(str)
-                        .unwrap_or_else(|| panic!("field {str} does not exist on object"));
-
-                    current = field;
+                    if let Some(field) = current.fields.get_mut(str) {
+                        current = field;
+                    } else {
+                        return Err(ThorLangError::EvalError(format!("field {str} does not exist on object")))
+                    }
                 }
             }
 
@@ -717,7 +731,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
                 value.clone(),
             );
 
-            return eval_value;
+            return Ok(eval_value);
         }
 
         //kind of like literals, but will replace instantly with the value behind the variable name
@@ -728,7 +742,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Value {
                 .get(name)
                 .expect(&("this value does not exist ".to_string() + name));
 
-            return value.clone();
+            return Ok(value.clone());
         }
         Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing),
         Expression::Literal { literal } => return eval_literal(literal.clone()),
@@ -760,7 +774,7 @@ impl FieldKey {
 fn generate_field_order(
     target: Box<Expression>,
     enclosing: Rc<RefCell<Environment>>,
-) -> Vec<FieldKey> {
+) -> Result<Vec<FieldKey>, ThorLangError> {
     let mut order = vec![];
 
     let mut current = target;
@@ -777,13 +791,13 @@ fn generate_field_order(
                 if let Expression::Identifier { name } = *key {
                     order.push(FieldKey::String(name));
                 } else {
-                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone()))));
+                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone())?)));
                 }
 
                 current = callee
             }
             Expression::Retrieve { retrievee, key } => {
-                let key = eval(&key, enclosing.clone());
+                let key = eval(&key, enclosing.clone())?;
 
                 match key.value {
                     ValueType::String(str) => {
@@ -806,5 +820,5 @@ fn generate_field_order(
     }
 
     order.reverse();
-    order
+    Ok(order)
 }
