@@ -401,7 +401,10 @@ fn eval_unary(
 
     if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
+
         if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone()){
+
+
             return Ok(result)
         }
 
@@ -484,7 +487,6 @@ fn eval_binary(
     }
 
 
-    println!("{:?}", operator);
     match operator {
         // the if let matches if the value of l and r both match the valuetype if there is no match
         // at all the match arm throws

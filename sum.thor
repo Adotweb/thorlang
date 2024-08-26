@@ -1,4 +1,4 @@
-overload + (a, b) {	
+overload ? (a, b) {	
 	let vec1 = a;
 
 
@@ -12,7 +12,7 @@ overload + (a, b) {
 	return vec1;
 }
 
-overload - (a) {
+overload & (a) {
 	let i = 0;
 	let vec = a;
 	while(i < a.len()){
@@ -57,8 +57,6 @@ overload * (a, b){
 let a = [1, 0, 0];
 let b = [0, 1, 0];
 
-let r = 1;
-let c = 6;
 
 
-
+print &(a ? b);

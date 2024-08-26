@@ -3,12 +3,12 @@ use regex::Regex;
 //the different token types
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum TokenType {
-    LPAREN,
-    RPAREN,
-    LBRACK,
-    RBRACK,
-    LBRACE,
-    RBRACE,
+    LPAREN,//left parenthesis : (
+    RPAREN,//right parenthesis : )
+    LBRACK,//left bracket : [
+    RBRACK,//right bracket : ]
+    LBRACE,//left brace : {
+    RBRACE,//right brace : }
     COMMA,
     DOT,
     MINUS,
@@ -37,15 +37,18 @@ pub enum TokenType {
     ELSE,
     FALSE,
     FN,
-    FOR,
     IF,
     NIL,
-    OR,
     PRINT,
     RETURN,
     TRUE,
     LET,
     WHILE,
+
+    AMP,//ampersand : &
+    UP, //up arror : ^
+    QMARK, //question mark : ?
+    PERCENT, //percent symbol : %
 
     EOF,
 }
@@ -197,12 +200,9 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32) -> Ou
         "overload" => token_type = TokenType::OVERLOAD,
         "if" => token_type = TokenType::IF,
         "else" => token_type = TokenType::ELSE,
-        "and" => token_type = TokenType::AND,
-        "or" => token_type = TokenType::OR,
         "true" => token_type = TokenType::TRUE,
         "false" => token_type = TokenType::FALSE,
         "while" => token_type = TokenType::WHILE,
-        "for" => token_type = TokenType::FOR,
         "fn" => token_type = TokenType::FN,
         "nil" => token_type = TokenType::NIL,
         "let" => token_type = TokenType::LET,
@@ -294,6 +294,11 @@ pub fn lexer(text: String) -> Vec<Token> {
             "*" => tokens.push(simple_token(TokenType::STAR, line_count)),
             "+" => tokens.push(simple_token(TokenType::PLUS, line_count)),
             "-" => tokens.push(simple_token(TokenType::MINUS, line_count)),
+
+            "&" => tokens.push(simple_token(TokenType::AMP, line_count)),
+            "^" => tokens.push(simple_token(TokenType::UP, line_count)),
+            "%" => tokens.push(simple_token(TokenType::PERCENT, line_count)),
+            "?" => tokens.push(simple_token(TokenType::QMARK, line_count)),
 
             "!" => tokens.push(simple_token(
                 if peek(iter, text).as_str() == "=" {

@@ -143,12 +143,16 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
         TokenType::GREATER,  
         TokenType::GREATEREQ,
         TokenType::LESSEQ,
-        TokenType::LESS
+        TokenType::LESS,
+        TokenType::AMP,
+        TokenType::UP,
+        TokenType::QMARK,
+        TokenType::PERCENT
     ];
 
     let token = tokens.get(*current_index).unwrap();
     if !operations.contains(&token.token_type){ 
-        panic!("expected operation token after overload keyword on line {:?}", token.line) 
+        panic!("expected operation token after overload keyword on line {:?} found {:?}", token.line, token)
     }
 
     let operator = token.token_type.clone();
@@ -468,7 +472,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::GREATEREQ | TokenType::GREATER | TokenType::LESS | TokenType::LESSEQ => {
+            TokenType::GREATEREQ | TokenType::GREATER | TokenType::LESS | TokenType::LESSEQ | TokenType::UP => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -492,7 +496,7 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::PLUS | TokenType::MINUS => {
+            TokenType::PLUS | TokenType::MINUS | TokenType::QMARK => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -516,7 +520,7 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::STAR | TokenType::SLASH => {
+            TokenType::STAR | TokenType::SLASH | TokenType::PERCENT => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -538,20 +542,34 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
 fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
     if let Some(token) = tokens.get(*current_index) {
-        match token.token_type {
-            TokenType::BANG | TokenType::MINUS => {
-                let operator = token.token_type.clone();
-                
-                consume_token(current_index, tokens);
 
-                let right = unary(current_index, tokens);
-                return Expression::Unary {
-                    operator,
-                    right: Box::new(right),
-                };
+        let operators = vec![
+            TokenType::BANG,
+            TokenType::MINUS,
+            TokenType::PLUS,
+            TokenType::PERCENT,
+            TokenType::STAR, 
+            TokenType::SLASH,
+            TokenType::AMP,
+            TokenType::UP,
+            TokenType::QMARK,
+            TokenType::GREATER,
+            TokenType::GREATEREQ, 
+            TokenType::LESS,
+            TokenType::LESSEQ,
+        ];
+
+        if operators.contains(&token.token_type) {
+            let operator = token.token_type.clone();
+            consume_token(current_index, tokens);
+
+            let right = unary(current_index, tokens);
+            return Expression::Unary{
+                operator, 
+                right : Box::new(right)
             }
-            _ => {}
         }
+
     }
 
     call(current_index, tokens)
