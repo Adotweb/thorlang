@@ -235,6 +235,7 @@ pub enum ValueType {
     Bool(bool),
     Function(Function),
     Array(Vec<Value>),
+    Error(ThorLangError),
     Object,
     Nil,
 }
@@ -281,6 +282,13 @@ impl Value {
     pub fn nil() -> Value {
         Value {
             value: ValueType::Nil,
+            ..Value::default()
+        }
+    }
+
+    pub fn error(err : ThorLangError) -> Value{
+        Value{
+            value : ValueType::Error(err),
             ..Value::default()
         }
     }
@@ -519,7 +527,10 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>) -> Result<Va
             let eval_value = eval_statement(block.to_vec(), enclosing.clone()); 
                 return match eval_value {
                     Ok(val) => Ok(val),
-                    Err(err) => Ok(Value::string(format!("{:?}", err)))
+                    Err(err) => {
+                        let err = Value::error(err);
+                        return Ok(err)
+                    }
                 }
         },
 

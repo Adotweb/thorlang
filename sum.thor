@@ -6,10 +6,11 @@ let arr = [1, 2, 3];
 print arr[0];
 
 let p = try {
-	return arr[4];
+	return arr[0];
 };
 
-print p;
+
+print isError(p);
 
 overload + (a, b) {
 

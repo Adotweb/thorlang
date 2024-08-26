@@ -11,6 +11,23 @@ pub fn init_native_functions() -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
     native_functions.insert(
+        "isError".to_string(),
+        Value::native_function(
+            vec!["val"],
+            Arc::new(|values| {
+                let val = values.get("val").unwrap();
+
+                if let ValueType::Error(_err) = &val.value {
+                    return Value::bool(true) 
+                } else {
+                    return Value::bool(false)
+                }
+            }), 
+            None
+        ),
+    );
+
+    native_functions.insert(
         "import".to_string(),
         Value::native_function(
             vec!["namespace"],
@@ -191,6 +208,9 @@ pub fn stringify_value(val: Value) -> String {
     let mut ret_val = "".to_string();
 
     match val.value {
+        ValueType::Error(err) => {
+            ret_val = format!("{:?}", err);
+        },
         ValueType::Array(arr) => {
             ret_val += "[";
 
