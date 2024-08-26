@@ -354,6 +354,39 @@ impl Default for Value {
     }
 }
 
+
+fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>) 
+    -> Result<Value, ThorLangError>{
+   
+    let op_env = enclosing.borrow().clone();
+
+    for op in operation_list{
+        let operands = op.1;
+        let operation = op.0;
+
+        if operands.len() != arguments.len(){
+            return Err(ThorLangError::EvalError(
+                    format!("number of operands for {:?} arity function has to be {:?} got {:?}", 
+                            operands.len(), operands.len(), arguments.len())
+                                               ))
+        }
+
+        for i in 0..operands.len(){
+            op_env.values.borrow_mut().insert(operands[i].clone(), arguments[i].clone());
+        }
+
+        let tried_eval = eval_statement(operation, Rc::new(RefCell::new(op_env.clone())), &mut HashMap::new());
+
+        if let Ok(result) = tried_eval{
+            return Ok(result)
+        }
+    }
+    
+    Err(ThorLangError::EvalError(
+            format!("no overloadings")
+                                ))
+}
+
 //order of precedence is as follows
 // eval_statement -> eval -> eval_binary -> eval_unary -> eval_literal
 
@@ -429,30 +462,16 @@ fn eval_binary(
     let l = eval(left, enclosing.clone(), overloadings)?;
     let r = eval(right, enclosing.clone(), overloadings)?;
 
-   
-    //better writing for future rewrites
-    if let Some(operationlist) = overloadings.get(&(operator.clone(), 2)){
-        let operation_env = enclosing.borrow().clone();
+ 
+    let op_vec = vec![l.clone(), r.clone()];
+    let op_overloadings = overloadings.get(&(operator.clone(), 2));
 
-        let op_vec = vec![l.clone(), r.clone()];
-
-        for operation in operationlist{
-            let operands = operation.1.clone();
-            let operation = operation.0.clone();
-
-            for i in 0..operands.len() {
-                operation_env.values.borrow_mut().insert(operands[i].clone(), op_vec[i].clone());
-            }
-
-
-            let tried_operation = eval_statement(operation, Rc::new(RefCell::new(operation_env.clone())), &mut HashMap::new());
-
-            if let Ok(result) = tried_operation{
-                return Ok(result)
-            }
+    if let Some(op_overloadings) = op_overloadings {
+        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone()){
+            return Ok(result)
         }
-
     }
+
 
     match operator {
         // the if let matches if the value of l and r both match the valuetype if there is no match
