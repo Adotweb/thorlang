@@ -4,6 +4,61 @@ let obj;
 fn vec_overloads(){
 
 
+	overload * (mat, vec){
+
+
+
+		//if mat is not a matrix (i.e.) the elements of mat dont have the .len() method
+
+		if(typeOf(mat) != "array"){
+			return throw("matrix is not an array");
+		}	
+		if(typeOf(vec) != "array"){
+			return throw("vector has to be an array");
+		}
+		
+
+		let i = 0;
+		while(i < mat.len()){
+			if(typeOf(mat[i]) != "array"){
+			
+				return throw("matrix rows have to be arrays");
+			}	
+			i = i + 1;
+		}
+	
+
+		let ret = mat;
+
+		i = 0;
+		while(i < mat.len()){
+			
+			let row = mat[i];
+
+			if(row.len() != vec.len()){
+				return throw("");
+			}
+
+			let product_sum = 0;
+
+			let j = 0;
+			while(j < row.len()){
+				
+				product_sum = product_sum + row[j] * vec[j];		
+
+				j = j + 1;
+			}
+
+			ret[i] = product_sum;
+
+			i = i + 1;
+		}
+			return ret;
+
+
+
+	}
+
 	//vector addition
 	overload + (a, b) {
 		

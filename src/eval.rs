@@ -198,7 +198,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 #[derive(Clone)]
 pub enum Function {
     NativeFunction {
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Value>,
+        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
         needed_arguments: Vec<String>,
         self_value: Option<Box<Value>>,
     },
@@ -315,7 +315,7 @@ impl Value {
 
     pub fn native_function(
         arguments: Vec<&str>,
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Value>,
+        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
         self_value: Option<Box<Value>>,
     ) -> Value {
         Value {
@@ -707,7 +707,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                     eval_args.insert("self".to_string(), *sv.clone());
                 }
 
-                let function = body(eval_args);
+                let function = body(eval_args)?;
 
                 return Ok(function);
             }

@@ -1,4 +1,4 @@
-use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType};
+use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType, ThorLangError};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -11,6 +11,52 @@ pub fn init_native_functions() -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
     native_functions.insert(
+        "throw".to_string(),
+        Value::native_function(
+            vec!["error"],
+            Arc::new(|values|{
+            
+                let error = values.get("error").unwrap();
+            
+                if let ValueType::String(str) = &error.value {
+
+                    return Err(ThorLangError::EvalError(str.to_string()))
+                } else {
+                    return Err(ThorLangError::EvalError(format!("{:?}", error)))
+                }
+
+            }),
+            None
+        ),
+    );
+
+    native_functions.insert(
+        "typeOf".to_string(),
+        Value::native_function(
+            vec!["val"],
+            Arc::new(|values|{
+
+                let val = values.get("val").unwrap();
+
+            
+
+                return Ok(Value::string(match &val.value {
+                    ValueType::String(_str) => "string",
+                    ValueType::Number(_num) => "number",
+                    ValueType::Nil => "nil",
+                    ValueType::Object => "object",
+                    ValueType::Array(_arr) => "array",
+                    ValueType::Function(_func) => "function",
+                    ValueType::Bool(_bool) => "bool",
+                    ValueType::Error(_err) => "error"
+                }.to_string()))
+
+            }),
+            None
+        )
+    );
+
+    native_functions.insert(
         "isError".to_string(),
         Value::native_function(
             vec!["val"],
@@ -18,9 +64,9 @@ pub fn init_native_functions() -> HashMap<String, Value> {
                 let val = values.get("val").unwrap();
 
                 if let ValueType::Error(_err) = &val.value {
-                    return Value::bool(true) 
+                    return Ok(Value::bool(true))
                 } else {
-                    return Value::bool(false)
+                    return Ok(Value::bool(false))
                 }
             }), 
             None
@@ -47,7 +93,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
                         panic!("module {string} does not exist in the current directory")
                     });
 
-                    interpret_code(module_text)
+                    Ok(interpret_code(module_text))
                 } else {
                     panic!("can only import from strings")
                 }
@@ -70,7 +116,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
                     println!("{}", stringify_value(value.clone()));
                 }
 
-                Value::default()
+                Ok(Value::default())
             }),
             None,
         ),
@@ -80,7 +126,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         "getTime".to_string(),
         Value::native_function(
             vec![],
-            Arc::new(|_values| Value::number(69420.0)),
+            Arc::new(|_values| Ok(Value::number(69420.0))),
             None,
         ),
     );
@@ -104,9 +150,9 @@ pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
 
 
                 if let ValueType::Number(num) = self_value.value{
-                    return Value::number(num.sqrt())
+                    return Ok(Value::number(num.sqrt()))
                 } else {
-                    panic!("no number?")
+                    return Err(ThorLangError::EvalError("".to_string()))
                 }
             }),
             init_value,
@@ -151,7 +197,7 @@ pub fn init_array_fields(
                 let self_value = values.get("self").unwrap();
 
                 if let ValueType::Array(arr) = &self_value.value {
-                    return Value::number(arr.len() as f64)
+                    return Ok(Value::number(arr.len() as f64))
                 }
                 else {
                     panic!("?")
@@ -181,9 +227,9 @@ pub fn init_array_fields(
                             .set(var_name.clone(), Value::array(newarr.clone()));
                     }
 
-                    return Value::array(newarr)
+                    return Ok(Value::array(newarr))
                 } else {
-                    panic!("")
+                    return Err(ThorLangError::EvalError("".to_string()))
                 }
 
             }),

@@ -496,7 +496,7 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::PLUS | TokenType::MINUS | TokenType::QMARK => {
+            TokenType::PLUS | TokenType::MINUS | TokenType::QMARK | TokenType::AMP => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);

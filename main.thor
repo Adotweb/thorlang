@@ -5,7 +5,12 @@ module.vec_overloads();
 
 
 let a = [0, 1, 2];
-let b = [0, 1, 2];
+
+let matrix = [
+	[1, 0, 0],
+	[0, 2, 0],
+	[0, 0, 1]
+];
 
 
-print 4 * (a + b);
+print 3 * (matrix * a);
