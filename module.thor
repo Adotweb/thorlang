@@ -4,6 +4,17 @@ let obj;
 fn vec_overloads(){
 
 
+	overload + (a){
+		if(typeOf(a) != "number"){
+			return throw("");
+		}
+	
+		if(a <= 0){
+			return -a;
+		} 
+		return a;
+	}
+
 	overload * (mat, vec){
 
 
@@ -80,6 +91,7 @@ fn vec_overloads(){
 
 		return vec;
 	}
+
 
 	//scalar multiplication
 	overload * (a, b) {
