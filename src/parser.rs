@@ -1,4 +1,4 @@
-use crate::{Token, TokenType};
+use crate::{Token, TokenType, stringify_value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
@@ -71,7 +71,7 @@ fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type
     let token = tokens.get(*current_index - 1).unwrap();
 
     if token.token_type != token_type{
-        panic!("expected {:?} after {:?} on line {:?}", token_type, token.token_type, token.line)
+        panic!("expected {:?} after {:?} on line {:?} : {:?}", token_type, token.token_type, token.line, token.column)
     }
     
     *current_index += 1;

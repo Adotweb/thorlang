@@ -1,6 +1,5 @@
-
-
 let s = "siuuu"
+
 
 let a = [0, 1, 2];
 

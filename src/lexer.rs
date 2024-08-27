@@ -60,12 +60,14 @@ pub enum TokenType {
 pub struct Token {
     pub token_type: TokenType,
     pub line: i32,
+    pub column : i32
 }
 
-fn simple_token(token_type: TokenType, line: i32) -> Token {
+fn simple_token(token_type: TokenType, line: i32, column : i32) -> Token {
     return Token {
         token_type,
-        line
+        line,
+        column
     };
 }
 
@@ -83,7 +85,7 @@ struct OuterIter {
     iter_skip_steps: usize,
 }
 
-fn iterate_string(current_index: usize, text: &str, current_line: i32) -> OuterIter {
+fn iterate_string(current_index: usize, text: &str, current_line: i32, column : i32) -> OuterIter {
 
     //iterate string skips at least one (the first matching) character
     let mut iter_skip_steps: usize = 1;
@@ -112,12 +114,13 @@ fn iterate_string(current_index: usize, text: &str, current_line: i32) -> OuterI
         token: Token {
             token_type: TokenType::STRING(string_value),
             line: current_line,
+            column
         },
         iter_skip_steps,
     };
 }
 
-fn iterate_number(current_index: usize, text: &str, current_line: i32) -> OuterIter {
+fn iterate_number(current_index: usize, text: &str, current_line: i32, column : i32) -> OuterIter {
 
     //same as before
     let mut iter_skip_steps = 1;
@@ -159,6 +162,7 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32) -> OuterI
                     token: Token {
                         token_type: TokenType::NUMBER(number_value),
                         line: current_line,
+                        column
                     },
                     iter_skip_steps,
                 };
@@ -181,12 +185,13 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32) -> OuterI
         token: Token {
             token_type: TokenType::NUMBER(number_value),
             line: current_line,
+            column
         },
         iter_skip_steps,
     };
 }
 
-fn iterate_identifier(current_index: usize, text: &str, current_line: i32) -> OuterIter {
+fn iterate_identifier(current_index: usize, text: &str, current_line: i32, column : i32) -> OuterIter {
     //identifiers have the following regular form : [a-zA-Z]([a-zA-Z0-9]|_)*
     //this method only has to check from the second letter onwards (till the end of the "word").
     let id_regex = Regex::new(r"[a-zA-Z0-9]|_").unwrap();
@@ -238,6 +243,7 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32) -> Ou
         token: Token {
             token_type,
             line: current_line,
+            column
         },
         iter_skip_steps,
     };
@@ -261,139 +267,130 @@ fn iterate_comment(current_index: usize, text: &str) -> usize {
 }
 
 
-//puts it all together
-pub fn lexer(text: String) -> Vec<Token> {
-    let mut tokens: Vec<Token> = vec![];
+pub fn line_column_lexer(text : String) -> Vec<Token> {
+    let mut tokens : Vec<Token> = vec![];
 
-
-    //line count for later error messages
-    let mut line_count = 1;
-
-
-
-    let mut iter = 0;
-
-    let text = &text;
-
-
-    //the regex to find the beginning of an identifier or a number
     let identifier_start_regex = Regex::new(r"[a-zA-Z]|_").unwrap();
     let number_start_regex = Regex::new(r"[0-9]").unwrap();
 
+    let lines = text.split("\n");
 
-    
-    while iter < text.len() {
-    
+    for (line_count, line) in lines.enumerate(){
+        let line_count = line_count as i32 + 1;
+        let mut skip_chars = 0;
+        for (column, char) in line.chars().enumerate(){
+            let column_count = column as i32;
+            if skip_chars > 0{
+                skip_chars -= 1;
+                continue;
+            } 
 
-        let char = text.chars().nth(iter).unwrap().to_string();
+            let char = char.to_string(); 
 
-        println!("{char} {} {line_count}", char.to_string() == "\n");
-        let mut iter_skip_steps: usize = 1; //can be changed to increase the amount of chars a certain
-                                            //operation consumes.
+            if char == "\""{
+                let token_iter = iterate_string(column, line, line_count, column_count);
+                
+                tokens.push(token_iter.token);
+                skip_chars = token_iter.iter_skip_steps;
+            }
 
-        //checking for identifiers and numbers has to happen BEFORE special characters, because
-        //numbers may contain dots and these can not be marked as DOT tokens.
+            if identifier_start_regex.is_match(&char){
+                let token_iter = iterate_identifier(column, line, line_count, column_count);
+                
+                tokens.push(token_iter.token);
+                skip_chars = token_iter.iter_skip_steps;
+            }
 
+            if number_start_regex.is_match(&char){
+                let token_iter = iterate_number(column, line, line_count, column_count);
+                
+                tokens.push(token_iter.token);
+                skip_chars = token_iter.iter_skip_steps;
+            }
+            
+            match char.as_str() {
+            "(" => tokens.push(simple_token(TokenType::LPAREN, line_count, column_count)),
+            ")" => tokens.push(simple_token(TokenType::RPAREN, line_count, column_count)),
+            "{" => tokens.push(simple_token(TokenType::LBRACE, line_count, column_count)),
+            "}" => tokens.push(simple_token(TokenType::RBRACE, line_count, column_count)),
+            "[" => tokens.push(simple_token(TokenType::LBRACK, line_count, column_count)),
+            "]" => tokens.push(simple_token(TokenType::RBRACK, line_count, column_count)),
+            ";" => tokens.push(simple_token(TokenType::SEMICOLON, line_count, column_count)),
+            "," => tokens.push(simple_token(TokenType::COMMA, line_count, column_count)),
+            "." => tokens.push(simple_token(TokenType::DOT, line_count, column_count)),
+            "*" => tokens.push(simple_token(TokenType::STAR, line_count, column_count)),
+            "+" => tokens.push(simple_token(TokenType::PLUS, line_count, column_count)),
+            "-" => tokens.push(simple_token(TokenType::MINUS, line_count, column_count)),
 
-        //strings
-        if char == "\"" {
-            let string_iter = iterate_string(iter, text, line_count);
-
-            tokens.push(string_iter.token);
-            iter_skip_steps = string_iter.iter_skip_steps + 1;
-        }
-
-        //identifiers
-        if identifier_start_regex.is_match(char.as_str()) {
-            let identifier_iter = iterate_identifier(iter, text, line_count);
-
-            tokens.push(identifier_iter.token);
-            iter_skip_steps = identifier_iter.iter_skip_steps;
-        }
-
-        //numbers
-        if number_start_regex.is_match(char.as_str()) {
-            let identifier_iter = iterate_number(iter, text, line_count);
-
-            tokens.push(identifier_iter.token);
-            iter_skip_steps = identifier_iter.iter_skip_steps;
-        }
-
-
-        //single and double character tokens as well as comments
-        match char.as_str() {
-            "\n" => line_count += 1,
-            "(" => tokens.push(simple_token(TokenType::LPAREN, line_count)),
-            ")" => tokens.push(simple_token(TokenType::RPAREN, line_count)),
-            "{" => tokens.push(simple_token(TokenType::LBRACE, line_count)),
-            "}" => tokens.push(simple_token(TokenType::RBRACE, line_count)),
-            "[" => tokens.push(simple_token(TokenType::LBRACK, line_count)),
-            "]" => tokens.push(simple_token(TokenType::RBRACK, line_count)),
-            ";" => tokens.push(simple_token(TokenType::SEMICOLON, line_count)),
-            "," => tokens.push(simple_token(TokenType::COMMA, line_count)),
-            "." => tokens.push(simple_token(TokenType::DOT, line_count)),
-            "*" => tokens.push(simple_token(TokenType::STAR, line_count)),
-            "+" => tokens.push(simple_token(TokenType::PLUS, line_count)),
-            "-" => tokens.push(simple_token(TokenType::MINUS, line_count)),
-
-            "&" => tokens.push(simple_token(TokenType::AMP, line_count)),
-            "^" => tokens.push(simple_token(TokenType::UP, line_count)),
-            "%" => tokens.push(simple_token(TokenType::PERCENT, line_count)),
-            "?" => tokens.push(simple_token(TokenType::QMARK, line_count)),
+            "&" => tokens.push(simple_token(TokenType::AMP, line_count, column_count)),
+            "^" => tokens.push(simple_token(TokenType::UP, line_count, column_count)),
+            "%" => tokens.push(simple_token(TokenType::PERCENT, line_count, column_count)),
+            "?" => tokens.push(simple_token(TokenType::QMARK, line_count, column_count)),
 
             "!" => tokens.push(simple_token(
-                if peek(iter, text).as_str() == "=" {
-                    iter_skip_steps = 2;
+                if peek(column, line).as_str() == "=" {
+                    skip_chars = 2;
                     TokenType::BANGEQ
                 } else {
                     TokenType::BANG
                 },
                 line_count,
+                column_count
             )),
             "=" => tokens.push(simple_token(
-                if peek(iter, text).as_str() == "=" {
-                    iter_skip_steps = 2;
+                if peek(column, line).as_str() == "=" {
+                    skip_chars = 2;
                     TokenType::EQEQ
                 } else {
                     TokenType::EQ
                 },
                 line_count,
+                column_count
             )),
             "<" => tokens.push(simple_token(
-                if peek(iter, text).as_str() == "=" {
-                    iter_skip_steps = 2;
+                if peek(column, line).as_str() == "=" {
+                    skip_chars = 2;
                     TokenType::LESSEQ
                 } else {
                     TokenType::LESS
                 },
                 line_count,
+                column_count
             )),
             ">" => tokens.push(simple_token(
-                if peek(iter, text).as_str() == "=" {
-                    iter_skip_steps = 2;
+                if peek(column, line).as_str() == "=" {
+                    skip_chars = 2;
                     TokenType::GREATEREQ
                 } else {
                     TokenType::GREATER
                 },
                 line_count,
+                column_count
             )),
 
             "/" => {
-                if peek(iter, text) == "/" {
-                    iter_skip_steps = iterate_comment(iter, text);
+                if peek(column, line) == "/" {
+                    skip_chars = iterate_comment(column, line);
                 //in case of comment skips rest of line
                 } else {
-                    tokens.push(simple_token(TokenType::SLASH, line_count))
+                    tokens.push(simple_token(TokenType::SLASH, line_count, column_count))
                 }
             }
 
             _ => (),
         }
 
-        iter += iter_skip_steps
-    }
+        }
+        
+    } 
 
-    tokens.push(simple_token(TokenType::EOF, line_count));
 
-    return tokens;
+    tokens
+}
+
+//puts it all together
+pub fn lexer(text: String) -> Vec<Token> {
+
+    line_column_lexer(text.clone())
+
 }
