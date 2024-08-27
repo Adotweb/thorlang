@@ -68,14 +68,16 @@ fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> 
 
 fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> &'a Token{
     
-    let token = tokens.get(*current_index - 1).unwrap();
+    let prev_token = tokens.get(*current_index - 1).unwrap();
+
+    let token = tokens.get(*current_index).unwrap();
 
     if token.token_type != token_type{
-        panic!("expected {:?} after {:?} on line {:?} : {:?}", token_type, token.token_type, token.line, token.column)
+        panic!("expected {:?} after {:?} on line {:?} : {:?}", token_type, prev_token.token_type, prev_token.line, prev_token.column)
     }
     
     *current_index += 1;
-    &tokens[*current_index]
+    &tokens.get(*current_index).unwrap_or_else(||panic!("{:?}", token))
 }
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
@@ -748,7 +750,7 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Expression {
                         TokenType::SEMICOLON => {
                             break;
                         },
-                        _ => unimplemented!(),
+                        _ => panic!("{:?}", token),
                     }
                 }
 
