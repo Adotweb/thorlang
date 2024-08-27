@@ -72,7 +72,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             //this works basically like a function, except that the call operation takes place in
             //the corresponding eval function
-            Statement::Overload { operator, operands, operation } => {
+            Statement::Overload { operator, operands, operation, line } => {
                 
                 let arity = operands.len();
 
@@ -85,7 +85,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 overloadings.insert((operator, arity), vec![(operation, operands)]);
 
             },
-            Statement::Return { expression } => {
+            Statement::Return { expression, line } => {
                 let mut ret_value = eval(&expression, enclosing.clone(), overloadings)?;
 
                 ret_value.return_true = false;
@@ -97,6 +97,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 name,
                 body,
                 arguments,
+                line
             } => {
                 let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
 
@@ -109,7 +110,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                     .insert(name, function);
             }
             //a block just opens a new env tree branch
-            Statement::Block { statements } => {
+            Statement::Block { statements, line } => {
                 let local_scope = Environment::new(Some(enclosing.clone()));
                 eval_statement(statements, local_scope.clone(), overloadings);
             }
@@ -119,6 +120,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 condition,
                 then_branch,
                 else_branch,
+                line
             } => {
                 if let ValueType::Bool(bool) = eval(&condition, enclosing.clone(), overloadings)?.value {
                     if bool {
@@ -143,7 +145,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             //still need to fix returns from while as i dont have a good way of detecing whether or
             //not something got returned....
-            Statement::While { condition, block } => {
+            Statement::While { condition, block, line } => {
                 let mut condition_value = eval(&condition.clone(), enclosing.clone(), overloadings)?;
                 while let ValueType::Bool(bool) = condition_value.value {
                     if bool {
@@ -164,7 +166,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             }
 
             //print is built in
-            Statement::Print { expression } => {
+            Statement::Print { expression, line } => {
                 let result = eval(&expression, enclosing.clone(), overloadings)?;
 
                 if let ValueType::String(ref str) = result.value {
@@ -175,14 +177,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             }
 
-            Statement::Do { expression } => {
+            Statement::Do { expression, line } => {
                 //runs expressions
                 eval(&expression, enclosing.clone(), overloadings);
             }
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "enclosing"
-            Statement::Variable { name, expression } => {
+            Statement::Variable { name, expression, line } => {
                 let val = eval(&expression, enclosing.clone(), overloadings)?;
 
                 enclosing.borrow_mut().values.borrow_mut().insert(name, val);

@@ -4,38 +4,47 @@ use crate::{Token, TokenType};
 pub enum Statement {
     Print {
         expression: Expression,
+        line : i32
     },
     Do {
         expression: Expression,
+        line : i32
     },
     Variable {
         name: String,
         expression: Expression,
+        line : i32
     },
     Block {
         statements: Vec<Statement>,
+        line : i32
     },
     If {
         condition: Expression,
         then_branch: Box<Vec<Statement>>,
         else_branch: Option<Box<Vec<Statement>>>,
+        line : i32
     },
     While {
         condition: Expression,
         block: Box<Vec<Statement>>,
+        line : i32
     },
     Function {
         name: String,
         body: Box<Vec<Statement>>,
         arguments: Vec<String>,
+        line : i32
     },
     Return {
         expression: Expression,
+        line : i32
     },
     Overload {
         operator : TokenType, 
         operands : Vec<String>,
-        operation : Vec<Statement>                
+        operation : Vec<Statement>,
+        line : i32
     }
 }
 
@@ -46,6 +55,16 @@ fn consume_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a T
     temp
 }
 
+//returns the previous token
+fn prev_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
+    &tokens[*current_index - 1]
+}
+
+fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> i32{
+    let line = prev_token(current_index, tokens);
+
+    line.line
+}
 
 fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> &'a Token{
     
@@ -104,6 +123,7 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Vec<Statemen
                 consume_token(current_index, tokens);
                 statements.push(Statement::Block {
                     statements: statement(current_index, tokens),
+                    line : token.line
                 })
             }
             TokenType::RBRACE => {
@@ -150,7 +170,10 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
         TokenType::PERCENT
     ];
 
+    let line = get_statement_line(current_index, tokens);
+
     let token = tokens.get(*current_index).unwrap();
+
     if !operations.contains(&token.token_type){ 
         panic!("expected operation token after overload keyword on line {:?} found {:?}", token.line, token)
     }
@@ -187,21 +210,26 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Statemen
     Statement::Overload{
         operator,
         operands,
-        operation
+        operation,
+        line
     }
 }
 
 fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+    let line = get_statement_line(current_index, tokens);
     let expression = expr(current_index, tokens);
 
+
+    
     //consume the token
     consume_token(current_index, tokens);
 
-    return Statement::Return { expression };
+    return Statement::Return { expression, line };
 }
 
 fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
-    
+    let line = get_statement_line(current_index, tokens) ;
+
     match_token(current_index, tokens, TokenType::LPAREN);
 
     let condition = expr(current_index, tokens);
@@ -214,10 +242,11 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement 
 
     let block = Box::new(statement(current_index, tokens));
 
-    return Statement::While { condition, block };
+    return Statement::While { condition, block, line };
 }
 
 fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+    let line = get_statement_line(current_index, tokens);
 
     match_token(current_index, tokens, TokenType::LPAREN);
 
@@ -243,21 +272,25 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
         condition,
         then_branch,
         else_branch,
+        line
     };
 }
 
 fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+    let line = get_statement_line(current_index, tokens);
     let expression = expr(current_index, tokens);
 
     match_token(current_index, tokens, TokenType::SEMICOLON);
 
     return Statement::Print {
-        expression
+        expression,
+        line
     };
 }
 
 fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
 
+    let line = get_statement_line(current_index, tokens);
     let token = tokens.get(*current_index).unwrap();
     let function_name : String;
 
@@ -298,21 +331,25 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Stateme
         arguments: args,
         name: function_name,
         body: Box::new(block),
+        line
     }
 }
 
 //do turns expressions into statements;
 fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+    let line = get_statement_line(current_index, tokens);
     let expression = expr(current_index, tokens);
     
     match_token(current_index, tokens, TokenType::SEMICOLON);
 
     return Statement::Do {
         expression,
+        line
     };
 }
 
 fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
+    let line = get_statement_line(current_index, tokens);
     let name : String;
     let mut token = tokens.get(*current_index).unwrap().clone();
 
@@ -341,6 +378,7 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Statement {
     return Statement::Variable {
         name,
         expression:init,
+        line
     };
 }
 
