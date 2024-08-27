@@ -17,4 +17,4 @@ let matrix = [
 print +3;
 
 //matrix * vector multiplication works as well as vector addition and scalar multiplication (left and right commutative)
-print 3 * (matrix * (a + b) * 4);
+print 3 * (matrix * (a + b) * 4)

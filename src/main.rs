@@ -52,7 +52,16 @@ fn main() {
 pub fn interpret_code(text: String) -> Value {
     let tokens = lexer(text);
     //println!("{:#?}", tokens.clone());
-    let ast = parse(tokens.clone());
+    //
+
+
+    //custom error handling can be defined in these match arms 
+    let ast = match parse(tokens.clone()){
+        Ok(stmts) => stmts,
+        Err(err) => panic!("{:?}", err)
+    };
+
+
     let natives: HashMap<String, Value> = init_native_functions();
     let global_env = Rc::new(RefCell::new(Environment {
         values: natives.into(),
