@@ -68,11 +68,10 @@ fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> 
 
 fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> &'a Token{
     
-    let prev_token = tokens.get(*current_index - 1).unwrap();
-    let token = tokens.get(*current_index).unwrap();
+    let token = tokens.get(*current_index - 1).unwrap();
 
     if token.token_type != token_type{
-        panic!("expected {:?} after {:?} on line {:?}", token_type, prev_token.token_type, token.line)
+        panic!("expected {:?} after {:?} on line {:?}", token_type, token.token_type, token.line)
     }
     
     *current_index += 1;

@@ -51,8 +51,8 @@ fn main() {
 //basically modules
 pub fn interpret_code(text: String) -> Value {
     let tokens = lexer(text);
+    //println!("{:#?}", tokens.clone());
     let ast = parse(tokens.clone());
-    //println!("{:#?}", ast.clone());
     let natives: HashMap<String, Value> = init_native_functions();
     let global_env = Rc::new(RefCell::new(Environment {
         values: natives.into(),
