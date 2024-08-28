@@ -357,7 +357,7 @@ impl Default for Value {
 }
 
 
-fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>) 
+fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>, overloadings: &mut Overloadings) 
     -> Result<Value, ThorLangError>{
    
     let op_env = enclosing.borrow().clone();
@@ -377,7 +377,7 @@ fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, 
             op_env.values.borrow_mut().insert(operands[i].clone(), arguments[i].clone());
         }
 
-        let tried_eval = eval_statement(operation, Rc::new(RefCell::new(op_env.clone())), &mut HashMap::new());
+        let tried_eval = eval_statement(operation, Rc::new(RefCell::new(op_env.clone())), overloadings);
 
         if let Ok(result) = tried_eval{
             return Ok(result)
@@ -403,10 +403,10 @@ fn eval_unary(
 
     if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
+        let mut overloadings_so_far = &mut overloadings.clone();
+        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), overloadings_so_far){
 
-        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone()){
-
-
+            
             return Ok(result)
         }
 
@@ -483,7 +483,8 @@ fn eval_binary(
     let op_overloadings = overloadings.get(&(operator.clone(), 2));
 
     if let Some(op_overloadings) = op_overloadings {
-        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone()){
+        let mut overloadings_so_far = overloadings.clone();
+        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone(), &mut overloadings_so_far){
             return Ok(result)
         }
     }
