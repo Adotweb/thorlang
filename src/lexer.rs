@@ -30,6 +30,8 @@ pub enum TokenType {
     STRING(String),
     NUMBER(String),
 
+    SPECIAL(String),
+
     TRY,
     OVERLOAD,
     DO,
@@ -45,10 +47,6 @@ pub enum TokenType {
     LET,
     WHILE,
 
-    AMP,//ampersand : &
-    UP, //up arror : ^
-    QMARK, //question mark : ?
-    PERCENT, //percent symbol : %
 
     EOF,
 }
@@ -159,6 +157,7 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32, column : 
 fn iterate_identifier(current_index: usize, text: &str, current_line: i32, column : i32) -> OuterIter {
     //identifiers have the following regular form : [a-zA-Z]([a-zA-Z0-9]|_)*
     //this method only has to check from the second letter onwards (till the end of the "word").
+    
     let id_regex = Regex::new(r"[a-zA-Z0-9]|_").unwrap();
     let mut iter_skip_steps: usize = 0; //counts how many iterations have to be skipped in the main iteration loop
 
@@ -195,6 +194,7 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32, colum
         _ => (),
     }
 
+
     return OuterIter {
         token: Token {
             token_type,
@@ -223,11 +223,47 @@ fn iterate_comment(current_index: usize, text: &str) -> usize {
 }
 
 
+//same as for identifiers but matches everything that
+//it does not match any operations + - and so on, strings or numbers
+fn iterate_special_chars(current_index: usize, text : &str, line : i32,column : i32) -> OuterIter{
+
+    //speical characters cannot contain numbers nor strings
+    let special_regex = Regex::new(r#"[^\+\-\/\*\;\(\)\[\]\{\}=\s]"#).unwrap();
+    let mut iter_skip_steps = 0;
+
+    let mut special_chars = "".to_string();
+
+
+    while let Some(char) = text.chars().nth(current_index + iter_skip_steps) {
+        let char = char.to_string();
+        if special_regex.is_match(&char){
+            special_chars += &char; 
+            iter_skip_steps += 1;
+        } else {
+            break;
+        }
+    }
+
+
+    OuterIter{
+        token : Token{
+            token_type : TokenType::SPECIAL(special_chars),
+            column, 
+            line
+        },
+        iter_skip_steps
+    }
+}
+
+
 pub fn line_column_lexer(text : String) -> Vec<Token> {
     let mut tokens : Vec<Token> = vec![];
 
     //regex to see whether a char is start of a number or identifier
-    let identifier_start_regex = Regex::new(r"[a-zA-Z]|_").unwrap();
+    //
+    //
+    //the identifier one matches everything that is not a reserved character;
+    let identifier_start_regex = Regex::new(r"_|[a-zA-Z]").unwrap();
     let number_start_regex = Regex::new(r"[0-9]").unwrap();
 
 
@@ -258,6 +294,9 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 continue;
             } 
 
+            if char.is_whitespace(){
+                continue;
+            }
             //convert char into string for easier comparison
             let char = char.to_string(); 
 
@@ -274,6 +313,7 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 //these methods overshoot by one (because of the looping behaviour) so they have to
                 //be put one behind
                 skip_chars = token_iter.iter_skip_steps - 1;
+                continue;
             }
 
             if identifier_start_regex.is_match(&char){
@@ -281,6 +321,7 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 
                 tokens.push(token_iter.token);
                 skip_chars = token_iter.iter_skip_steps - 1;
+                continue;
             }
 
             if number_start_regex.is_match(&char){
@@ -288,32 +329,28 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 
                 tokens.push(token_iter.token);
                 skip_chars = token_iter.iter_skip_steps - 1;
+                continue;
             }
            
-
+            
             //this is straightforward
-            match char.as_str() {
-            "(" => tokens.push(simple_token(TokenType::LPAREN, line_count, column_count)),
-            ")" => tokens.push(simple_token(TokenType::RPAREN, line_count, column_count)),
-            "{" => tokens.push(simple_token(TokenType::LBRACE, line_count, column_count)),
-            "}" => tokens.push(simple_token(TokenType::RBRACE, line_count, column_count)),
-            "[" => tokens.push(simple_token(TokenType::LBRACK, line_count, column_count)),
-            "]" => tokens.push(simple_token(TokenType::RBRACK, line_count, column_count)),
-            ";" => tokens.push(simple_token(TokenType::SEMICOLON, line_count, column_count)),
-            "," => tokens.push(simple_token(TokenType::COMMA, line_count, column_count)),
-            "." => tokens.push(simple_token(TokenType::DOT, line_count, column_count)),
-            "*" => tokens.push(simple_token(TokenType::STAR, line_count, column_count)),
-            "+" => tokens.push(simple_token(TokenType::PLUS, line_count, column_count)),
-            "-" => tokens.push(simple_token(TokenType::MINUS, line_count, column_count)),
-
-            "&" => tokens.push(simple_token(TokenType::AMP, line_count, column_count)),
-            "^" => tokens.push(simple_token(TokenType::UP, line_count, column_count)),
-            "%" => tokens.push(simple_token(TokenType::PERCENT, line_count, column_count)),
-            "?" => tokens.push(simple_token(TokenType::QMARK, line_count, column_count)),
+            match char.as_str() { 
+            "(" => {tokens.push(simple_token(TokenType::LPAREN, line_count, column_count));continue;},
+            ")" => {tokens.push(simple_token(TokenType::RPAREN, line_count, column_count));continue;},
+            "{" => {tokens.push(simple_token(TokenType::LBRACE, line_count, column_count));continue;},
+            "}" => {tokens.push(simple_token(TokenType::RBRACE, line_count, column_count));continue;},
+            "[" => {tokens.push(simple_token(TokenType::LBRACK, line_count, column_count));continue;},
+            "]" => {tokens.push(simple_token(TokenType::RBRACK, line_count, column_count));continue;},
+            ";" => {tokens.push(simple_token(TokenType::SEMICOLON, line_count, column_count));continue;},
+            "," => {tokens.push(simple_token(TokenType::COMMA, line_count, column_count));continue;},
+            "." => {tokens.push(simple_token(TokenType::DOT, line_count, column_count));continue;},
+            "*" => {tokens.push(simple_token(TokenType::STAR, line_count, column_count));continue;},
+            "+" => {tokens.push(simple_token(TokenType::PLUS, line_count, column_count));continue;},
+            "-" => {tokens.push(simple_token(TokenType::MINUS, line_count, column_count));continue;},
 
             //any of the below matches either a single or double character token depending of the
             //next value
-            "!" => tokens.push(simple_token(
+            "!" => {tokens.push(simple_token(
                 if peek(column, line).as_str() == "=" {
                     skip_chars = 2;
                     TokenType::BANGEQ
@@ -322,8 +359,8 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 },
                 line_count,
                 column_count
-            )),
-            "=" => tokens.push(simple_token(
+            ));continue;},
+            "=" => {tokens.push(simple_token(
                 if peek(column, line).as_str() == "=" {
                     skip_chars = 2;
                     TokenType::EQEQ
@@ -332,8 +369,8 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 },
                 line_count,
                 column_count
-            )),
-            "<" => tokens.push(simple_token(
+            ));continue;},
+            "<" => {tokens.push(simple_token(
                 if peek(column, line).as_str() == "=" {
                     skip_chars = 2;
                     TokenType::LESSEQ
@@ -342,8 +379,8 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 },
                 line_count,
                 column_count
-            )),
-            ">" => tokens.push(simple_token(
+            ));continue;},
+            ">" => {tokens.push(simple_token(
                 if peek(column, line).as_str() == "=" {
                     skip_chars = 2;
                     TokenType::GREATEREQ
@@ -352,18 +389,28 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
                 },
                 line_count,
                 column_count
-            )),
+            ));continue;},
 
             "/" => {
                 if peek(column, line) == "/" {
                     skip_chars = iterate_comment(column, line);
+                    continue;
                 //in case of comment skips rest of line
                 } else {
-                    tokens.push(simple_token(TokenType::SLASH, line_count, column_count))
+                    tokens.push(simple_token(TokenType::SLASH, line_count, column_count));
+                    continue;
                 }
             }
 
-            _ => (),
+            _ => {
+                //same as identifiers but matches everything that is left
+                let  skip_iter = iterate_special_chars(column, line, line_count, column_count);
+                
+                //again iter_skip_steps overshoots by one
+                skip_chars = skip_iter.iter_skip_steps - 1;
+                tokens.push(skip_iter.token);
+                
+            },
         }
 
         }

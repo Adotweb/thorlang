@@ -172,18 +172,20 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Result<S
         TokenType::GREATER,  
         TokenType::GREATEREQ,
         TokenType::LESSEQ,
-        TokenType::LESS,
-        TokenType::AMP,
-        TokenType::UP,
-        TokenType::QMARK,
-        TokenType::PERCENT
     ];
+
 
     let line = get_statement_line(current_index, tokens);
 
     let token = tokens.get(*current_index).unwrap();
 
-    if !operations.contains(&token.token_type){ 
+    let mut is_op = false;
+    if let TokenType::SPECIAL(_id) = &token.token_type {
+        is_op = true; 
+    }
+
+
+    if !operations.contains(&token.token_type) && !is_op { 
         let msg = format!("expected operation token after overload keyword on line {:?} found {:?}", token.line, token);
 
         return Err(ThorLangError::ParsingError(msg));
@@ -236,8 +238,8 @@ fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<St
 
 
     
-    //consume the token
-    consume_token(current_index, tokens);
+    //consume and match the semicolon token
+    let _ = match_token(current_index, tokens, TokenType::SEMICOLON)?;
 
     return Ok(Statement::Return { expression, line });
 }
@@ -370,10 +372,19 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     let mut token = tokens.get(*current_index).unwrap().clone();
 
 
+
     if let TokenType::IDENTIFIER(str) = token.token_type {
         name = str;
-    } else {
-        let msg = format!("exptected a variable name");
+    }
+    else if let TokenType::SPECIAL(str) = token.token_type {
+     let msg = format!("special characters like {} (or strings of them) on line {:?}:{:?} are reserved for operator overloading", 
+                          str, token.line, token.column);
+    return Err(ThorLangError::ParsingError(msg));
+    
+    }
+    else {
+        let msg = format!("expected a variable name on line {:?}:{:?} instead got {:?}", 
+                          token.line, token.column, token.clone());
         return Err(ThorLangError::ParsingError(msg));
     }
 
@@ -527,7 +538,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::GREATEREQ | TokenType::GREATER | TokenType::LESS | TokenType::LESSEQ | TokenType::UP => {
+            TokenType::GREATEREQ | TokenType::GREATER | TokenType::LESS | TokenType::LESSEQ => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -538,7 +549,8 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
                     operator,
                     right: Box::new(right?),
                 };
-            }
+            },
+
             _ => break,
         }
     }
@@ -551,7 +563,7 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
-            TokenType::PLUS | TokenType::MINUS | TokenType::QMARK | TokenType::AMP => {
+            TokenType::PLUS | TokenType::MINUS => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -574,8 +586,8 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
     let mut expression = unary(current_index, tokens)?;
 
     while let Some(token) = tokens.get(*current_index) {
-        match token.token_type {
-            TokenType::STAR | TokenType::SLASH | TokenType::PERCENT => {
+        match &token.token_type {
+            TokenType::STAR | TokenType::SLASH => {
                 let operator = token.token_type.clone();
                 
                 consume_token(current_index, tokens);
@@ -586,6 +598,17 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
                     operator,
                     right: Box::new(right?),
                 };
+            },
+            TokenType::SPECIAL(_id) => {
+                let operator = token.token_type.clone();
+
+                consume_token(current_index, tokens);
+                let right = unary(current_index, tokens);
+                expression = Expression::Binary{
+                    left : Box::new(expression),
+                    operator,
+                    right: Box::new(right?)
+                }
             }
             _ => break,
         }
@@ -602,12 +625,8 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
             TokenType::BANG,
             TokenType::MINUS,
             TokenType::PLUS,
-            TokenType::PERCENT,
             TokenType::STAR, 
             TokenType::SLASH,
-            TokenType::AMP,
-            TokenType::UP,
-            TokenType::QMARK,
             TokenType::GREATER,
             TokenType::GREATEREQ, 
             TokenType::LESS,
@@ -619,6 +638,17 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
             consume_token(current_index, tokens);
 
             let right = unary(current_index, tokens);
+            return Ok(Expression::Unary{
+                operator, 
+                right : Box::new(right?)
+            })
+        }
+
+        if let TokenType::SPECIAL(_id) = &token.token_type{
+            let operator = token.token_type.clone();
+            consume_token(current_index, tokens);
+            let right = unary(current_index, tokens);
+
             return Ok(Expression::Unary{
                 operator, 
                 right : Box::new(right?)

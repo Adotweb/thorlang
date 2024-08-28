@@ -61,6 +61,8 @@ pub fn interpret_code(text: String) -> Value {
         Err(err) => panic!("{:?}", err)
     };
 
+    //println!("{:#?}", ast);
+
 
     let natives: HashMap<String, Value> = init_native_functions();
     let global_env = Rc::new(RefCell::new(Environment {
