@@ -96,7 +96,7 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
         match token.token_type { 
             TokenType::OVERLOAD => {
                 consume_token(current_index, tokens);
-                ret = (overload_statment(current_index, tokens));
+                ret = (overload_statement(current_index, tokens));
             },
             TokenType::RETURN => {
                 consume_token(current_index, tokens);
@@ -160,8 +160,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
 
 
 //returns a overload statement
-fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{
+fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{
 
+
+    //traditional operators
     let operations = vec![
         TokenType::PLUS, 
         TokenType::MINUS,
@@ -179,6 +181,7 @@ fn overload_statment(current_index: &mut usize, tokens: &Vec<Token>) -> Result<S
 
     let token = tokens.get(*current_index).unwrap();
 
+    //checks if operator is special character (or multiple)
     let mut is_op = false;
     if let TokenType::SPECIAL(_id) = &token.token_type {
         is_op = true; 

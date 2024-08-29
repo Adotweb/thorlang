@@ -20,7 +20,13 @@ pub struct Environment {
 }
 
 
-type OperationInfo = (Vec<Statement>, Vec<String>);
+#[derive(Debug, Clone, PartialEq)]
+pub struct OperationInfo {
+    pub operands : Vec<String>,
+    pub operation : Vec<Statement>,
+    pub overloadings : Overloadings
+}
+
 //Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
 type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
 
@@ -76,13 +82,26 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 
                 let arity = operands.len();
 
-                if let Some(opartionlist) = overloadings.get_mut(&(operator.clone(), arity)){
-                    opartionlist.push((operation, operands.clone()));
+
+
+                //we dont want to mess with already defined overloaded operators, so any overlaoded
+                //operator will only be able to access before initialized (overloaded) operators,
+                //this means that similar to function environments we have to pass a operator env
+                let defined_overloadings = overloadings.clone();
+
+                let operator_info = OperationInfo{ 
+                        operands, 
+                        operation, 
+                        overloadings : defined_overloadings
+                };
+
+                if let Some(operationlist) = overloadings.get_mut(&(operator.clone(), arity)){
+                    operationlist.push(operator_info);
                     return Ok(Value::nil())
                 }
                 
 
-                overloadings.insert((operator, arity), vec![(operation, operands)]);
+                overloadings.insert((operator, arity), vec![operator_info]);
 
             },
             Statement::Return { expression, line } => {
@@ -112,7 +131,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             //a block just opens a new env tree branch
             Statement::Block { statements, line } => {
                 let local_scope = Environment::new(Some(enclosing.clone()));
-                eval_statement(statements, local_scope.clone(), overloadings);
+                eval_statement(statements, local_scope.clone(), overloadings)?;
             }
 
             //if statements are one to one in the host language, makes it meta-programming...?
@@ -179,7 +198,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
             Statement::Do { expression, line } => {
                 //runs expressions
-                eval(&expression, enclosing.clone(), overloadings);
+                eval(&expression, enclosing.clone(), overloadings)?;
             }
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
@@ -357,14 +376,16 @@ impl Default for Value {
 }
 
 
-fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>, overloadings: &mut Overloadings) 
+fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>) 
     -> Result<Value, ThorLangError>{
    
     let op_env = enclosing.borrow().clone();
 
-    for op in operation_list{
-        let operands = op.1;
-        let operation = op.0;
+    for mut op in operation_list{
+        let operands = op.operands;
+        let operation = op.operation;
+        let overloadings = &mut op.overloadings; 
+    
 
         if operands.len() != arguments.len(){
             return Err(ThorLangError::EvalError(
@@ -403,8 +424,7 @@ fn eval_unary(
 
     if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
-        let mut overloadings_so_far = &mut overloadings.clone();
-        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), overloadings_so_far){
+        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone()){
 
             
             return Ok(result)
@@ -483,8 +503,7 @@ fn eval_binary(
     let op_overloadings = overloadings.get(&(operator.clone(), 2));
 
     if let Some(op_overloadings) = op_overloadings {
-        let mut overloadings_so_far = overloadings.clone();
-        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone(), &mut overloadings_so_far){
+        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone()){
             return Ok(result)
         }
     }
@@ -507,7 +526,7 @@ fn eval_binary(
         }
         TokenType::MINUS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
-                return Ok(Value::number(l + r));
+                return Ok(Value::number(l - r));
             }
 
             return Err(ThorLangError::EvalError("can only subtract numbers".to_string()))
@@ -517,7 +536,9 @@ fn eval_binary(
                 return Ok(Value::number(l * r));
             }
             
-            return Err(ThorLangError::EvalError("can only multiply numbers".to_string()))
+            return Err(ThorLangError::EvalError(
+                    format!("can only multiply numbers on line, got {:?}  and {:?} instead", left, right))
+                    )
         }
         TokenType::SLASH => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
