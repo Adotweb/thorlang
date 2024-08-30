@@ -223,37 +223,7 @@ fn iterate_comment(current_index: usize, text: &str) -> usize {
 }
 
 
-//same as for identifiers but matches everything that
-//it does not match any operations + - and so on, strings or numbers
-fn iterate_special_chars(current_index: usize, text : &str, line : i32,column : i32) -> OuterIter{
 
-    //speical characters cannot contain numbers nor strings
-    let special_regex = Regex::new(r#"[^\+\-\/\*\;\(\)\[\]\{\}=\s]"#).unwrap();
-    let mut iter_skip_steps = 0;
-
-    let mut special_chars = "".to_string();
-
-
-    while let Some(char) = text.chars().nth(current_index + iter_skip_steps) {
-        let char = char.to_string();
-        if special_regex.is_match(&char){
-            special_chars += &char; 
-            iter_skip_steps += 1;
-        } else {
-            break;
-        }
-    }
-
-
-    OuterIter{
-        token : Token{
-            token_type : TokenType::SPECIAL(special_chars),
-            column, 
-            line
-        },
-        iter_skip_steps
-    }
-}
 
 
 pub fn line_column_lexer(text : String) -> Vec<Token> {
@@ -403,13 +373,10 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
             }
 
             _ => {
-                //same as identifiers but matches everything that is left
-                let  skip_iter = iterate_special_chars(column, line, line_count, column_count);
                 
-                //again iter_skip_steps overshoots by one
-                skip_chars = skip_iter.iter_skip_steps - 1;
-                tokens.push(skip_iter.token);
-                
+                //special characters will always (like + - or similar) only consume a single
+                //character to make operator chaining easier
+                tokens.push(simple_token(TokenType::SPECIAL(char), line_count, column_count));
             },
         }
 
