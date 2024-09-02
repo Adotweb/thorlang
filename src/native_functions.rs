@@ -11,24 +11,22 @@ pub fn init_native_functions() -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
     native_functions.insert(
-        "throw".to_string(),
+        "Error".to_string(),
         Value::native_function(
-            vec!["error"],
-            Arc::new(|values|{
-            
-                let error = values.get("error").unwrap();
-            
-                if let ValueType::String(str) = &error.value {
+            vec!["value"],
+            Arc::new(|values| {
+                
+                let error = values.get("value").unwrap();
 
-                    return Err(ThorLangError::EvalError(str.to_string()))
-                } else {
-                    return Err(ThorLangError::EvalError(format!("{:?}", error)))
-                }
+                 
+                Ok(
+                    Value::default()
+                    )                  
 
             }),
             None
-        ),
-    );
+                              )
+                           );
 
     native_functions.insert(
         "typeOf".to_string(),

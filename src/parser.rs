@@ -2,6 +2,9 @@ use crate::{Token, TokenType, stringify_value, ThorLangError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    Throw{
+        exception : Expression,
+    },
     Print {
         expression: Expression,
         line : i32
@@ -74,8 +77,9 @@ fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type
 
     if token.token_type != token_type{
 
-
-        return Err(ThorLangError::ParsingError(format!("expected {:?} after {:?} on line {:?} : {:?}", token_type, prev_token.token_type, prev_token.line, prev_token.column)))
+        if let Err(err) = ThorLangError::unexpected_token::<Statement>(token_type, token.clone(), prev_token.clone()){
+            return Err(err)
+        };
     }
     
     *current_index += 1;
@@ -96,51 +100,55 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
         match token.token_type { 
             TokenType::OVERLOAD => {
                 consume_token(current_index, tokens);
-                ret = (overload_statement(current_index, tokens));
+                ret = overload_statement(current_index, tokens)
             },
             TokenType::RETURN => {
                 consume_token(current_index, tokens);
-                ret = (return_statement(current_index, tokens));
-            }
+                ret = return_statement(current_index, tokens)
+            },
+            TokenType::THROW => {
+                consume_token(current_index, tokens);
+                ret = throw_statement(current_index, tokens);
+            },
             TokenType::PRINT => {
                 consume_token(current_index, tokens);
-                ret = (print_statement(current_index, tokens))
-            }
+                ret = print_statement(current_index, tokens)
+            },
             TokenType::FN => {
                 consume_token(current_index, tokens);
-                ret = (function_statement(current_index, tokens))
-            }
+                ret = function_statement(current_index, tokens)
+            },
             TokenType::DO => {
                 consume_token(current_index, tokens);
-                ret = (do_statement(current_index, tokens))
-            }
+                ret = do_statement(current_index, tokens)
+            },
             TokenType::IF => {
                 consume_token(current_index, tokens);
-                ret = (if_statement(current_index, tokens))
-            }
+                ret = if_statement(current_index, tokens)
+            },
             TokenType::WHILE => {
                 consume_token(current_index, tokens);
-                ret = (while_statement(current_index, tokens))
-            }
+                ret = while_statement(current_index, tokens)
+            },
             TokenType::LET => {
                 consume_token(current_index, tokens);
-                ret = (declaration(current_index, tokens))
-            }
+                ret = declaration(current_index, tokens)
+            },
             TokenType::LBRACE => {
                 consume_token(current_index, tokens);
                 ret = Ok(Statement::Block {
                     statements: statement(current_index, tokens)?,
                     line : token.line
                 })
-            }
+            },
             TokenType::RBRACE => {
                 consume_token(current_index, tokens);
                 return Ok(statements);
-            }
+            },
             TokenType::ELSE => {
                 //dont consume the else token as it is needed one layer of recursion above
                 return Ok(statements);
-            }
+            },
 
             TokenType::EOF => return Ok(statements),
 
@@ -158,6 +166,15 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
 }
 
 
+fn throw_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{ 
+    let exception = expr(current_index, tokens)?;
+
+    match_token(current_index, tokens, TokenType::SEMICOLON)?;
+
+    return Ok(Statement::Throw{
+        exception
+    })
+}
 
 //returns a overload statement
 fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{
@@ -181,7 +198,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
 
     let token = tokens.get(*current_index).unwrap();
 
-    //checks if operator is special character (or multiple)
+    //checks if operator is special character
     let mut is_op = false;
     if let TokenType::SPECIAL(_id) = &token.token_type {
         is_op = true; 
@@ -189,9 +206,13 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
 
 
     if !operations.contains(&token.token_type) && !is_op { 
-        let msg = format!("expected operation token after overload keyword on line {:?} found {:?}", token.line, token);
 
-        return Err(ThorLangError::ParsingError(msg));
+
+        return ThorLangError::unexpected_token(TokenType::PLUS
+                                                   , token.clone()
+                                                   , tokens.get(*current_index - 1).unwrap().clone());
+
+
     }
 
     let operator = token.token_type.clone();
@@ -212,9 +233,12 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
                 operands.push(name.to_string())
             },
             _ => { 
-                let msg = format!("encountered unknown token {:?} in operands declaration on line {:?}", token.token_type, token.line);
-                    
-                return Err(ThorLangError::ParsingError(msg))
+
+                return ThorLangError::unexpected_token(
+                    TokenType::IDENTIFIER("".to_string()),
+                    token.clone(),
+                    tokens.get(*current_index - 1).unwrap().clone()
+                );
             }
         }
         token = consume_token(current_index, tokens);
@@ -317,8 +341,11 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     if let TokenType::IDENTIFIER(str) = &token.token_type{
         function_name = str.to_string(); 
     } else {
-        let msg = format!("expected identifier after fn keyword on line {:?}", token.line);
-        return Err(ThorLangError::ParsingError(msg))
+
+        return ThorLangError::unexpected_token(TokenType::IDENTIFIER("".to_string()),
+            token.clone(),
+            tokens.get(*current_index - 1).unwrap().clone());
+
     }
     //consume the identifier token
     let mut token = &consume_token(current_index, tokens).clone();
@@ -379,16 +406,21 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     if let TokenType::IDENTIFIER(str) = token.token_type {
         name = str;
     }
-    else if let TokenType::SPECIAL(str) = token.token_type {
-     let msg = format!("special characters like {} (or strings of them) on line {:?}:{:?} are reserved for operator overloading", 
-                          str, token.line, token.column);
-    return Err(ThorLangError::ParsingError(msg));
-    
+    else if let TokenType::SPECIAL(ref str) = token.token_type {
+        
+        return ThorLangError::unexpected_token(
+            TokenType::SPECIAL(str.to_string()),
+            token.clone(),
+            tokens.get(*current_index - 1).unwrap().clone()
+        );
     }
     else {
-        let msg = format!("expected a variable name on line {:?}:{:?} instead got {:?}", 
-                          token.line, token.column, token.clone());
-        return Err(ThorLangError::ParsingError(msg));
+
+        return ThorLangError::unexpected_token(
+            TokenType::IDENTIFIER("".to_string()),
+            token.clone(),
+            tokens.get(*current_index - 1).unwrap().clone()
+        );
     }
 
     token = consume_token(current_index, tokens).clone();
@@ -747,12 +779,12 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
         }
     }
 
-    let msg = format!(
-        "no delimiter in argument list on line {:?}",
-        tokens.get(*current_index).unwrap().line
-    );
 
-    Err(ThorLangError::ParsingError(msg))
+    return ThorLangError::unexpected_token::<Expression>(
+        TokenType::RPAREN,
+        tokens.get(*current_index).unwrap().clone(),
+        tokens.get(*current_index - 1).unwrap().clone()
+    )
 }
 
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
@@ -798,12 +830,13 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
 
                             array.push(value?);
                         }
-                        TokenType::SEMICOLON => {
-                            break;
-                        },
                         _ => {
-                            let msg = format!("{:?}", token);
-                            return Err(ThorLangError::ParsingError(msg))
+
+                            return ThorLangError::unexpected_token_of_many(
+                                vec![TokenType::RBRACK, TokenType::COMMA],
+                                token.clone(),
+                                tokens.get(*current_index - 1).unwrap().clone()
+                            )
                         },
                     }
                 }
@@ -816,8 +849,11 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                     if token.token_type == TokenType::RPAREN {
                         consume_token(current_index, tokens);
                     } else {
-                        let msg = format!("Expected closing parenthesis");
-                        return Err(ThorLangError::ParsingError(msg))
+                        return ThorLangError::unexpected_token(
+                            TokenType::RPAREN,
+                            token.clone(),
+                            tokens.get(*current_index - 1).unwrap().clone()
+                        )
                     }
                 }
                 Ok(Expression::Grouping {

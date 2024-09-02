@@ -46,7 +46,7 @@ pub enum TokenType {
     TRUE,
     LET,
     WHILE,
-
+    THROW,
 
     EOF,
 }
@@ -190,7 +190,8 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32, colum
         "let" => token_type = TokenType::LET,
         "print" => token_type = TokenType::PRINT,
         "do" => token_type = TokenType::DO,
-        "return" => token_type = TokenType::RETURN,
+        "return" => token_type = TokenType::RETURN, 
+        "throw" => token_type = TokenType::THROW,
         _ => (),
     }
 

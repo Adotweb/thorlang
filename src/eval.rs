@@ -75,6 +75,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
     for stmt in stmts {
         match stmt {
+            Statement::Throw { exception } => {
+
+                let exception = eval(&exception, enclosing, overloadings)?;
+
+
+                return Ok(Value::default());
+
+            },
 
             //this works basically like a function, except that the call operation takes place in
             //the corresponding eval function

@@ -4,7 +4,8 @@ mod lexer;
 mod native_functions;
 mod parser;
 
-use error::ThorLangError;
+use std::panic;
+use error::{ThorLangError, handle_error};
 use eval::{eval_statement, Environment, Function, Value, ValueType};
 use lexer::{lexer, Token, TokenType};
 use native_functions::{
@@ -50,17 +51,23 @@ fn main() {
 //allows functions files to return values that can be used by other files
 //basically modules
 pub fn interpret_code(text: String) -> Value {
-    let tokens = lexer(text);
+    let tokens = lexer(text.clone());
     //println!("{:#?}", tokens.clone());
-    //
+    panic::set_hook(Box::new(|x|{
 
+
+    }));
 
     //custom error handling can be defined in these match arms 
     let ast = match parse(tokens.clone()){
         Ok(stmts) => stmts,
-        Err(err) => panic!("{:?}", err)
+        Err(err) => {
+            handle_error(err, text);
+            panic!();
+        }
     };
 
+    
     //println!("{:#?}", ast);
 
 
@@ -69,6 +76,8 @@ pub fn interpret_code(text: String) -> Value {
         values: natives.into(),
         enclosing: None,
     }));
+
+
     let overloadings = &mut HashMap::new();
     return match eval_statement(ast, global_env, overloadings) {
         Ok(val) => val,
