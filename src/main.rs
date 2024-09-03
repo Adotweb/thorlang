@@ -5,7 +5,7 @@ mod native_functions;
 mod parser;
 
 use std::panic;
-use error::{ThorLangError, handle_error};
+use error::{ThorLangError, handle_error, typo_check};
 use eval::{eval_statement, Environment, Function, Value, ValueType};
 use lexer::{lexer, Token, TokenType};
 use native_functions::{

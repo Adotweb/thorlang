@@ -1,4 +1,4 @@
-use crate::{Token, TokenType, stringify_value, ThorLangError};
+use crate::{Token, TokenType, stringify_value, ThorLangError, typo_check};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
@@ -51,6 +51,17 @@ pub enum Statement {
     }
 }
 
+
+fn get_previous_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
+    let current_token = tokens.get(*current_index - 1).unwrap();
+    current_token
+}
+
+fn get_current_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
+    let current_token = tokens.get(*current_index).unwrap();
+    current_token
+}
+
 //consumes the current token and returns the next one
 fn consume_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token {
     *current_index += 1;
@@ -71,9 +82,8 @@ fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> 
 
 fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> Result<&'a Token, ThorLangError>{
     
-    let prev_token = tokens.get(*current_index - 1).unwrap();
-
-    let token = tokens.get(*current_index).unwrap();
+    let prev_token =  get_previous_token(current_index, tokens);
+    let token = get_current_token(current_index, tokens);
 
     if token.token_type != token_type{
 
@@ -153,6 +163,13 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
             TokenType::EOF => return Ok(statements),
 
             _ => {
+                //first tries to understand if the first token is written incorrectly (typo)
+                let token = get_current_token(current_index, tokens); 
+                if let Some(typo_error) = typo_check(token.clone()){
+                    return Err(typo_error)
+                }             
+    
+
                 //tries to automatically run and expressions when just written. Works semantically
                 //the same as "do expression";
                 ret = do_statement(current_index, tokens);
@@ -196,8 +213,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
 
     let line = get_statement_line(current_index, tokens);
 
-    let token = tokens.get(*current_index).unwrap();
-
+    let token = get_current_token(current_index, tokens);
     //checks if operator is special character
     let mut is_op = false;
     if let TokenType::SPECIAL(_id) = &token.token_type {
@@ -210,7 +226,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
 
         return ThorLangError::unexpected_token(TokenType::PLUS
                                                    , token.clone()
-                                                   , tokens.get(*current_index - 1).unwrap().clone());
+                                                   , get_previous_token(current_index, tokens).clone());
 
 
     }
