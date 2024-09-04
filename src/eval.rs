@@ -604,7 +604,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
     match expr {
         //retrieve has to work for arrays like this array[number];
         //and for objects like this object[key];
-        Expression::Retrieve { retrievee, key } => {
+        Expression::Retrieve { retrievee, key, lbrack_token_index } => {
             let key = eval(key, enclosing.clone(), overloadings)?;
 
             let retrievee = eval(retrievee, enclosing.clone(), overloadings)?;
@@ -646,11 +646,11 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 }
         },
 
-        Expression::FieldCall { callee, key } => {
+        Expression::FieldCall { callee, key, dot_token_index } => {
             let callee_value = eval(callee, enclosing.clone(), overloadings)?;
             let key_string: String;
 
-            if let Expression::Identifier { name } = *(*key).clone() {
+            if let Expression::Identifier { name, identifier_token_index } = *(*key).clone() {
                 key_string = name;
             } else {
                 key_string = hash_value(eval(key, enclosing.clone(), overloadings)?);
@@ -658,7 +658,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
             let mut ret_val = Value::default();
             if let Some(field) = callee_value.fields.get(&key_string) {
-                ret_val = field.clone();
+                return Ok(field.clone());
             }
 
             match callee_value.value.clone() {
@@ -675,7 +675,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 ValueType::Array(arr) => {
                     let mut var_name = "".to_string();
                     
-                    if let Expression::Identifier { name } = *callee.clone() {
+                    if let Expression::Identifier { name, identifier_token_index } = *callee.clone() {
                         var_name = name;
                     }
 
@@ -703,7 +703,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         }
         Expression::Call {
             callee,
-            paren: _,
+            paren_token_index,
             arguments,
         } => {
             //let eval_callee = eval(callee, enclosing.clone(), overloadings);
@@ -782,7 +782,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }
         }
 
-        Expression::Assignment { target, value } => {
+        Expression::Assignment { target, value, eq_token_index } => {
             let eval_value = eval(value, enclosing.clone(), overloadings)?;
 
             //iteratively go over the fields (creating them when they do not exist) and putting in
@@ -860,7 +860,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
         //kind of like literals, but will replace instantly with the value behind the variable name
         //instead of going down to literals first
-        Expression::Identifier { name } => {
+        Expression::Identifier { name, identifier_token_index } => {
             let value = enclosing
                 .borrow()
                 .get(name)
@@ -870,7 +870,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         }
         
         Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings),
-        Expression::Literal { literal } => return eval_literal(literal.clone()),
+        Expression::Literal { literal, literal_token_index } => return eval_literal(literal.clone()),
         Expression::Grouping { inner } => return eval(&inner, enclosing, overloadings),
         Expression::Binary {
             left,
@@ -909,12 +909,12 @@ fn generate_field_order(
 
     while not_ended {
         match *current.clone() {
-            Expression::Identifier { name } => {
+            Expression::Identifier { name, identifier_token_index } => {
                 order.push(FieldKey::String(name));
                 not_ended = false;
             }
-            Expression::FieldCall { callee, key } => {
-                if let Expression::Identifier { name } = *key {
+            Expression::FieldCall { callee, key, dot_token_index } => {
+                if let Expression::Identifier { name, identifier_token_index } = *key {
                     order.push(FieldKey::String(name));
                 } else {
                     order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone(), overloadings)?)));
@@ -922,7 +922,7 @@ fn generate_field_order(
 
                 current = callee
             }
-            Expression::Retrieve { retrievee, key } => {
+            Expression::Retrieve { retrievee, key, lbrack_token_index } => {
                 let key = eval(&key, enclosing.clone(), overloadings)?;
 
                 match key.value {
