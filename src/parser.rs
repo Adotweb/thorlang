@@ -438,11 +438,14 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
             tokens.get(*current_index - 1).unwrap().clone()
         );
     }
+    
+    let literal_token_index = current_index.clone();
 
     token = consume_token(current_index, tokens).clone();
     
     let mut init : Expression = Expression::Literal{
-        literal : TokenType::NIL
+        literal : TokenType::NIL,
+        literal_token_index
     };
 
 
@@ -461,6 +464,10 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     });
 }
 
+
+//unlike parser errors we know that the tokenlist works in here and we can point to the token that
+//has an error 
+//this means it sufficces to just put in the index to the wanted token
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Try {
@@ -468,6 +475,7 @@ pub enum Expression {
     },
     Identifier {
         name: String,
+        identifier_token_index : usize
     },
     Binary {
         left: Box<Expression>,
@@ -483,26 +491,30 @@ pub enum Expression {
     },
     Literal {
         literal: TokenType,
+        literal_token_index : usize
     },
     Assignment {
         target: Box<Expression>,
         value: Box<Expression>,
+        eq_token_index : usize
     },
     Array {
         values: Vec<Expression>,
     },
     Call {
         callee: Box<Expression>,
-        paren: Token,
+        paren_token_index: usize,
         arguments: Vec<Expression>,
     },
     Retrieve {
         retrievee: Box<Expression>,
         key: Box<Expression>,
+        lbrack_token_index : usize
     },
     FieldCall {
         callee: Box<Expression>,
         key: Box<Expression>,
+        dot_token_index : usize
     },
 }
 
@@ -545,7 +557,9 @@ fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
 
     if let Some(token) = tokens.get(*current_index) {
         if token.token_type == TokenType::EQ {
-            
+                
+            let eq_token_index = current_index.clone();
+
             consume_token(current_index, tokens);
 
             let value = assign(current_index, tokens);
@@ -553,6 +567,7 @@ fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
             return Ok(Expression::Assignment {
                 target: Box::new(expression?),
                 value: Box::new(value?),
+                eq_token_index
             });
         }
     }
@@ -717,14 +732,16 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
 fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = primary(current_index, tokens)?;
 
-    let mut current_token = tokens.get(*current_index).unwrap().token_type.clone();
 
-    while current_token == TokenType::LPAREN
-        || current_token == TokenType::LBRACK
-        || current_token == TokenType::DOT
+    let mut current_token = get_current_token(current_index, tokens);
+
+    while current_token.token_type == TokenType::LPAREN
+        || current_token.token_type == TokenType::LBRACK
+        || current_token.token_type == TokenType::DOT
     {
-        if current_token == TokenType::DOT {
-            
+        if current_token.token_type == TokenType::DOT {
+             
+            let dot_token_index = current_index.clone();
             consume_token(current_index, tokens);
 
             let key = primary(current_index, tokens);
@@ -732,10 +749,11 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
             expression = Expression::FieldCall {
                 callee: Box::new(expression),
                 key: Box::new(key?),
+                dot_token_index  
             }
         }
 
-        if current_token == TokenType::LPAREN {
+        if current_token.token_type == TokenType::LPAREN {
             //consume the ( token
             
             consume_token(current_index, tokens);
@@ -745,7 +763,8 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
             consume_token(current_index, tokens);
         }
 
-        if current_token == TokenType::LBRACK {
+        if current_token.token_type == TokenType::LBRACK {
+            let lbrack_token_index = current_index.clone();
             consume_token(current_index, tokens);
 
             let key = expr(current_index, tokens);
@@ -753,12 +772,13 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
             expression = Expression::Retrieve {
                 retrievee: Box::new(expression),
                 key: Box::new(key?),
+                lbrack_token_index
             };
 
             consume_token(current_index, tokens);
         }
 
-        current_token = tokens.get(*current_index).unwrap().token_type.clone();
+        current_token = get_current_token(current_index, tokens);
     }
 
     Ok(expression)
@@ -773,7 +793,7 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
                 return Ok(Expression::Call {
                     callee: Box::new(callee),
                     arguments,
-                    paren: token.clone(),
+                    paren_token_index : current_index.clone()
                 })
             }
             TokenType::COMMA => {
@@ -809,21 +829,27 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
         match &token.token_type {
             TokenType::IDENTIFIER(str) => Ok(Expression::Identifier {
                 name: str.to_string(),
+                identifier_token_index : current_index.clone()
             }),
             TokenType::TRUE => Ok(Expression::Literal {
                 literal: TokenType::TRUE,
+                literal_token_index : current_index.clone()
             }),
             TokenType::FALSE => Ok(Expression::Literal {
                 literal: TokenType::FALSE,
+                literal_token_index : current_index.clone()
             }),
             TokenType::NUMBER(num) => Ok(Expression::Literal {
-                literal: TokenType::NUMBER(num.to_string())
+                literal: TokenType::NUMBER(num.to_string()),
+                literal_token_index : current_index.clone()
             }),
             TokenType::STRING(str) => Ok(Expression::Literal {
-                literal: TokenType::STRING(str.to_string())
+                literal: TokenType::STRING(str.to_string()),
+                literal_token_index : current_index.clone()
             }),
             TokenType::NIL => Ok(Expression::Literal {
-                literal: TokenType::NIL
+                literal: TokenType::NIL,
+                literal_token_index : current_index.clone()
             }),
             TokenType::LBRACK => {
                 if token.token_type == TokenType::RBRACK {
@@ -878,11 +904,13 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
             }
             _ => Ok(Expression::Literal {
                 literal: TokenType::NIL,
+                literal_token_index : current_index.clone()
             }),
         }
     } else {
         Ok(Expression::Literal {
             literal: TokenType::NIL,
+            literal_token_index : current_index.clone()
         })
     }
 }
