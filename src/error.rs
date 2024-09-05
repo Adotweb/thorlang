@@ -1,5 +1,5 @@
 use std::result::Result;
-use crate::{Statement, Token, TokenType};
+use crate::{Statement, Token, TokenType, Value};
 
 fn hamming_distance(spelled_wrong : String, spelled_right : String) -> usize{
    
@@ -160,6 +160,7 @@ pub fn handle_error(error : ThorLangError, text : String){
             
 
         },
+
         _ => ()
 
     }
@@ -168,6 +169,39 @@ pub fn handle_error(error : ThorLangError, text : String){
     println!("{error_line}");
     println!("{}", underline.join(""));
     println!("{tip}");
+}
+
+pub fn handle_eval_error(error : ThorLangError, tokens : Vec<Token>){
+
+    let mut error_msg = "".to_string();
+    let mut error_line = "".to_string();
+    let mut underline = "".to_string();
+    let mut tip = "".to_string();
+
+
+    match error {
+        ThorLangError::IndexError { index_number_token_index, array_length, tried_index } => {
+            //check if tried_index is integer 
+            if tried_index.round() == tried_index{
+                
+                
+
+            }
+
+            error_msg = format!("{:?}", tokens[index_number_token_index.clone()]);
+
+
+        },
+
+
+        _=> ()
+    } 
+
+    println!("{error_msg}");
+    println!("{error_line}");
+    println!("{underline}");
+    println!("{tip}");
+
 }
 
 //easier methods to return nice errors
@@ -192,6 +226,48 @@ impl ThorLangError {
             column : after.column,
             line : after.line
         })                  
+    }
+
+    //object and field can be retrieved from the tokens surrounding the dot or the lbrack
+    pub fn retrieval_error(retrieve_seperator_token_index : usize) -> Result<Value, ThorLangError>{
+        Err(ThorLangError::RetrievalError{
+            retrieve_seperator_token_index
+        })
+    }
+
+    pub fn index_error(index_number_token_index : usize, array_length : usize, tried_index : f64) -> Result<Value, ThorLangError>{
+
+        Err(ThorLangError::IndexError{
+            index_number_token_index,
+            array_length,
+            tried_index
+        })
+
+    }
+
+    pub fn function_arity_error(function_paren_token : usize, needed_arguments_length : usize, arguments_length : usize) -> Result<Value, ThorLangError>{
+
+        Err(ThorLangError::FunctionArityError{
+            function_paren_token,
+            needed_arguments_length, 
+            arguments_length
+        })
+
+    }
+
+    pub fn unkown_function_error(function_paren_token : usize) -> Result<Value, ThorLangError>{
+        
+        Err(ThorLangError::UnknownFunctionError{
+            function_paren_token
+        })
+    }
+
+    pub fn unknown_value_error(identifier_token_index : usize) -> Result<Value, ThorLangError>{
+
+        Err(ThorLangError::UnknownValueError{
+            identifier_token_index
+        })
+
     }
 }
 
@@ -276,6 +352,32 @@ pub enum ThorLangError{
         might_be : String,
         line : i32,
         column : i32
+    },
+
+
+
+    //evaluation errors : 
+    
+    IndexError{
+        index_number_token_index : usize,
+        array_length : usize,
+        tried_index : f64
+    },
+    
+    RetrievalError{
+        //the token of either "[" or "."
+        retrieve_seperator_token_index : usize
+    },
+    FunctionArityError{
+        function_paren_token : usize,
+        needed_arguments_length : usize,
+        arguments_length : usize
+    },
+    UnknownFunctionError{
+        function_paren_token : usize
+    },
+    UnknownValueError{
+        identifier_token_index : usize
     },
 
     EvalError(String),

@@ -5,7 +5,7 @@ mod native_functions;
 mod parser;
 
 use std::panic;
-use error::{ThorLangError, handle_error, typo_check};
+use error::{ThorLangError, handle_error, typo_check, handle_eval_error};
 use eval::{eval_statement, Environment, Function, Value, ValueType};
 use lexer::{lexer, Token, TokenType};
 use native_functions::{
@@ -55,7 +55,7 @@ pub fn interpret_code(text: String) -> Value {
     //println!("{:#?}", tokens.clone());
     panic::set_hook(Box::new(|x|{
 
-
+            //println!("{x}");
     }));
 
     //custom error handling can be defined in these match arms 
@@ -81,6 +81,9 @@ pub fn interpret_code(text: String) -> Value {
     let overloadings = &mut HashMap::new();
     return match eval_statement(ast, global_env, overloadings) {
         Ok(val) => val,
-        Err(err) => panic!("{:?}", err)
+        Err(err) => {
+            handle_eval_error(err, tokens);
+            panic!();
+        }
     }
 }

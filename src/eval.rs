@@ -613,12 +613,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 //the case of array and number
                 (ValueType::Array(arr), ValueType::Number(num)) => {
                     if num.round() != num {
-                        return Err(ThorLangError::EvalError(format!("can only access arrays with whole numbers")));
+                        return ThorLangError::index_error(lbrack_token_index.clone(), arr.len(), num);
                     }
                     if let Some(el) =  arr.get(num as usize){
                         Ok(el.clone())
                     } else {
-                        return Err(ThorLangError::EvalError(format!("index : {} is out of bound : {}", num, arr.len())))
+
+                        return ThorLangError::index_error(lbrack_token_index.clone(), arr.len(), num);
                     }    
                 }
                 //the case of object and string
@@ -626,7 +627,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                     if let Some(val) = retrievee.clone().fields.get(&str){
                         return Ok(val.clone())
                     } else {
-                        return Err(ThorLangError::EvalError(format!("field {} does not exist on {:?}", str, stringify!(retrievee))))
+                        return Ok(Value::nil())    
                     }
 
                 }
@@ -718,12 +719,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             {
                 //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
-                    return Err(ThorLangError::EvalError(format!(
-                        "function {:?} requires {:?} arguments but got {:?}",
-                        function,
-                        needed_arguments.len(),
-                        arguments.len()
-                    )))
+
+                    return ThorLangError::function_arity_error(paren_token_index.clone(), needed_arguments.len(), arguments.len());
                 }
 
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
@@ -751,11 +748,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }) = function.value
             {
                 if needed_arguments.len() != arguments.len() {
-                    return Err(ThorLangError::EvalError(format!(
-                        "Expected {} arguments but got {}",
-                        needed_arguments.len(),
-                        arguments.len()
-                    )));
+                    return ThorLangError::function_arity_error(paren_token_index.clone(), needed_arguments.len(), arguments.len());
+
                 }
 
                 // Evaluate the arguments in the current environment
@@ -778,7 +772,9 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
                 eval_statement(body, function_env, overloadings)
             } else {
-                return Err(ThorLangError::EvalError(format!("error in function {:?}", function)))
+                
+                return ThorLangError::unkown_function_error(paren_token_index.clone());
+                
             }
         }
 
@@ -794,15 +790,15 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
             let value: &mut Value = &mut enclosing
                 .borrow()
-                .get(&order.get(0).unwrap().get_string().unwrap().to_string())
+                .get(&order.get(0).unwrap().0.get_string().unwrap().to_string())
                 .unwrap()
                 .clone();
 
             if order.len() == 1 {
                 enclosing.borrow_mut().set(
-                    order.get(0).unwrap().get_string().unwrap(),
+                    order.get(0).unwrap().0.get_string().unwrap(),
                     eval_value.clone(),
-                );
+                )?;
 
                 return Ok(eval_value);
             }
@@ -812,36 +808,52 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             for i in 1..(order.len() - 1) {
                 //nil values that get fields reassigned become objects
 
-                if let FieldKey::Int(num) = order.get(i).unwrap() {
-                    if let ValueType::Array(ref mut arr) = current.value {
 
+                let current_field_key = &order.get(i).unwrap().0;
+
+                let current_field_key_index = &order.get(i).unwrap().1;
+
+
+                if let FieldKey::Int(num) = current_field_key {
+                    if let ValueType::Array(ref mut arr) = current.value {
+                        let array_length = arr.len();
                         if let Some(current_mut) = arr.get_mut(*num as usize) {
 
+
+                            
                             current = current_mut
                         } else { 
-                            return Err(ThorLangError::EvalError(format!("something went wrong")));
+                            
+                            return ThorLangError::index_error(current_field_key_index - 1, array_length, *num as f64)
                         }
                     }
                 }
 
-                if let FieldKey::String(str) = order.get(i).unwrap() {
+                if let FieldKey::String(ref str) = current_field_key {
                     if let Some(field) = current.fields.get_mut(str) {
                         current = field;
                     } else {
-                        return Err(ThorLangError::EvalError(format!("field {str} does not exist on object")))
+                        return ThorLangError::retrieval_error(current_field_key_index - 1)
                     }
                 }
             }
 
             let last_key = order.get(order.len() - 1).unwrap();
 
-            match last_key {
+            match &last_key.0 {
                 FieldKey::String(key) => {
                     current.fields.insert(key.to_string(), eval_value.clone());
                 }
                 FieldKey::Int(num) => {
                     if let ValueType::Array(arr) = &mut current.value {
-                        arr[*num as usize] = eval_value.clone()
+                        
+                        if let Some(value) = arr.get(*num as usize){
+                            arr[*num as usize] = eval_value.clone();
+                        }
+                        else  {
+                            return ThorLangError::index_error(last_key.1, arr.len(), *num as f64)
+                        }
+
                     }
                 }
             }
@@ -851,9 +863,9 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }
 
             enclosing.borrow_mut().set(
-                order.get(0).unwrap().get_string().unwrap().to_string(),
+                order.get(0).unwrap().0.get_string().unwrap().to_string(),
                 value.clone(),
-            );
+            )?;
 
             return Ok(eval_value);
         }
@@ -863,10 +875,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         Expression::Identifier { name, identifier_token_index } => {
             let value = enclosing
                 .borrow()
-                .get(name)
-                .expect(&("this value does not exist ".to_string() + name));
+                .get(name);
 
-            return Ok(value.clone());
+            if let Some(val) = value{
+                return Ok(val)
+            } else {
+                return ThorLangError::unknown_value_error(*identifier_token_index);
+            }
         }
         
         Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings),
@@ -900,7 +915,7 @@ fn generate_field_order(
     target: Box<Expression>,
     enclosing: Rc<RefCell<Environment>>,
     overloadings : &mut Overloadings
-) -> Result<Vec<FieldKey>, ThorLangError> {
+) -> Result<Vec<(FieldKey, usize)>, ThorLangError> {
     let mut order = vec![];
 
     let mut current = target;
@@ -910,14 +925,14 @@ fn generate_field_order(
     while not_ended {
         match *current.clone() {
             Expression::Identifier { name, identifier_token_index } => {
-                order.push(FieldKey::String(name));
+                order.push((FieldKey::String(name), identifier_token_index));
                 not_ended = false;
             }
             Expression::FieldCall { callee, key, dot_token_index } => {
                 if let Expression::Identifier { name, identifier_token_index } = *key {
-                    order.push(FieldKey::String(name));
+                    order.push((FieldKey::String(name), identifier_token_index.clone()));
                 } else {
-                    order.push(FieldKey::String(hash_value(eval(&key, enclosing.clone(), overloadings)?)));
+                    order.push((FieldKey::String(hash_value(eval(&key, enclosing.clone(), overloadings)?)), dot_token_index));
                 }
 
                 current = callee
@@ -929,12 +944,12 @@ fn generate_field_order(
                     ValueType::String(str) => {
                         let key = str;
 
-                        order.push(FieldKey::String(key));
+                        order.push((FieldKey::String(key), lbrack_token_index));
                     }
                     ValueType::Number(num) => {
                         let index = num as i32;
 
-                        order.push(FieldKey::Int(index));
+                        order.push((FieldKey::Int(index), lbrack_token_index));
                     }
                     _ => unimplemented!(),
                 }

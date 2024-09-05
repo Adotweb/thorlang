@@ -165,9 +165,9 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
             _ => {
                 //first tries to understand if the first token is written incorrectly (typo)
                 let token = get_current_token(current_index, tokens); 
-                if let Some(typo_error) = typo_check(token.clone()){
-                    return Err(typo_error)
-                }             
+                //if let Some(typo_error) = typo_check(token.clone()){
+                    //return Err(typo_error)
+                //}             
     
 
                 //tries to automatically run and expressions when just written. Works semantically
