@@ -1,5 +1,3 @@
-let array = [0, 1, 2];
-
-array[3] = 4;
-
-print array;
+let arr = [1, 2];
+let i = 3.1456;
+print i;

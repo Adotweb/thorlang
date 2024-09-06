@@ -51,6 +51,20 @@ pub enum TokenType {
     EOF,
 }
 
+//methods to get the string values out of the tokentypes without having to make if lets all the
+//time
+impl TokenType {
+    pub fn get_content(&self) -> Option<String>{
+
+        match &self{
+            TokenType::NUMBER(num) => Some(num.to_string()),
+            TokenType::STRING(str) => Some(str.to_string()),
+            TokenType::IDENTIFIER(id) => Some(id.to_string()),
+            _ => None
+        }
+
+    }
+}
 
 //since the num str and identifier enums can all hold data we dont have the need for a literaltype
 //anymore
@@ -120,6 +134,7 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32, column : 
     let mut iter_skip_steps = 0;
     let mut number = "".to_string();
     let number_regex = Regex::new(r"[0-9]").unwrap();
+    let mut dot_used = false;
 
     while let Some(char) = text.chars().nth(current_index + iter_skip_steps){
         let char = char.to_string();
@@ -128,8 +143,10 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32, column : 
             number += &char;
             iter_skip_steps += 1;
         } 
-        else if char == ".".to_string(){
-            let next_char = peek(current_index, text);
+        else if (char == ".".to_string()) && !dot_used{
+
+            let next_char = peek(current_index + iter_skip_steps, text);
+            dot_used = true;
             if number_regex.is_match(&next_char){
                 number += &char;
                 iter_skip_steps += 1;
@@ -141,7 +158,6 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32, column : 
             break;
         } 
     }
-
 
     //return the currently accumulated number
     return OuterIter {

@@ -178,15 +178,28 @@ pub fn handle_eval_error(error : ThorLangError, tokens : Vec<Token>){
     let mut underline = "".to_string();
     let mut tip = "".to_string();
 
+    println!("{:?}", error);
 
     match error {
-        ThorLangError::IndexError { index_number_token_index, array_length, tried_index } => {
+        ThorLangError::IndexError { index_number_token_index, array_value, tried_index } => 'index :  {
             //check if tried_index is integer 
-            if tried_index.round() == tried_index{
-                
-                
+            
+            let index_token = tokens[index_number_token_index + 1].clone();
 
+            if tried_index.round() != tried_index{ 
+            
+                error_msg = format!("can only access arrays with whole number indexes found float {:?} on line {:?}{:?}",
+                    index_token.token_type.get_content().unwrap(),
+                    index_token.line,
+                    index_token.column
+                );
+
+                break 'index;
             }
+
+                            
+                let array_token = tokens[index_number_token_index - 1].clone();
+                     
 
             error_msg = format!("{:?}", tokens[index_number_token_index.clone()]);
 
@@ -235,11 +248,11 @@ impl ThorLangError {
         })
     }
 
-    pub fn index_error(index_number_token_index : usize, array_length : usize, tried_index : f64) -> Result<Value, ThorLangError>{
+    pub fn index_error(index_number_token_index : usize, array_value : Value, tried_index : f64) -> Result<Value, ThorLangError>{
 
         Err(ThorLangError::IndexError{
             index_number_token_index,
-            array_length,
+            array_value : Box::new(array_value),
             tried_index
         })
 
@@ -360,7 +373,7 @@ pub enum ThorLangError{
     
     IndexError{
         index_number_token_index : usize,
-        array_length : usize,
+        array_value: Box<Value>,
         tried_index : f64
     },
     

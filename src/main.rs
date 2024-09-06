@@ -66,9 +66,8 @@ pub fn interpret_code(text: String) -> Value {
             panic!();
         }
     };
-
     
-    //println!("{:#?}", ast);
+    
 
 
     let natives: HashMap<String, Value> = init_native_functions();

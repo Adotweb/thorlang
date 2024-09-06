@@ -613,13 +613,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 //the case of array and number
                 (ValueType::Array(arr), ValueType::Number(num)) => {
                     if num.round() != num {
-                        return ThorLangError::index_error(lbrack_token_index.clone(), arr.len(), num);
+                        return ThorLangError::index_error(lbrack_token_index.clone(), retrievee, num);
                     }
                     if let Some(el) =  arr.get(num as usize){
                         Ok(el.clone())
                     } else {
 
-                        return ThorLangError::index_error(lbrack_token_index.clone(), arr.len(), num);
+                        return ThorLangError::index_error(lbrack_token_index.clone(), retrievee, num);
                     }    
                 }
                 //the case of object and string
@@ -650,6 +650,10 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         Expression::FieldCall { callee, key, dot_token_index } => {
             let callee_value = eval(callee, enclosing.clone(), overloadings)?;
             let key_string: String;
+            
+            let key_value = eval(key, enclosing.clone(), overloadings)?;
+
+
 
             if let Expression::Identifier { name, identifier_token_index } = *(*key).clone() {
                 key_string = name;
@@ -807,7 +811,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
             for i in 1..(order.len() - 1) {
                 //nil values that get fields reassigned become objects
-
+                let immut_value = current.clone();
 
                 let current_field_key = &order.get(i).unwrap().0;
 
@@ -816,7 +820,6 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
                 if let FieldKey::Int(num) = current_field_key {
                     if let ValueType::Array(ref mut arr) = current.value {
-                        let array_length = arr.len();
                         if let Some(current_mut) = arr.get_mut(*num as usize) {
 
 
@@ -824,7 +827,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                             current = current_mut
                         } else { 
                             
-                            return ThorLangError::index_error(current_field_key_index - 1, array_length, *num as f64)
+                            return ThorLangError::index_error(current_field_key_index - 1, immut_value , *num as f64)
                         }
                     }
                 }
@@ -846,12 +849,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 }
                 FieldKey::Int(num) => {
                     if let ValueType::Array(arr) = &mut current.value {
-                        
+                        println!("{num}") ;
+
                         if let Some(value) = arr.get(*num as usize){
                             arr[*num as usize] = eval_value.clone();
                         }
                         else  {
-                            return ThorLangError::index_error(last_key.1, arr.len(), *num as f64)
+                            return ThorLangError::index_error(last_key.1, current.clone(), *num as f64)
                         }
 
                     }
@@ -940,6 +944,8 @@ fn generate_field_order(
             Expression::Retrieve { retrievee, key, lbrack_token_index } => {
                 let key = eval(&key, enclosing.clone(), overloadings)?;
 
+                println!("{:?}", key);
+
                 match key.value {
                     ValueType::String(str) => {
                         let key = str;
@@ -947,6 +953,17 @@ fn generate_field_order(
                         order.push((FieldKey::String(key), lbrack_token_index));
                     }
                     ValueType::Number(num) => {
+                        
+                        if num.round() != num.round(){
+                            
+                            let eval_value = eval(&retrievee, enclosing.clone(), overloadings)?;
+
+                            if let Err(err) = ThorLangError::index_error(lbrack_token_index, eval_value, num){
+                                return Err(err)
+                            }
+
+                        }
+
                         let index = num as i32;
 
                         order.push((FieldKey::Int(index), lbrack_token_index));
@@ -962,4 +979,16 @@ fn generate_field_order(
 
     order.reverse();
     Ok(order)
+}
+
+//helper function used in dot with numbers around
+fn combine_f64(num1: f64, num2: f64) -> f64 {
+    // Determine the number of decimal places for num2
+    let decimal_places = 10f64.powi(num2.abs().log10().floor() as i32 + 1);
+    
+    // Shift num2 to the right to match it as a fractional part
+    let fractional_part = num2 / decimal_places;
+
+    // Combine num1 with the fractional part of num2
+    num1 + fractional_part
 }
