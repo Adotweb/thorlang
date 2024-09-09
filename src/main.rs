@@ -26,8 +26,12 @@ fn main() {
     let mut current_dir =
         env::current_dir().expect("something went wrong reading the current directory");
 
+
+    //this will be the entry point of the cli
     match args.get(1).unwrap().as_str() {
         "run" => {
+            //just run files ending with .thor
+
             if let Some(filename) = args.get(2) {
                 let mut filename = filename.clone().to_owned();
 
@@ -69,19 +73,21 @@ pub fn interpret_code(text: String) -> Value {
     
     
 
-
+    //the global env instantiation (global values and functions)
     let natives: HashMap<String, Value> = init_native_functions();
     let global_env = Rc::new(RefCell::new(Environment {
         values: natives.into(),
         enclosing: None,
     }));
 
-
+    //same with overloadings
     let overloadings = &mut HashMap::new();
+
+
     return match eval_statement(ast, global_env, overloadings) {
         Ok(val) => val,
         Err(err) => {
-            handle_eval_error(err, tokens);
+            handle_eval_error(text, err, tokens);
             panic!();
         }
     }

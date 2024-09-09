@@ -7,27 +7,13 @@ use std::fs;
 use std::rc::Rc;
 use std::sync::Arc;
 
+
+//this is the initializer for all the global variables
 pub fn init_native_functions() -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
-    native_functions.insert(
-        "Error".to_string(),
-        Value::native_function(
-            vec!["value"],
-            Arc::new(|values| {
-                
-                let error = values.get("value").unwrap();
 
-                 
-                Ok(
-                    Value::default()
-                    )                  
-
-            }),
-            None
-                              )
-                           );
-
+    //returns the type of the inputed value
     native_functions.insert(
         "typeOf".to_string(),
         Value::native_function(
@@ -54,6 +40,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         )
     );
 
+    //returns true if the input value is an error and false if it is a normal value
     native_functions.insert(
         "isError".to_string(),
         Value::native_function(
@@ -71,6 +58,9 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         ),
     );
 
+
+    //function to make file splitting possible
+    //we can return values from programs and reuse them in other files using import
     native_functions.insert(
         "import".to_string(),
         Value::native_function(
@@ -100,6 +90,8 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         ),
     );
 
+
+    //printing but using a function instead of a statement
     native_functions.insert(
         "printf".to_string(),
         Value::native_function(
@@ -120,6 +112,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         ),
     );
 
+    //thsi does not work but it would if i wanted to 
     native_functions.insert(
         "getTime".to_string(),
         Value::native_function(
@@ -138,7 +131,7 @@ pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
     let init_value = Some(Box::new(init));
 
    
-
+    //returns the square root of a function
     s.insert(
         "sqrt".to_string(),
         Value::native_function(
@@ -205,6 +198,8 @@ pub fn init_array_fields(
         ),
     );
 
+
+    //push updates the env tree itself, meaning that we need to get it in the arguments of init_array_fields
     fields.insert(
         "push".to_string(),
         Value::native_function(
@@ -220,9 +215,9 @@ pub fn init_array_fields(
                     newarr.push(thing.clone());
 
                     if var_name != "" {
-                        enclosing
+                        let _ = enclosing
                             .borrow_mut()
-                            .set(var_name.clone(), Value::array(newarr.clone()));
+                            .set(var_name.clone(), Value::array(newarr.clone()))?;
                     }
 
                     return Ok(Value::array(newarr))
@@ -239,6 +234,8 @@ pub fn init_array_fields(
     fields
 }
 
+
+//helper function to hash values (for object retrieval still in dev)
 pub fn hash_value(val: Value) -> String {
     return match val.value {
         ValueType::Bool(b) => b.to_string(),
@@ -248,6 +245,8 @@ pub fn hash_value(val: Value) -> String {
     };
 }
 
+
+//helper function to pretty print values (especially array and objects, later functions as well)
 pub fn stringify_value(val: Value) -> String {
     let mut ret_val = "".to_string();
 
@@ -257,7 +256,8 @@ pub fn stringify_value(val: Value) -> String {
         },
         ValueType::Array(arr) => {
             ret_val += "[";
-
+        
+            //add a comma for every value folowing the first one
             for i in 0..arr.len() {
                 if i > 0 {
                     ret_val += ", "
@@ -285,6 +285,8 @@ pub fn stringify_value(val: Value) -> String {
 
             ret_val += "{ ";
 
+            //adding "field" : "value" for every field
+            //and a comma for every field following the first one
             for i in 0..obj.values().len(){
 
                 if i > 0 {

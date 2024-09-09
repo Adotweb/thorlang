@@ -1,5 +1,6 @@
-use crate::{Token, TokenType, stringify_value, ThorLangError, typo_check};
+use crate::{Token, TokenType, ThorLangError};
 
+//the different kinds of statments and what data they hold
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Throw{
@@ -51,12 +52,14 @@ pub enum Statement {
     }
 }
 
-
+//returns the previous token in the tokenlist
 fn get_previous_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
     let current_token = tokens.get(*current_index - 1).unwrap();
     current_token
 }
 
+
+//returns the current token in the tokenlist
 fn get_current_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
     let current_token = tokens.get(*current_index).unwrap();
     current_token
@@ -74,12 +77,17 @@ fn prev_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Toke
     &tokens[*current_index - 1]
 }
 
+
+//returns the line (in the code) on which current token is
 fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> i32{
     let line = prev_token(current_index, tokens);
 
     line.line
 }
 
+
+//consumes the current token and checks if it is of the desired token type and throws an unexpected
+//token if it is not and returns the next token else
 fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> Result<&'a Token, ThorLangError>{
     
     let prev_token =  get_previous_token(current_index, tokens);
@@ -100,7 +108,6 @@ fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type
 
 //generates a list of statments and returns the global "program" list (list of ASTs) that will be
 //individually executed in eval_stmts later (in the context of a global "program")
-
 pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<Statement>, ThorLangError> {
     let mut statements = vec![];
 
@@ -163,15 +170,10 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
             TokenType::EOF => return Ok(statements),
 
             _ => {
-                //first tries to understand if the first token is written incorrectly (typo)
-                let token = get_current_token(current_index, tokens); 
-                //if let Some(typo_error) = typo_check(token.clone()){
-                    //return Err(typo_error)
-                //}             
-    
+                
+                //in the future this part will be able to check if a word contans a typo and will
+                //throw an error if so.
 
-                //tries to automatically run and expressions when just written. Works semantically
-                //the same as "do expression";
                 ret = do_statement(current_index, tokens);
             }
         }
@@ -183,6 +185,8 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
 }
 
 
+
+//this is not implmenented yet, but will replace "return throw("");" in the future
 fn throw_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{ 
     let exception = expr(current_index, tokens)?;
 
@@ -220,14 +224,13 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
         is_op = true; 
     }
 
-
+            
+    //if the op character is not special and not a traditional op character this will throw as we
+    //cant overload things like "a" (yet however);
     if !operations.contains(&token.token_type) && !is_op { 
-
-
         return ThorLangError::unexpected_token(TokenType::PLUS
                                                    , token.clone()
                                                    , get_previous_token(current_index, tokens).clone());
-
 
     }
 
@@ -235,6 +238,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     consume_token(current_index, tokens);
 
 
+    //the part below adds the operand names and the operation information
     let mut token = match_token(current_index, tokens, TokenType::LPAREN)?;
     
     let mut operands : Vec<String> = vec![];
@@ -275,18 +279,20 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     })
 }
 
+//this is a simple statement (like throw, print, do...)
+//this means that it has only one thing to do and that is to encapsulate the data 
 fn return_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
-    let expression = expr(current_index, tokens)?;
-
-
-    
+    let expression = expr(current_index, tokens)?; 
     //consume and match the semicolon token
     let _ = match_token(current_index, tokens, TokenType::SEMICOLON)?;
 
     return Ok(Statement::Return { expression, line });
 }
 
+
+//again rather simple just check if the right things stand at the right places and throw else, when
+//done just return a while statement object
 fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens) ;
 
@@ -305,6 +311,8 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Sta
     return Ok(Statement::While { condition, block, line });
 }
 
+
+//like while but has the potential to have an else part
 fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
 
@@ -323,6 +331,9 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statem
 
     let mut else_branch = None;
 
+    //if the parser finds else after the closing bracket of the if block an else block will be
+    //inserted in the statement else not
+
     if token.token_type == TokenType::ELSE {
         consume_token(current_index, tokens);
         else_branch = Some(Box::new(statement(current_index, tokens)?));
@@ -336,6 +347,8 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statem
     });
 }
 
+
+//simple statement
 fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
     let expression = expr(current_index, tokens)?;
@@ -348,6 +361,9 @@ fn print_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Sta
     });
 }
 
+
+//this creates a function checks if the right things are in the right place and throws otherwise,
+//also it 
 fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
 
     let line = get_statement_line(current_index, tokens);
@@ -412,6 +428,9 @@ fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statem
     });
 }
 
+
+//variables 
+//"let a = 10;"
 fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
     let name : String;
@@ -518,8 +537,11 @@ pub enum Expression {
     },
 }
 
+//all of the below are part of the precedence hierarchy
 
-
+//expression to listen for errors and make exceptions from them (errors that dont make the program
+//halt)
+//when the try block executes without any errors we return the value of the 
 fn try_expression(current_index: &mut usize ,tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
 
     
@@ -533,6 +555,9 @@ fn try_expression(current_index: &mut usize ,tokens: &Vec<Token>) -> Result<Expr
     })
 }
 
+//matches every expression
+//precedence works on the deepest possible match i.e. 
+//the more specific an expression the deeper the function goes
 fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
 
     //here all block exprs go for example try
@@ -552,6 +577,8 @@ fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
     assign(current_index, tokens)
 }
 
+
+//highest order of operational precedence i.e. the highest functionaing operator
 fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let expression = eq(current_index, tokens);
 
@@ -575,9 +602,16 @@ fn assign(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
     return expression;
 }
 
+
+//equality comparison is one level of precedence deeper (== or !=)
 fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = comp(current_index, tokens)?;
 
+    
+    //all the operations work almost the same, we just use an expression on the left and then an
+    //expression on the right and insert them together with the given operator
+    //what makes precedence work is the order in which these functions are executed (this recursive
+    //descent)
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
             TokenType::EQEQ | TokenType::BANGEQ => {
@@ -599,6 +633,8 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
     Ok(expression)
 }
 
+
+//numerical comparison is one level of precedence deeper
 fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = term(current_index, tokens)?;
 
@@ -624,6 +660,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
     Ok(expression)
 }
 
+//then comes math (first + or -)
 fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = factor(current_index, tokens)?;
 
@@ -648,6 +685,8 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
     Ok(expression)
 }
 
+//then multiplication (* and /) also special characters meaning that custom operators have the same
+//precedence as multiplication
 fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = unary(current_index, tokens)?;
 
@@ -683,7 +722,8 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
     Ok(expression)
 }
 
-
+//unary operations (- ! and special characters as well when their arity is 1) are recursive 
+//so that we can chain them !!!!true;
 fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     if let Some(token) = tokens.get(*current_index) {
 
@@ -784,6 +824,8 @@ fn call(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
     Ok(expression)
 }
 
+
+//helper function to return all the stuff for a function call
 fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expression) -> Result<Expression, ThorLangError> {
     let mut arguments: Vec<Expression> = vec![];
 
@@ -823,6 +865,9 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
     )
 }
 
+
+//the lowest precedence, returns the "atoms" , numbers, strings, arrays, ... and variables
+//maybe objects in the future
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     if let Some(token) = tokens.get(*current_index) {
         consume_token(current_index, tokens);
@@ -852,6 +897,9 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                 literal_token_index : current_index.clone()
             }),
             TokenType::LBRACK => {
+                //when encountering an [ we start an array and the following are just expressions
+                //seperated by commas (or spaces)
+
                 if token.token_type == TokenType::RBRACK {
                     return Ok(Expression::Array { values: vec![] });
                 }
@@ -885,6 +933,8 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
 
                 Ok(Expression::Array { values: array })
             }
+            //in case of an lparen we have a grouped expression (can be used to use + at a
+            //precedence level lower than *)
             TokenType::LPAREN => {
                 let expression = expr(current_index, tokens);
                 if let Some(token) = tokens.get(*current_index) {
@@ -915,6 +965,8 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
     }
 }
 
+//puts all these things above into a single function 
+//returns the list of asts
 pub fn parse(tokens: Vec<Token>) -> Result<Vec<Statement>, ThorLangError> {
     let mut current_index: usize = 0;
     Ok(statement(&mut current_index, &tokens)?)

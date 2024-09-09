@@ -1,6 +1,8 @@
 use std::result::Result;
 use crate::{Statement, Token, TokenType, Value};
 
+
+//will be used when using the typo_check function later on
 fn hamming_distance(spelled_wrong : String, spelled_right : String) -> usize{
    
 
@@ -56,7 +58,6 @@ pub fn typo_check(token : Token) -> Option<ThorLangError>{
 
     filtered.sort_by(|a,b| a.0.cmp(&b.0));
   
-    println!("{:?}", token);
     
     Some(ThorLangError::TypoError{
         line : token.line, 
@@ -66,6 +67,7 @@ pub fn typo_check(token : Token) -> Option<ThorLangError>{
     })
 }
 
+//handles error when parsing (unexpected tokens and typos)
 pub fn handle_error(error : ThorLangError, text : String){
 
     let text_lines : Vec<&str> = text.split("\n").collect();
@@ -79,6 +81,11 @@ pub fn handle_error(error : ThorLangError, text : String){
     let mut tip : String = Default::default();
 
     match error {
+        //error code is pretty repetitive
+        //in conclusion everything is the same, 
+        //we print an error message and the line we find it in together with some tip, 
+        //everything that follows is just a string interpolation tomfoolery and will be overworked
+        //in the future 
         ThorLangError::TypoError { got, might_be, line, column } => {
 
             msg = format!("you wrote {got} on line {line}:{column}, did you mean to write {might_be}? \n");
@@ -171,14 +178,22 @@ pub fn handle_error(error : ThorLangError, text : String){
     println!("{tip}");
 }
 
-pub fn handle_eval_error(error : ThorLangError, tokens : Vec<Token>){
+
+//this is the current working point, eval errors are far more interesting to implement
+pub fn handle_eval_error(text : String, error : ThorLangError, tokens : Vec<Token>){
 
     let mut error_msg = "".to_string();
     let mut error_line = "".to_string();
     let mut underline = "".to_string();
     let mut tip = "".to_string();
 
-    println!("{:?}", error);
+
+    let lines : Vec<String> = text.split("\n")
+        //replaces all the "tab" strings with simple spaces
+        .map(|line| line.to_string().replace("\t", " "))
+        .collect();
+
+    
 
     match error {
         ThorLangError::IndexError { index_number_token_index, array_value, tried_index } => 'index :  {
@@ -188,17 +203,34 @@ pub fn handle_eval_error(error : ThorLangError, tokens : Vec<Token>){
 
             if tried_index.round() != tried_index{ 
             
-                error_msg = format!("can only access arrays with whole number indexes found float {:?} on line {:?}{:?}",
-                    index_token.token_type.get_content().unwrap(),
+                error_msg = format!("can only access arrays with whole number indexes, found float {:?} on line {:?}{:?} \n",
+                    tried_index,
                     index_token.line,
                     index_token.column
                 );
+                
+                
+
+                error_line =  "| ".to_string() + &format!("{}", lines[index_token.line as usize - 1].clone());
+                
+                underline = "_".repeat(2 * index_token.column as usize + 1);
+                
+                 
+
+                tip = " ".repeat(index_token.column as usize - 1) + &format!("
+                    this index is not a whole number as the value of {:?} is {:?}
+                    ",
+                    index_token.token_type.get_content().unwrap(), 
+                    tried_index);
+
+
+
 
                 break 'index;
             }
 
                             
-                let array_token = tokens[index_number_token_index - 1].clone();
+            let array_token = tokens[index_number_token_index - 1].clone();
                      
 
             error_msg = format!("{:?}", tokens[index_number_token_index.clone()]);
@@ -248,6 +280,8 @@ impl ThorLangError {
         })
     }
 
+
+    //index is out of bounds or a non natural number
     pub fn index_error(index_number_token_index : usize, array_value : Value, tried_index : f64) -> Result<Value, ThorLangError>{
 
         Err(ThorLangError::IndexError{
@@ -395,3 +429,5 @@ pub enum ThorLangError{
 
     EvalError(String),
 }
+
+

@@ -40,7 +40,7 @@ impl Environment {
             enclosing,
         }))
     }
-
+    
     pub fn get(&self, key: &str) -> Option<Value> {
         if let Some(value) = self.values.borrow().get(key) {
             Some(value.clone())
@@ -72,21 +72,21 @@ impl Environment {
 //old values back.
 pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>, overloadings : &mut Overloadings) -> Result<Value, ThorLangError> {
 
-
+    //evaluating statement by statement
     for stmt in stmts {
         match stmt {
+
+            //not implemented quite yet
             Statement::Throw { exception } => {
 
-                let exception = eval(&exception, enclosing, overloadings)?;
-
-
+                let _exception = eval(&exception, enclosing, overloadings)?;
                 return Ok(Value::default());
 
             },
 
             //this works basically like a function, except that the call operation takes place in
             //the corresponding eval function
-            Statement::Overload { operator, operands, operation, line } => {
+            Statement::Overload { operator, operands, operation, line : _ } => {
                 
                 let arity = operands.len();
 
@@ -112,7 +112,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 overloadings.insert((operator, arity), vec![operator_info]);
 
             },
-            Statement::Return { expression, line } => {
+            Statement::Return { expression, line : _ } => {
                 let mut ret_value = eval(&expression, enclosing.clone(), overloadings)?;
 
                 ret_value.return_true = false;
@@ -124,12 +124,13 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 name,
                 body,
                 arguments,
-                line
+                line : _
             } => {
                 let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
 
                 let function = Value::thor_function(arguments, *body, closure);
 
+                //insert the function with its name into the environment
                 enclosing
                     .borrow_mut()
                     .values
@@ -137,17 +138,17 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                     .insert(name, function);
             }
             //a block just opens a new env tree branch
-            Statement::Block { statements, line } => {
+            Statement::Block { statements, line : _ } => {
                 let local_scope = Environment::new(Some(enclosing.clone()));
                 eval_statement(statements, local_scope.clone(), overloadings)?;
             }
 
-            //if statements are one to one in the host language, makes it meta-programming...?
+            //if statements are one to one in the host language 
             Statement::If {
                 condition,
                 then_branch,
                 else_branch,
-                line
+                line : _
             } => {
                 if let ValueType::Bool(bool) = eval(&condition, enclosing.clone(), overloadings)?.value {
                     if bool {
@@ -169,14 +170,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                     }
                 }
             }
+            
 
-            //still need to fix returns from while as i dont have a good way of detecing whether or
-            //not something got returned....
-            Statement::While { condition, block, line } => {
+            //while statements are as well, we ned a "return_true" value however to detect when we
+            //need to return a value
+            Statement::While { condition, block, line : _  } => {
                 let mut condition_value = eval(&condition.clone(), enclosing.clone(), overloadings)?;
                 while let ValueType::Bool(bool) = condition_value.value {
                     if bool {
-
                         let return_val = eval_statement(*block.clone(), enclosing.clone(), overloadings)?;
                         condition_value = eval(&condition.clone(), enclosing.clone(), overloadings)?;
 
@@ -193,7 +194,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             }
 
             //print is built in
-            Statement::Print { expression, line } => {
+            Statement::Print { expression, line : _ } => {
                 let result = eval(&expression, enclosing.clone(), overloadings)?;
 
                 if let ValueType::String(ref str) = result.value {
@@ -203,15 +204,16 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 }
 
             }
+        
 
-            Statement::Do { expression, line } => {
+            Statement::Do { expression, line : _ } => {
                 //runs expressions
                 eval(&expression, enclosing.clone(), overloadings)?;
             }
 
             //variable declaration only ever mutates the current branch of the env tree ensuring,
             //in this case "enclosing"
-            Statement::Variable { name, expression, line } => {
+            Statement::Variable { name, expression, line : _ } => {
                 let val = eval(&expression, enclosing.clone(), overloadings)?;
 
                 enclosing.borrow_mut().values.borrow_mut().insert(name, val);
@@ -222,11 +224,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
     Ok(Value::default())
 }
 
-//eval expressions
 
+//Functions are either built into rust (rust closures) or defined as a procedure in thor itself
+//both do the same but have different data to them
 #[derive(Clone)]
 pub enum Function {
     NativeFunction {
+        //this atrocious type is the dynamic closure type in rust (functions that have closures)
+        //because we cant use pure functions
         body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
         needed_arguments: Vec<String>,
         self_value: Option<Box<Value>>,
@@ -250,6 +255,7 @@ impl PartialEq for Function {
     }
 }
 
+//printing functions also has to be implemented in the future
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -297,8 +303,8 @@ pub struct Value {
     pub return_true: bool,
 }
 
-//to print arrays and later objects nicely
-
+//nice instantiation functions for values 
+//default will return the nil value
 impl Value {
     pub fn array(value: Vec<Value>) -> Value {
         Value {
@@ -342,6 +348,7 @@ impl Value {
         }
     }
 
+    //native functions still need to be instantiated using absolutely horrendous typing
     pub fn native_function(
         arguments: Vec<&str>,
         body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
@@ -357,6 +364,7 @@ impl Value {
         }
     }
 
+    //unlike thorfunctions which are just a holder for a block and a closure
     pub fn thor_function(
         arguments: Vec<String>,
         body: Vec<Statement>,
@@ -373,6 +381,8 @@ impl Value {
     }
 }
 
+
+//returns nil value
 impl Default for Value {
     fn default() -> Value {
         Value {
@@ -383,12 +393,15 @@ impl Default for Value {
     }
 }
 
-
+//helper function to check whether or not a operation works for the inputs provided
 fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>) 
     -> Result<Value, ThorLangError>{
    
     let op_env = enclosing.borrow().clone();
 
+
+    //loops over every operation associated with the given operator sign
+    //when they throw we move on to the next one
     for mut op in operation_list{
         let operands = op.operands;
         let operation = op.operation;
@@ -412,7 +425,8 @@ fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, 
             return Ok(result)
         }
     }
-    
+   
+    //this error will only show up when we use a undefined special character
     Err(ThorLangError::EvalError(
             format!("no overloadings")
                                 ))
@@ -420,7 +434,6 @@ fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, 
 
 //order of precedence is as follows
 // eval_statement -> eval -> eval_binary -> eval_unary -> eval_literal
-
 fn eval_unary(
     operator: TokenType,
     right: &Expression,
@@ -429,7 +442,7 @@ fn eval_unary(
 ) -> Result<Value, ThorLangError> {
     let r = eval(right, enclosing.clone(), overloadings)?;
 
-
+    //first we try to eval the overloadings if there are any
     if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
         if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone()){
@@ -440,11 +453,12 @@ fn eval_unary(
 
     }
 
-
+    //else we just return the normally evaluated value
     match operator {
         //only negate logically when is bool
         TokenType::BANG => {
             if let ValueType::Bool(bool) = r.value {
+                //just one to one in host language
                 return Ok(Value::bool(!bool));
             } else {
 
@@ -454,8 +468,11 @@ fn eval_unary(
         //only negate arithmetically when is number
         TokenType::MINUS => {
             if let ValueType::Number(num) = r.value {
+                //also jsut one to one
                 return Ok(Value::number(-num));
             } else {
+
+                //these errors will be overworked in the future
                 Err(ThorLangError::EvalError("can only negate numbers".to_string()))
             }
         }
@@ -510,6 +527,7 @@ fn eval_binary(
     let op_vec = vec![l.clone(), r.clone()];
     let op_overloadings = overloadings.get(&(operator.clone(), 2));
 
+    //again if some overloadings exist we evaluater them and return the result
     if let Some(op_overloadings) = op_overloadings {
         if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone()){
             return Ok(result)
@@ -636,7 +654,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         }
         
         Expression::Try { block } => {
-            
+            //this ensures that errors can be returned as values 
             let eval_value = eval_statement(block.to_vec(), enclosing.clone(), overloadings); 
                 return match eval_value {
                     Ok(val) => Ok(val),
@@ -647,25 +665,35 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 }
         },
 
-        Expression::FieldCall { callee, key, dot_token_index } => {
+        Expression::FieldCall { callee, key, dot_token_index : _ } => {
+
+            //getting with the . (object.field)
+
+            //first we need to get the key and the field we want to call from
             let callee_value = eval(callee, enclosing.clone(), overloadings)?;
             let key_string: String;
             
-            let key_value = eval(key, enclosing.clone(), overloadings)?;
 
 
-
-            if let Expression::Identifier { name, identifier_token_index } = *(*key).clone() {
+            //if the key is an identifier we turn it to a string else we would hash it (hashing
+            //does not work, thinking about removing this feature)
+            if let Expression::Identifier { name, identifier_token_index : _ } = *(*key).clone() {
                 key_string = name;
             } else {
                 key_string = hash_value(eval(key, enclosing.clone(), overloadings)?);
             }
-
+            
+            //the default value is nil (field does not exist)
+            
             let mut ret_val = Value::default();
+
+            //if a field with the above name does exist we return it
             if let Some(field) = callee_value.fields.get(&key_string) {
                 return Ok(field.clone());
             }
-
+            //else we try to return a value or method of the prototype
+            //depending on whether the value we want to call from the prototype method map
+            //(init_prototype_fields)
             match callee_value.value.clone() {
                 ValueType::String(_str) => {
                     if let Some(field) = init_string_fields(callee_value.clone()).get(&key_string) {
@@ -689,13 +717,20 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                         ret_val = field.clone();
                     }
                 }
+
+                //not finished yet, but can be at every moment
                 _ => (),
             }
+    
+            
+            //if still no fields with the given name are found we return nil
 
             Ok(ret_val)
         }
 
         Expression::Array { values } => {
+
+            //calculates the value of an array (simply a value with the type array itself)
             let mut value_array: Vec<Value> = vec![];
 
             for value_expression in values {
@@ -711,8 +746,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             paren_token_index,
             arguments,
         } => {
-            //let eval_callee = eval(callee, enclosing.clone(), overloadings);
-
+            //to evaluate functions we need to distinguish between native functions and thor
+            //functions
             let function = eval(callee, enclosing.clone(), overloadings)?;
 
             if let ValueType::Function(Function::NativeFunction {
@@ -721,6 +756,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 self_value,
             }) = function.clone().value
             {
+
+                
                 //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
 
@@ -740,6 +777,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                     eval_args.insert("self".to_string(), *sv.clone());
                 }
 
+                //we can just call the function with the args given that the functions is rust
+                //builtin
                 let function = body(eval_args)?;
 
                 return Ok(function);
@@ -774,6 +813,9 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                         .insert(name, value);
                 }
 
+                //when the function is a thorfunction we need to eval the block (body of the
+                //function) with an environemnt that is copied from the current one but appended
+                //with the arguments
                 eval_statement(body, function_env, overloadings)
             } else {
                 
@@ -784,6 +826,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
         Expression::Assignment { target, value, eq_token_index } => {
             let eval_value = eval(value, enclosing.clone(), overloadings)?;
+
+            //Assignment needs to find the target first
 
             //iteratively go over the fields (creating them when they do not exist) and putting in
             //the value at the deepest level
@@ -809,6 +853,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
             let mut current: &mut Value = value;
 
+        
+            //runs for the first n - 1 items in the order list
             for i in 1..(order.len() - 1) {
                 //nil values that get fields reassigned become objects
                 let immut_value = current.clone();
@@ -817,7 +863,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
                 let current_field_key_index = &order.get(i).unwrap().1;
 
-
+                //in this case we have an array call (-Assignment)
                 if let FieldKey::Int(num) = current_field_key {
                     if let ValueType::Array(ref mut arr) = current.value {
                         if let Some(current_mut) = arr.get_mut(*num as usize) {
@@ -832,6 +878,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                     }
                 }
 
+                //in this one a fieldcall (-Assignment)
                 if let FieldKey::String(ref str) = current_field_key {
                     if let Some(field) = current.fields.get_mut(str) {
                         current = field;
@@ -842,16 +889,17 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }
 
             let last_key = order.get(order.len() - 1).unwrap();
-
+            
+            //runs for the last (nth) field in the order list (or the first when we assing to a
+            //single variable)
             match &last_key.0 {
                 FieldKey::String(key) => {
                     current.fields.insert(key.to_string(), eval_value.clone());
                 }
                 FieldKey::Int(num) => {
                     if let ValueType::Array(arr) = &mut current.value {
-                        println!("{num}") ;
 
-                        if let Some(value) = arr.get(*num as usize){
+                        if let Some(_value) = arr.get(*num as usize){
                             arr[*num as usize] = eval_value.clone();
                         }
                         else  {
@@ -862,6 +910,13 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 }
             }
 
+            //if we assign to a value that is nil we make it an object
+            //so we can make something like this: 
+            //
+            //let obj;
+            //obj.hello = 4;
+            //^^^ 
+            //this makes obj an object
             if current.value == ValueType::Nil {
                 current.value = ValueType::Object
             }
@@ -887,9 +942,10 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 return ThorLangError::unknown_value_error(*identifier_token_index);
             }
         }
-        
+       
+        //these just return the value they evaluate to 
         Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings),
-        Expression::Literal { literal, literal_token_index } => return eval_literal(literal.clone()),
+        Expression::Literal { literal, literal_token_index : _ } => return eval_literal(literal.clone()),
         Expression::Grouping { inner } => return eval(&inner, enclosing, overloadings),
         Expression::Binary {
             left,
@@ -915,6 +971,11 @@ impl FieldKey {
     }
 }
 
+
+//generates the field Assignment order by traversing the field calls and returning the steps we
+//need to take
+//
+//obj.hello[0]["hello"] turns to ["hello", 0, "hello"]
 fn generate_field_order(
     target: Box<Expression>,
     enclosing: Rc<RefCell<Environment>>,
@@ -928,10 +989,14 @@ fn generate_field_order(
 
     while not_ended {
         match *current.clone() {
+
+            //when a single identifier we just return the name (of the variable)
             Expression::Identifier { name, identifier_token_index } => {
                 order.push((FieldKey::String(name), identifier_token_index));
                 not_ended = false;
             }
+
+            //if it is a fieldcall we return the key name
             Expression::FieldCall { callee, key, dot_token_index } => {
                 if let Expression::Identifier { name, identifier_token_index } = *key {
                     order.push((FieldKey::String(name), identifier_token_index.clone()));
@@ -941,10 +1006,11 @@ fn generate_field_order(
 
                 current = callee
             }
+
+            //same in the case of a retrieve however this can also be an integer
             Expression::Retrieve { retrievee, key, lbrack_token_index } => {
                 let key = eval(&key, enclosing.clone(), overloadings)?;
 
-                println!("{:?}", key);
 
                 match key.value {
                     ValueType::String(str) => {
@@ -982,6 +1048,8 @@ fn generate_field_order(
 }
 
 //helper function used in dot with numbers around
+//this function could also be made with a "format!" call but this is some math wizardry and i like
+//it
 fn combine_f64(num1: f64, num2: f64) -> f64 {
     // Determine the number of decimal places for num2
     let decimal_places = 10f64.powi(num2.abs().log10().floor() as i32 + 1);
