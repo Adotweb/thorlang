@@ -7,7 +7,26 @@ I build Thorlang (or thor for short) to understand the steps necessary in order 
 ## Readme info
 
 This project is written and maintained in the scope of a Maturapaper.
+**note**
+Thorlang is highly experimental and still in development, using it in production is not recommended.
 
+
+## Installation 
+To install Thorlang you can either use the install.sh shell script (only on linux). Or you can compile thorlang using src : 
+`git clone https://github.com/Adotweb/thorlang`
+`cd thorlang`
+
+then you can run your code directly through cargo run 
+`cargo run run [your filename]`
+
+or you can build an executable using cargo build
+`cargo build`
+
+this will put an executable named `thorlang` into the target/debug/ folder
+
+this executable can now be used as the thorlang runtime
+
+`[path/to/thorlang_executable] run [path/to/file.thor]`
 
 ## API Reference
 
