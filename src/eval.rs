@@ -77,10 +77,14 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
         match stmt {
 
             //not implemented quite yet
-            Statement::Throw { exception } => {
+            Statement::Throw { exception, throw_token_index } => {
 
-                let _exception = eval(&exception, enclosing, overloadings)?;
-                return Ok(Value::default());
+                let exception = eval(&exception, enclosing, overloadings)?;
+
+                return Err(ThorLangError::ThorLangException{
+                    exception : Box::new(exception),
+                    throw_token_index
+                })
 
             },
 

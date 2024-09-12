@@ -1,6 +1,6 @@
 use std::result::Result;
-use crate::{Statement, Token, TokenType, Value};
-
+use crate::{Statement, Token, TokenType, Value, stringify_value};
+use std::ops::Range;
 
 //will be used when using the typo_check function later on
 fn hamming_distance(spelled_wrong : String, spelled_right : String) -> usize{
@@ -196,6 +196,46 @@ pub fn handle_eval_error(text : String, error : ThorLangError, tokens : Vec<Toke
     
 
     match error {
+        ThorLangError::ThorLangException { exception, throw_token_index } => {
+            let throw_token = tokens[throw_token_index].clone();
+           
+
+            error_msg = format!("the program has decided to throw {:?} on line {}:{} \n", 
+                stringify_value(*exception),
+                throw_token.line, 
+                throw_token.column);
+
+
+            let line_marker = format!("{} | ", throw_token.line);
+
+
+            
+
+            let (err_line, err_line_offset) = generate_error_line(throw_token.line, lines[throw_token.line as usize - 1].clone());
+        
+            error_line = err_line;
+           
+            //the cleanest bit of code to accomplish this yet
+            //underlines the whole error line with ______
+            
+            let marking_range = generate_marking_range(throw_token.column, "throw", err_line_offset);
+            underline = "_".repeat(error_line.len())
+                .chars()
+                .enumerate()
+                .map(|(index, value)|{
+              
+                    //and then for every character in the underlin checks if the character at the
+                    //same place in the error line is part of the marked token and if so it
+                    //replaces it with ^
+                    if marking_range.contains(&index){
+                        return '^'
+                    }
+
+                    value
+                })
+                .collect()
+
+        },
         ThorLangError::IndexError { index_number_token_index, array_value, tried_index } => 'index :  {
             //check if tried_index is integer 
             
@@ -248,6 +288,25 @@ pub fn handle_eval_error(text : String, error : ThorLangError, tokens : Vec<Toke
     println!("{tip}");
 
 }
+
+//function that returns an error line with the line with sperator and a number showing how much the
+//line is offset to the right
+fn generate_error_line<'a>(line_index : i32, line : String) -> (String, usize){
+
+    let line_marker = format!("{} | ", line_index);
+
+    let line_marker_length = line_marker.len();
+    
+    let error_line = line_marker + &line;
+
+    return (error_line, line_marker_length);
+}
+
+//generates the range for the markings so i dont have to make the as usize - 1 all over the place
+fn generate_marking_range<'a>(word_start : i32, word : &'a str, line_marker_length : usize) -> Range<usize>{
+    return (word_start as usize - 1 + line_marker_length)..(word_start as usize - 1 + word.len() + line_marker_length)
+}
+
 
 //easier methods to return nice errors
 impl ThorLangError {
@@ -425,6 +484,12 @@ pub enum ThorLangError{
     },
     UnknownValueError{
         identifier_token_index : usize
+    },
+    
+    //can be used to throw userside
+    ThorLangException{
+        exception :  Box<Value>,
+        throw_token_index : usize 
     },
 
     EvalError(String),

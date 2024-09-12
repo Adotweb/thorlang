@@ -5,6 +5,7 @@ use crate::{Token, TokenType, ThorLangError};
 pub enum Statement {
     Throw{
         exception : Expression,
+        throw_token_index : usize
     },
     Print {
         expression: Expression,
@@ -188,12 +189,14 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
 
 //this is not implmenented yet, but will replace "return throw("");" in the future
 fn throw_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{ 
+    let throw_token_index = *current_index - 1; 
     let exception = expr(current_index, tokens)?;
 
     match_token(current_index, tokens, TokenType::SEMICOLON)?;
 
     return Ok(Statement::Throw{
-        exception
+        exception,
+        throw_token_index
     })
 }
 

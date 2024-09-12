@@ -252,7 +252,14 @@ pub fn stringify_value(val: Value) -> String {
 
     match val.value {
         ValueType::Error(err) => {
-            ret_val = format!("{:?}", err);
+
+            if let ThorLangError::ThorLangException { exception, throw_token_index } = err{ 
+                ret_val = format!("Error({})", stringify_value(*exception));
+            } else  {
+
+                ret_val = format!("{:?}", err);
+            }
+
         },
         ValueType::Array(arr) => {
             ret_val += "[";
