@@ -70,7 +70,8 @@ pub fn interpret_code(text: String) -> Value {
             panic!();
         }
     };
-    
+  
+    //println!("{:#?}", ast);
     
 
     //the global env instantiation (global values and functions)

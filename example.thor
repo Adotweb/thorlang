@@ -1,3 +1,1 @@
-throw "hello";
-
-printf(p);
+printf("hello");

@@ -73,15 +73,11 @@ fn consume_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a T
     temp
 }
 
-//returns the previous token
-fn prev_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
-    &tokens[*current_index - 1]
-}
-
 
 //returns the line (in the code) on which current token is
 fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> i32{
-    let line = prev_token(current_index, tokens);
+    let line = tokens.get(*current_index).unwrap();
+
 
     line.line
 }
@@ -171,10 +167,6 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
             TokenType::EOF => return Ok(statements),
 
             _ => {
-                
-                //in the future this part will be able to check if a word contans a typo and will
-                //throw an error if so.
-
                 ret = do_statement(current_index, tokens);
             }
         }
@@ -421,7 +413,9 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
 //do turns expressions into statements;
 fn do_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
+
     let expression = expr(current_index, tokens)?;
+    
     
     match_token(current_index, tokens, TokenType::SEMICOLON)?;
 
