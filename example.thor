@@ -27,7 +27,7 @@ let s = 0;
 
 let list = [0, 4, 5, 67];
 
-printf(ølist);
+print (ølist);
 
 fn makeCounter(){
 	let count = 0;	

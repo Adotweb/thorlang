@@ -7,6 +7,8 @@ use std::fs;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use::std::io::{BufRead, self};
+
 
 //this is the initializer for all the global variables
 pub fn init_native_functions() -> HashMap<String, Value> {
@@ -88,6 +90,41 @@ pub fn init_native_functions() -> HashMap<String, Value> {
             }),
             None,
         ),
+    );
+
+    native_functions.insert(
+        "get_input".to_string(),
+        Value::native_function(
+            vec!["message"],
+            Arc::new(|values|{
+               
+
+                let message = values.get("message").unwrap();
+
+                //this functions needs nil as an input if there is no message to print
+                if let ValueType::Nil = message.value{
+                         
+                }else {
+                    println!("{}", stringify_value(message.clone()));
+                }
+                
+
+                let mut input_line = String::new();          
+
+                let stdin = io::stdin();
+
+
+                stdin.lock().read_line(&mut input_line).unwrap();
+
+
+                let ret_val = Value::string(input_line);
+
+
+                return Ok(ret_val)
+
+            }),
+            None
+        )
     );
 
 
