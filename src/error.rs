@@ -1,74 +1,11 @@
 use std::result::Result;
-use crate::{Statement, Token, TokenType, Value, stringify_value};
+use crate::{Statement, Token, TokenType, Value, stringify_value, ValueType};
 use std::ops::Range;
 
-//will be used when using the typo_check function later on
-fn hamming_distance(spelled_wrong : String, spelled_right : String) -> usize{
    
-
-    //function that figures out how many characters are wrong
-    //
-    //wrong_word = "applf"
-    //right_word = "apple"
-    //
-    //creates list like this : [(a, a), (p, p), (p, p), (l, l), (f, e)] 
-    //-> [false, false, false, false, true] -> 1
-    spelled_wrong.chars().zip(spelled_right.chars()).filter(|(c1, c2)|{
-
-            c1 != c2 
-
-    }).count()
-
-}
-   
-pub fn typo_check(token : Token) -> Option<ThorLangError>{
-      
-    let mut stringified : String = "".to_string();
-    if let TokenType::IDENTIFIER(id) = token.clone().token_type{
-        stringified = id; 
-    }
-
-
-    let word_tokens = vec![
-        "try",
-        "overload",
-        "if",
-        "else",
-        "fn",
-        "return", 
-        "throw",
-        "let",
-        "print",
-        "do",
-
-        //these three can be used in expressions later
-        "false",
-        "true",
-        "nil",
-    ];
-
-
-    let mut filtered : Vec<(usize, String)>  = word_tokens.iter()
-        .map(|x|{
-            
-
-                let ham_dist = hamming_distance(x.to_string(), stringified.to_string());
-                (ham_dist, x.to_string().to_string())
-        }).collect();
-
-    filtered.sort_by(|a,b| a.0.cmp(&b.0));
-  
-    
-    Some(ThorLangError::TypoError{
-        line : token.line, 
-        column : token.column,
-        got : stringified,
-        might_be : filtered[0].1.clone()
-    })
-}
 
 //handles error when parsing (unexpected tokens and typos)
-pub fn handle_error(error : ThorLangError, text : String){
+pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
 
     let text_lines : Vec<&str> = text.split("\n").collect();
     
@@ -77,235 +14,124 @@ pub fn handle_error(error : ThorLangError, text : String){
 
     let mut msg : String = Default::default();
     let mut error_line : String = Default::default();
-    let mut underline : Vec<String> = vec![];
+    let mut pointer : &str = "";
     let mut tip : String = Default::default();
 
     match error {
-        //error code is pretty repetitive
-        //in conclusion everything is the same, 
-        //we print an error message and the line we find it in together with some tip, 
-        //everything that follows is just a string interpolation tomfoolery and will be overworked
-        //in the future 
-        ThorLangError::TypoError { got, might_be, line, column } => {
-
-            msg = format!("you wrote {got} on line {line}:{column}, did you mean to write {might_be}? \n");
-
-
-
-            error_line = line.to_string() + "| " + text_lines[line as usize - 1];
-            error_line = error_line.replace("\t", " ");
-            underline = ("_".repeat(error_line.len()*2) + "\n")
-                .chars()
-                .map(|x| x.to_string())
-                .collect();
-
-            
-       
-            
-            for i in column+2..column +2+ (got.len() as i32){
-                 
-                underline[i as usize] = "^".to_string();
-            }
-
-
-            if column - 1 < 0 {
-                error_line = line.to_string() + "| " + text_lines[line as usize - 2];
-                error_line = error_line.replace("\t", " ");
-                underline = ("_".repeat(error_line.len()*2) + "\n")
-                    .chars()
-                    .map(|x| x.to_string())
-                    .collect();
-                
-                underline[error_line.len()] = "^".to_string();
-
-            }
-
-            let tip_start = " ".repeat(column as usize + 3);
-
-            tip = tip_start + "replace this with " + &might_be
-        },
+        
         
         //handling of UnexexpectedTokenError
-        ThorLangError::UnexpectedToken { expected, got, line, column } => {
+        ThorLangError::UnexpectedToken { expected, encountered } => {
+            let encountered_token = tokens[encountered - 1].clone();
+            let next_token = tokens[encountered].clone();
+           
             
-            let expected = if expected.len() > 1 {
-                    let string = expected.iter().map(|x| stringify_token_type(x.clone()).to_string()).reduce(|prev, curr| prev + &curr).unwrap();
-                    string
-                } else {
-                    stringify_token_type(expected[0].clone()).to_string()
-                };
-
-            msg = format!("expected {} on line {}:{}, got {} instead \n",
-                expected,
-                line,
-                column, 
-                stringify_token_type(got.token_type)
-            ); 
-
-            error_line = line.to_string() + "| " + text_lines[line as usize - 1];
-            underline = ("_".repeat(error_line.len()*2) + "\n")
-                .chars()
-                .map(|x| x.to_string())
-                .collect();
+            let expected_tokens = if(expected.len() > 1){
+                "one of".to_string() + &format!("{:?}", expected).to_owned()
+            }else {
+                format!("{:?}", expected[0]) 
+            };
 
             
-            underline[got.column as usize + 1] = "^".to_string();
-            
-            if got.column - 1 < 0 {
-                error_line = line.to_string() + "| " + text_lines[line as usize - 2];
-                underline = ("_".repeat(error_line.len()*2) + "\n")
-                    .chars()
-                    .map(|x| x.to_string())
-                    .collect();
-                
-                underline[error_line.len()] = "^".to_string();
 
+            msg = format!("expected {:?} after {:?} on line {:?}:{:?},\nfound {:?} instead", 
+                expected_tokens,
+                encountered_token.token_type, 
+                encountered_token.line,
+                encountered_token.column,
+                next_token.token_type
+                );
+
+
+            error_line = format!("{} | {}", encountered_token.line, text_lines[encountered_token.line as usize - 1])
+        },
+        ThorLangError::IndexError { index_number_token_index, array_value, tried_index } => {
+            let number_token = tokens[index_number_token_index].clone();
+            let array_token = tokens[index_number_token_index - 1].clone();
+
+
+            if let ValueType::Array(arr) = array_value.value{
+                let possible_length = arr.len();
+               
+
+                msg = format!("array '{}' on line {}:{} only has length {}.\naccessing its {}. ({} + 1) element is not possible", 
+                    array_token.token_type.get_content().unwrap(),
+                    array_token.line, 
+                    array_token.column,
+                    possible_length, 
+                    tried_index + 1.0, 
+                    tried_index);
+
+                error_line = format!("{} | {}", array_token.line, text_lines[array_token.line as usize - 1])
+                    
             }
+        },
+        ThorLangError::FunctionArityError { function_paren_token, needed_arguments_length, arguments_length } => {
 
-            let tip_start = " ".repeat(column as usize + 3);
-            tip = tip_start + "try to insert a "+ &expected + " here";
-            
+
+            let paren_token = tokens[function_paren_token].clone();
+
+            //-2 because i registered the RPAREN 
+            let function_name_token = tokens[function_paren_token - 2].clone(); 
+
+            msg = format!("function '{}' on line {}:{}\nexpects {} arguments but got {}", 
+                    function_name_token.token_type.get_content().unwrap(),
+                    paren_token.line, 
+                    paren_token.column,
+                    needed_arguments_length, 
+                    arguments_length
+                );
+
+            error_line = format!("{} | {}", paren_token.line, text_lines[paren_token.line as usize - 1]);
+
+
+        }, 
+        ThorLangError::ThorLangException { exception, throw_token_index } => {
+            let throw_token = tokens[throw_token_index].clone();
+
+            msg = format!("the user has decided to throw {:?} on line {}:{} using the throw token", 
+                stringify_value(*exception),
+                throw_token.line, throw_token.column);
+
+
+
+            error_line = format!("{} | {}", 
+                throw_token.line,
+                text_lines[throw_token.line as usize - 1]);
 
         },
+        ThorLangError::RetrievalError { retrieve_seperator_token_index } => {
+            let seperator_token = tokens[retrieve_seperator_token_index].clone();
+
+            let object_token = tokens[retrieve_seperator_token_index - 1].clone();
+            
+            let key_token = tokens[retrieve_seperator_token_index + 1].clone();
+             
+
+            msg = format!("the object {} on line {}:{} doesn't have a field {}", 
+                object_token.token_type.get_content().unwrap(), 
+                seperator_token.line,
+                seperator_token.column,
+                key_token.token_type.get_content().unwrap());
+
+            error_line = format!("{} | {}", 
+                seperator_token.line,
+                text_lines[seperator_token.line as usize - 1]);
+
+
+
+        }
 
         _ => ()
 
     }
 
-    println!("{msg}");
-    println!("{error_line}");
-    println!("{}", underline.join(""));
-    println!("{tip}");
+    println!("\n{msg}\n"); 
+    println!("{error_line}\n");
+    //println!("{tip}");
 }
 
 
-//this is the current working point, eval errors are far more interesting to implement
-pub fn handle_eval_error(text : String, error : ThorLangError, tokens : Vec<Token>){
-
-    let mut error_msg = "".to_string();
-    let mut error_line = "".to_string();
-    let mut underline = "".to_string();
-    let mut tip = "".to_string();
-
-
-    let lines : Vec<String> = text.split("\n")
-        //replaces all the "tab" strings with simple spaces
-        .map(|line| line.to_string().replace("\t", " "))
-        .collect();
-
-    
-
-    match error {
-        ThorLangError::ThorLangException { exception, throw_token_index } => {
-            let throw_token = tokens[throw_token_index].clone();
-           
-
-            error_msg = format!("the program has decided to throw {:?} on line {}:{} \n", 
-                stringify_value(*exception),
-                throw_token.line, 
-                throw_token.column);
-
-
-            let line_marker = format!("{} | ", throw_token.line);
-
-
-            
-
-            let (err_line, err_line_offset) = generate_error_line(throw_token.line, lines[throw_token.line as usize - 1].clone());
-        
-            error_line = err_line;
-           
-            //the cleanest bit of code to accomplish this yet
-            //underlines the whole error line with ______
-            
-            let marking_range = generate_marking_range(throw_token.column, "throw", err_line_offset);
-            underline = "_".repeat(error_line.len())
-                .chars()
-                .enumerate()
-                .map(|(index, value)|{
-              
-                    //and then for every character in the underlin checks if the character at the
-                    //same place in the error line is part of the marked token and if so it
-                    //replaces it with ^
-                    if marking_range.contains(&index){
-                        return '^'
-                    }
-
-                    value
-                })
-                .collect()
-
-        },
-        ThorLangError::IndexError { index_number_token_index, array_value, tried_index } => 'index :  {
-            //check if tried_index is integer 
-            
-            let index_token = tokens[index_number_token_index + 1].clone();
-
-            if tried_index.round() != tried_index{ 
-            
-                error_msg = format!("can only access arrays with whole number indexes, found float {:?} on line {:?}{:?} \n",
-                    tried_index,
-                    index_token.line,
-                    index_token.column
-                );
-                
-                
-
-                error_line =  "| ".to_string() + &format!("{}", lines[index_token.line as usize - 1].clone());
-                
-                underline = "_".repeat(2 * index_token.column as usize + 1);
-                
-                 
-
-                tip = " ".repeat(index_token.column as usize - 1) + &format!("
-                    this index is not a whole number as the value of {:?} is {:?}
-                    ",
-                    index_token.token_type.get_content().unwrap(), 
-                    tried_index);
-
-
-
-
-                break 'index;
-            }
-
-                            
-            let array_token = tokens[index_number_token_index - 1].clone();
-                     
-
-            error_msg = format!("{:?}", tokens[index_number_token_index.clone()]);
-
-
-        },
-
-
-        _=> ()
-    } 
-
-    println!("{error_msg}");
-    println!("{error_line}");
-    println!("{underline}");
-    println!("{tip}");
-
-}
-
-//function that returns an error line with the line with sperator and a number showing how much the
-//line is offset to the right
-fn generate_error_line<'a>(line_index : i32, line : String) -> (String, usize){
-
-    let line_marker = format!("{} | ", line_index);
-
-    let line_marker_length = line_marker.len();
-    
-    let error_line = line_marker + &line;
-
-    return (error_line, line_marker_length);
-}
-
-//generates the range for the markings so i dont have to make the as usize - 1 all over the place
-fn generate_marking_range<'a>(word_start : i32, word : &'a str, line_marker_length : usize) -> Range<usize>{
-    return (word_start as usize - 1 + line_marker_length)..(word_start as usize - 1 + word.len() + line_marker_length)
-}
 
 
 //easier methods to return nice errors
@@ -313,22 +139,18 @@ impl ThorLangError {
 
     //errors have form:
     //expected ... after ..., encountered ...
-    pub fn unexpected_token<T>(expected : TokenType, encountered : Token, after : Token) -> Result<T, ThorLangError>{
+    pub fn unexpected_token<T>(expected : TokenType, encountered_index : usize) -> Result<T, ThorLangError>{
         Err(ThorLangError::UnexpectedToken{
             expected : vec![expected],
-            got : encountered.clone(),
-            column : encountered.column,
-            line : encountered.line
+            encountered : encountered_index
         })
     }
 
-    pub fn unexpected_token_of_many<T>(expected : Vec<TokenType>, encountered : Token, after : Token) -> Result<T, ThorLangError>{
+    pub fn unexpected_token_of_many<T>(expected : Vec<TokenType>, encountered_index : usize) -> Result<T, ThorLangError>{
          
          Err(ThorLangError::UnexpectedToken{
             expected,
-            got : encountered.clone(),
-            column : after.column,
-            line : after.line
+            encountered : encountered_index
         })                  
     }
 
@@ -449,19 +271,8 @@ pub enum ThorLangError{
 
     UnexpectedToken{
         expected : Vec<TokenType>,
-        got : Token, 
-        line : i32,
-        column : i32
+        encountered : usize 
     },
-    TypoError{
-        got : String,
-        might_be : String,
-        line : i32,
-        column : i32
-    },
-
-
-
     //evaluation errors : 
     
     IndexError{

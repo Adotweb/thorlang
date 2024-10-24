@@ -761,7 +761,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }) = function.clone().value
             {
 
-                
+                 
                 //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
 
@@ -795,6 +795,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             }) = function.value
             {
                 if needed_arguments.len() != arguments.len() {
+                    
+
                     return ThorLangError::function_arity_error(paren_token_index.clone(), needed_arguments.len(), arguments.len());
 
                 }

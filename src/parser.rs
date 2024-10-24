@@ -92,7 +92,7 @@ fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type
 
     if token.token_type != token_type{
 
-        if let Err(err) = ThorLangError::unexpected_token::<Statement>(token_type, token.clone(), prev_token.clone()){
+        if let Err(err) = ThorLangError::unexpected_token::<Statement>(token_type, *current_index){
             return Err(err)
         };
     }
@@ -223,9 +223,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     //if the op character is not special and not a traditional op character this will throw as we
     //cant overload things like "a" (yet however);
     if !operations.contains(&token.token_type) && !is_op { 
-        return ThorLangError::unexpected_token(TokenType::PLUS
-                                                   , token.clone()
-                                                   , get_previous_token(current_index, tokens).clone());
+        return ThorLangError::unexpected_token(TokenType::PLUS, *current_index);
 
     }
 
@@ -249,11 +247,7 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
             },
             _ => { 
 
-                return ThorLangError::unexpected_token(
-                    TokenType::IDENTIFIER("".to_string()),
-                    token.clone(),
-                    tokens.get(*current_index - 1).unwrap().clone()
-                );
+                return ThorLangError::unexpected_token(TokenType::IDENTIFIER("".to_string()),*current_index);
             }
         }
         token = consume_token(current_index, tokens);
@@ -369,9 +363,7 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
         function_name = str.to_string(); 
     } else {
 
-        return ThorLangError::unexpected_token(TokenType::IDENTIFIER("".to_string()),
-            token.clone(),
-            tokens.get(*current_index - 1).unwrap().clone());
+        return ThorLangError::unexpected_token(TokenType::IDENTIFIER("".to_string()), *current_index)
 
     }
     //consume the identifier token
@@ -440,19 +432,12 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     }
     else if let TokenType::SPECIAL(ref str) = token.token_type {
         
-        return ThorLangError::unexpected_token(
-            TokenType::SPECIAL(str.to_string()),
-            token.clone(),
-            tokens.get(*current_index - 1).unwrap().clone()
-        );
+        return ThorLangError::unexpected_token(TokenType::SPECIAL(str.to_string()),*current_index);
     }
     else {
 
         return ThorLangError::unexpected_token(
-            TokenType::IDENTIFIER("".to_string()),
-            token.clone(),
-            tokens.get(*current_index - 1).unwrap().clone()
-        );
+            TokenType::IDENTIFIER("".to_string()),*current_index);
     }
     
     let literal_token_index = current_index.clone();
@@ -856,10 +841,7 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
 
 
     return ThorLangError::unexpected_token::<Expression>(
-        TokenType::RPAREN,
-        tokens.get(*current_index).unwrap().clone(),
-        tokens.get(*current_index - 1).unwrap().clone()
-    )
+        TokenType::RPAREN,*current_index)
 }
 
 
@@ -920,9 +902,7 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                         _ => {
 
                             return ThorLangError::unexpected_token_of_many(
-                                vec![TokenType::RBRACK, TokenType::COMMA],
-                                token.clone(),
-                                tokens.get(*current_index - 1).unwrap().clone()
+                                vec![TokenType::RBRACK, TokenType::COMMA], *current_index
                             )
                         },
                     }
@@ -940,8 +920,7 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                     } else {
                         return ThorLangError::unexpected_token(
                             TokenType::RPAREN,
-                            token.clone(),
-                            tokens.get(*current_index - 1).unwrap().clone()
+                            *current_index
                         )
                     }
                 }

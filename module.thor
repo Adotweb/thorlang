@@ -1,3 +1,9 @@
-let somevalue = 14;
+fn p(arg){
+	print arg;
+}
 
-return somevalue;
+let obj;
+
+obj.hell.siuu = "siuu";
+
+print obj.hell.siuu;
