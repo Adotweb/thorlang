@@ -117,7 +117,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
                 stdin.lock().read_line(&mut input_line).unwrap();
 
 
-                let ret_val = Value::string(input_line);
+                let ret_val = Value::string(input_line.replace("\n", ""));
 
 
                 return Ok(ret_val)
