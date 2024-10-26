@@ -1,11 +1,3 @@
-fn fact(n){
-	if(n == 0){
-		return 1;
-	}else{
-		return n * fact(n - 1);
-	}
+let somevalue = 14;
 
-}
-
-
-print fact(4);
+return somevalue;

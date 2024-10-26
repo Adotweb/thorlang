@@ -1,5 +1,7 @@
 use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType, ThorLangError};
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
@@ -41,6 +43,26 @@ pub fn init_native_functions() -> HashMap<String, Value> {
             None
         )
     );
+
+    //start_timer returns this function and it can only be obtained as such
+   
+
+    // a time measuring function
+    native_functions.insert(
+        "get_now".to_string(),
+        Value::native_function(
+            vec![],
+            Arc::new(|_values|{
+               
+                let now = SystemTime::now();
+
+                return Ok(Value::number(now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64))
+
+            }),
+            None
+        )
+    );
+
 
     //returns true if the input value is an error and false if it is a normal value
     native_functions.insert(
