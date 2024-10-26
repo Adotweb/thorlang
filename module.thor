@@ -1,9 +1,11 @@
-fn p(arg){
-	print arg;
+fn fact(n){
+	if(n == 0){
+		return 1;
+	}else{
+		return n * fact(n - 1);
+	}
+
 }
 
-let obj;
 
-obj.hell.siuu = "siuu";
-
-print obj.hell.siuu;
+print fact(4);

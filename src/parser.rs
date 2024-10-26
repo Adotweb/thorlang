@@ -312,18 +312,22 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statem
 
     match_token(current_index, tokens, TokenType::RPAREN)?;
 
-    //consume the ")" and the "{" (two tokens)
-
-    let token = match_token(current_index, tokens, TokenType::LBRACE)?;
+    //consume the ")" and the "{" (two tokens) but dont return the next token because the block
+    //(statement function below handles this);
+    let _ = match_token(current_index, tokens, TokenType::LBRACE)?;
 
     let then_branch = Box::new(statement(current_index, tokens)?);
 
     let mut else_branch = None;
 
-    //if the parser finds else after the closing bracket of the if block an else block will be
-    //inserted in the statement else not
 
-    if token.token_type == TokenType::ELSE {
+    //if the next token is an ELSE then we create an else block and consume the ELSE token and the
+    //LBRACE token
+    let next_token = tokens.get(*current_index).unwrap();
+
+
+    if next_token.token_type == TokenType::ELSE {
+        consume_token(current_index, tokens);
         consume_token(current_index, tokens);
         else_branch = Some(Box::new(statement(current_index, tokens)?));
     }
@@ -817,7 +821,10 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
                 return Ok(Expression::Call {
                     callee: Box::new(callee),
                     arguments,
-                    paren_token_index : current_index.clone()
+
+                    //needs to be -1 so the left token is registered instead of the right one,
+                    //makes error handling easier
+                    paren_token_index : current_index.clone() - 1
                 })
             }
             TokenType::COMMA => {

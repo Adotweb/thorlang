@@ -71,8 +71,14 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
 
             let paren_token = tokens[function_paren_token].clone();
 
+
             //-2 because i registered the RPAREN 
+            //also every given argument also needs to be counted
+            //and if there is more than one then we need to also count the commas
+            //
+            //
             let function_name_token = tokens[function_paren_token - 2].clone(); 
+
 
             msg = format!("function '{}' on line {}:{}\nexpects {} arguments but got {}", 
                     function_name_token.token_type.get_content().unwrap(),
@@ -83,7 +89,6 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
                 );
 
             error_line = format!("{} | {}", paren_token.line, text_lines[paren_token.line as usize - 1]);
-
 
         }, 
         ThorLangError::ThorLangException { exception, throw_token_index } => {
@@ -122,7 +127,7 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
 
         }
 
-        _ => ()
+        _ => println!("{:?}", error)
 
     }
 

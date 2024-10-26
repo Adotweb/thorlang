@@ -16,7 +16,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     pub values: RefCell<HashMap<String, Value>>,
-    pub enclosing: Option<Rc<RefCell<Environment>>>
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 
@@ -60,6 +60,17 @@ impl Environment {
         } else {
             return Err(ThorLangError::EvalError(format!("no such variable {key} found")))
         }
+    }
+
+    pub fn with_enclosing(&self, enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>>{
+
+        //first get to the highest enclosing (the first enclosing that contains None as its enclosing)
+        //and then set its enclosing as the enclosing passed to this function 
+        
+         
+        
+
+        enclosing 
     }
 }
 
@@ -132,10 +143,18 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             } => {
                 let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
 
-                let function = Value::thor_function(arguments, *body, closure);
+                let function = Value::thor_function(arguments, *body, closure.clone());
 
                 //insert the function with its name into the environment
                 enclosing
+                    .borrow_mut()
+                    .values
+                    .borrow_mut()
+                    .insert(name.clone(), function.clone());
+
+
+                //insert the function with its name into the closure to allow for recursion
+                closure
                     .borrow_mut()
                     .values
                     .borrow_mut()
@@ -811,6 +830,10 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
                 // Create a new environment for the function call, using the closure's environment
                 let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
+                
+                
+
+
                 for (name, value) in eval_args {
                     function_env
                         .borrow_mut()
