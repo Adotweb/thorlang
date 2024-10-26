@@ -208,7 +208,7 @@ Of course thorlang has some native functions (this list will be expanded):
 | `getTime` | No arguments | returns the current unix time (unimplemented)| 
 | `import` | `String : Namespace` | returns the returned value of the given file and throws if the file does not exist| 
 | `isError` | any value | returns true if the argument provided is an error and false else| 
-
+| `get_now` | No arguments | returns the current unix time in milliseconds | 
 
 #### Native Methods
 
