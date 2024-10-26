@@ -202,7 +202,7 @@ pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
                 if let ValueType::Number(num) = self_value.value{
                     return Ok(Value::number(num.sqrt()))
                 } else {
-                    return Err(ThorLangError::EvalError("".to_string()))
+                    return Err(ThorLangError::UnknownError)
                 }
             }),
             init_value,
@@ -276,12 +276,13 @@ pub fn init_array_fields(
                     if var_name != "" {
                         let _ = enclosing
                             .borrow_mut()
-                            .set(var_name.clone(), Value::array(newarr.clone()))?;
+                            .set(var_name.clone(), 
+                                Value::array(newarr.clone()), 0)?;
                     }
 
                     return Ok(Value::array(newarr))
                 } else {
-                    return Err(ThorLangError::EvalError("".to_string()))
+                    return Err(ThorLangError::UnknownError)
                 }
 
             }),

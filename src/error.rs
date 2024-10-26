@@ -18,7 +18,36 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
     let mut tip : String = Default::default();
 
     match error {
-        
+        ThorLangError::UnknownFunctionError { function_paren_token } => {
+            
+            let function_paren_token = tokens[function_paren_token - 1].clone();
+
+
+            msg = format!("the function '{}' on line {}:{}, is not found in the current scope", 
+                function_paren_token.token_type.get_content().unwrap(),
+                function_paren_token.line,
+                function_paren_token.column
+                );
+
+
+
+            error_line = format!("{} | {}", function_paren_token.line, text_lines[function_paren_token.line as usize - 1])
+        },
+        ThorLangError::UnknownValueError { identifier_token_index } => {
+            
+            let unknown_value_token = tokens[identifier_token_index - 1].clone();
+
+
+            msg = format!("the value '{}' on line {}:{},  is not found in the current scope", 
+                unknown_value_token.token_type.get_content().unwrap(),
+                unknown_value_token.line,
+                unknown_value_token.column
+                );
+
+
+
+            error_line = format!("{} | {}", unknown_value_token.line, text_lines[unknown_value_token.line as usize - 1])
+        },    
         
         //handling of UnexexpectedTokenError
         ThorLangError::UnexpectedToken { expected, encountered } => {
@@ -91,6 +120,45 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
             error_line = format!("{} | {}", paren_token.line, text_lines[paren_token.line as usize - 1]);
 
         }, 
+        ThorLangError::FunctionArityError { function_paren_token, needed_arguments_length, arguments_length } => {
+
+
+            let paren_token = tokens[function_paren_token].clone();
+
+
+            //-2 because i registered the RPAREN 
+            //also every given argument also needs to be counted
+            //and if there is more than one then we need to also count the commas
+            //
+            //
+            let function_name_token = tokens[function_paren_token - 2].clone(); 
+
+
+            msg = format!("function '{}' on line {}:{}\nexpects {} arguments but got {}", 
+                    function_name_token.token_type.get_content().unwrap(),
+                    paren_token.line, 
+                    paren_token.column,
+                    needed_arguments_length, 
+                    arguments_length
+                );
+
+            error_line = format!("{} | {}", paren_token.line, text_lines[paren_token.line as usize - 1]);
+
+        }, 
+        ThorLangError::OperationArityError { operator_token_index, expected_arguments, provided_arguments } => {
+            let op_token = tokens[operator_token_index - 1].clone();
+
+ 
+            msg = format!("the operator '{}' on line {}:{}\nexpects {} arguments but got {}", 
+                stringify_token_type(op_token.token_type),
+                op_token.line, 
+                op_token.column, 
+                expected_arguments, 
+                provided_arguments
+                );
+
+            error_line = format!("{} | {}", op_token.line, text_lines[op_token.line as usize - 1]);
+        },
         ThorLangError::ThorLangException { exception, throw_token_index } => {
             let throw_token = tokens[throw_token_index].clone();
 
@@ -125,7 +193,31 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
 
 
 
-        }
+        },
+        ThorLangError::EvalError { operation_token_index } => {
+           
+            let left_op = tokens[operation_token_index - 1].clone();
+            let right_op = tokens[operation_token_index + 1].clone();
+            let operation_token = tokens[operation_token_index].clone();
+
+
+            let left_type = stringify_token_type(left_op.token_type);
+            let right_type = stringify_token_type(right_op.token_type);
+
+            let op_type = stringify_token_type(operation_token.token_type);
+
+            msg = format!("the operation {} on line {}:{}, cannot be performed on types {:?} and {:?} \noverloading might help", 
+                op_type,
+                operation_token.line,
+                operation_token.column,
+                left_type, 
+                right_type
+                );
+
+             
+            error_line = format!("{} | {}", operation_token.line, text_lines[operation_token.line as usize - 1]);
+
+        },
 
         _ => println!("{:?}", error)
 
@@ -188,6 +280,14 @@ impl ThorLangError {
 
     }
 
+    pub fn operation_arity_error(operator_token_index : usize, expected_arguments : usize,provided_arguments : usize) -> Result<Value, ThorLangError>{
+        Err(ThorLangError::OperationArityError{
+            operator_token_index,
+            expected_arguments, 
+            provided_arguments
+        })
+    }
+
     pub fn unkown_function_error(function_paren_token : usize) -> Result<Value, ThorLangError>{
         
         Err(ThorLangError::UnknownFunctionError{
@@ -202,12 +302,19 @@ impl ThorLangError {
         })
 
     }
+
+    pub fn eval_error(operation_token_index : usize) -> Result<Value, ThorLangError>{
+        Err(ThorLangError::EvalError{
+            operation_token_index
+        })
+    }
 }
 
 
 //returns the type of token that is wrong or that was expected
 pub fn stringify_token_type(token_type : TokenType) -> &'static str{
-   
+  
+
     if let TokenType::IDENTIFIER(str) = token_type {
         return "identifier"
     }
@@ -233,19 +340,19 @@ pub fn stringify_token_type(token_type : TokenType) -> &'static str{
             TokenType::RBRACE => "}",//right brace : }
             TokenType::COMMA => "comma",
             TokenType::DOT => ".",
-            TokenType::MINUS => "operation - (minus)",
-            TokenType::PLUS => "operation + (plus)",
+            TokenType::MINUS => "- (minus)",
+            TokenType::PLUS => "+ (plus)",
             TokenType::SEMICOLON => "semicolon ;",
-            TokenType::SLASH => "operation / (slash)",
-            TokenType::STAR => "operation * (star)",
-            TokenType::BANG => "operation ! (bang)",
-            TokenType::BANGEQ => "comparison != (not equal)",
-            TokenType::EQ => "assignment = (assign)",
-            TokenType::EQEQ => "comparison == (equal)",
-            TokenType::GREATER => "comparison > (greater than)",
-            TokenType::GREATEREQ => "comparison >= (greater or equal)",
-            TokenType::LESS => "comparison < (less than)",
-            TokenType::LESSEQ => "comparison <= (less or equal)",
+            TokenType::SLASH => "/ (slash)",
+            TokenType::STAR => "* (star)",
+            TokenType::BANG => "! (bang)",
+            TokenType::BANGEQ => "!= (not equal)",
+            TokenType::EQ => "= (assign)",
+            TokenType::EQEQ => "== (equal)",
+            TokenType::GREATER => "> (greater than)",
+            TokenType::GREATEREQ => ">= (greater or equal)",
+            TokenType::LESS => "< (less than)",
+            TokenType::LESSEQ => "<= (less or equal)",
 
             TokenType::TRY => "try",
             TokenType::OVERLOAD => "overload",
@@ -295,6 +402,11 @@ pub enum ThorLangError{
         needed_arguments_length : usize,
         arguments_length : usize
     },
+    OperationArityError{
+        operator_token_index : usize,
+        expected_arguments : usize,
+        provided_arguments : usize
+    },
     UnknownFunctionError{
         function_paren_token : usize
     },
@@ -306,9 +418,12 @@ pub enum ThorLangError{
     ThorLangException{
         exception :  Box<Value>,
         throw_token_index : usize 
+    }, 
+    EvalError{
+        operation_token_index : usize
     },
 
-    EvalError(String),
+    UnknownError
 }
 
 

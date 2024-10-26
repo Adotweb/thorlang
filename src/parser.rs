@@ -486,10 +486,12 @@ pub enum Expression {
         left: Box<Expression>,
         operator: TokenType,
         right: Box<Expression>,
+        operator_token_index : usize
     },
     Unary {
         operator: TokenType,
         right: Box<Expression>,
+        operator_token_index : usize
     },
     Grouping {
         inner: Box<Expression>,
@@ -602,6 +604,7 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
         match token.token_type {
             TokenType::EQEQ | TokenType::BANGEQ => {
                 let operator = token.token_type.clone();
+                let operator_token_index = *current_index;     
                 
                 consume_token(current_index, tokens);
 
@@ -609,7 +612,8 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
                 expression = Expression::Binary {
                     left: Box::new(expression),
                     operator,
-                    right: Box::new(right?),
+                    right: Box::new(right?), 
+                    operator_token_index
                 };
             }
             _ => break,
@@ -628,7 +632,8 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         match token.token_type {
             TokenType::GREATEREQ | TokenType::GREATER | TokenType::LESS | TokenType::LESSEQ => {
                 let operator = token.token_type.clone();
-                
+                let operator_token_index = *current_index; 
+
                 consume_token(current_index, tokens);
 
                 let right = term(current_index, tokens);
@@ -636,6 +641,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
                     left: Box::new(expression),
                     operator,
                     right: Box::new(right?),
+                    operator_token_index
                 };
             },
 
@@ -654,6 +660,7 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         match token.token_type {
             TokenType::PLUS | TokenType::MINUS => {
                 let operator = token.token_type.clone();
+                let operator_token_index = *current_index;
                 
                 consume_token(current_index, tokens);
 
@@ -662,6 +669,7 @@ fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
                     left: Box::new(expression),
                     operator,
                     right: Box::new(right?),
+                    operator_token_index
                 };
             }
             _ => break,
@@ -680,7 +688,8 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
         match &token.token_type {
             TokenType::STAR | TokenType::SLASH => {
                 let operator = token.token_type.clone();
-                
+                let operator_token_index = *current_index; 
+
                 consume_token(current_index, tokens);
 
                 let right = unary(current_index, tokens);
@@ -688,17 +697,20 @@ fn factor(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, 
                     left: Box::new(expression),
                     operator,
                     right: Box::new(right?),
+                    operator_token_index
                 };
             },
             TokenType::SPECIAL(_id) => {
                 let operator = token.token_type.clone();
+                let operator_token_index = *current_index;
 
                 consume_token(current_index, tokens);
                 let right = unary(current_index, tokens);
                 expression = Expression::Binary{
                     left : Box::new(expression),
                     operator,
-                    right: Box::new(right?)
+                    right: Box::new(right?),
+                    operator_token_index
                 }
             }
             _ => break,
@@ -727,23 +739,27 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
 
         if operators.contains(&token.token_type) {
             let operator = token.token_type.clone();
+            let operator_token_index = *current_index;
             consume_token(current_index, tokens);
 
             let right = unary(current_index, tokens);
             return Ok(Expression::Unary{
                 operator, 
-                right : Box::new(right?)
+                right : Box::new(right?),
+                operator_token_index
             })
         }
 
         if let TokenType::SPECIAL(_id) = &token.token_type{
             let operator = token.token_type.clone();
+            let operator_token_index = *current_index;
             consume_token(current_index, tokens);
             let right = unary(current_index, tokens);
 
             return Ok(Expression::Unary{
                 operator, 
-                right : Box::new(right?)
+                right : Box::new(right?),
+                operator_token_index
             })
         }
 

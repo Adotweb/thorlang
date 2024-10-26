@@ -40,38 +40,48 @@ impl Environment {
             enclosing,
         }))
     }
-    
+   
+    //this method recursively iterates through the environment in search of the given key
     pub fn get(&self, key: &str) -> Option<Value> {
+        
+        //in case that the current environment level already contains the key, return the value
+        //behind it
         if let Some(value) = self.values.borrow().get(key) {
             Some(value.clone())
-        } else if let Some(ref parent) = self.enclosing {
+        } 
+        //if not we return a reference to the environment that closes over the current one and
+        //apply this "get" method to it
+        else if let Some(ref parent) = self.enclosing {
             parent.borrow().get(key)
-        } else {
+        }
+        //if both of the above fail the key does not exist (and so the variable does not)
+        else {
             None
         }
     }
 
-    pub fn set(&self, key: String, value: Value) -> Result<String, ThorLangError> {
+
+    //almost the same as with get but we have to change the .borrow() (normal reference) to a
+    //.borrow_mut() (mutable reference) since we want to be able to change whatever value we
+    //encounter
+    pub fn set(&self, key: String, value: Value, eq_token_index : usize) -> Result<Value, ThorLangError> {
+        
         if self.values.borrow().contains_key(&key) {
-            self.values.borrow_mut().insert(key, value);
-            Ok("".to_string())
+            let p = self.values.borrow_mut().insert(key, value);
+            Ok(p.unwrap())
         } else if let Some(ref parent) = self.enclosing {
-            parent.borrow().set(key, value)
+            parent.borrow_mut().set(key, value, eq_token_index)
         } else {
-            return Err(ThorLangError::EvalError(format!("no such variable {key} found")))
+
+            //this is for safety measures, because Assignment automatically inserts any key that
+            //does not yet exist in the environment
+
+
+            ThorLangError::eval_error(eq_token_index)
+
         }
     }
 
-    pub fn with_enclosing(&self, enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>>{
-
-        //first get to the highest enclosing (the first enclosing that contains None as its enclosing)
-        //and then set its enclosing as the enclosing passed to this function 
-        
-         
-        
-
-        enclosing 
-    }
 }
 
 //here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
@@ -417,7 +427,7 @@ impl Default for Value {
 }
 
 //helper function to check whether or not a operation works for the inputs provided
-fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>) 
+fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>, operator_token_index : usize) 
     -> Result<Value, ThorLangError>{
    
     let op_env = enclosing.borrow().clone();
@@ -432,10 +442,8 @@ fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, 
     
 
         if operands.len() != arguments.len(){
-            return Err(ThorLangError::EvalError(
-                    format!("number of operands for {:?} arity function has to be {:?} got {:?}", 
-                            operands.len(), operands.len(), arguments.len())
-                                               ))
+
+            return ThorLangError::operation_arity_error(operator_token_index, operands.len(), arguments.len())
         }
 
         for i in 0..operands.len(){
@@ -450,9 +458,8 @@ fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, 
     }
    
     //this error will only show up when we use a undefined special character
-    Err(ThorLangError::EvalError(
-            format!("no overloadings")
-                                ))
+
+    ThorLangError::eval_error(operator_token_index)
 }
 
 //order of precedence is as follows
@@ -461,14 +468,15 @@ fn eval_unary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
-    overloadings : &mut Overloadings
+    overloadings : &mut Overloadings,
+    operator_token_index : usize
 ) -> Result<Value, ThorLangError> {
     let r = eval(right, enclosing.clone(), overloadings)?;
 
     //first we try to eval the overloadings if there are any
     if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
-        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone()){
+        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), operator_token_index){
 
             
             return Ok(result)
@@ -485,7 +493,7 @@ fn eval_unary(
                 return Ok(Value::bool(!bool));
             } else {
 
-                Err(ThorLangError::EvalError("can only logically negate bools".to_string()))
+                ThorLangError::eval_error(operator_token_index)
             }
         }
         //only negate arithmetically when is number
@@ -496,18 +504,20 @@ fn eval_unary(
             } else {
 
                 //these errors will be overworked in the future
-                Err(ThorLangError::EvalError("can only negate numbers".to_string()))
+                
+                ThorLangError::eval_error(operator_token_index) 
+                
             }
         }
         _ => {
-            Err(ThorLangError::EvalError("unary operation not defined".to_string()))
+                ThorLangError::eval_error(operator_token_index) 
         }
     }
 }
 
 //evaluates the "atoms" these can not be further reduced and bubble up to form more complex data
 //(not types but composed values like 1 + 2)
-fn eval_literal(literal: TokenType) -> Result<Value, ThorLangError> {
+fn eval_literal(literal: TokenType, literal_token_index : usize) -> Result<Value, ThorLangError> {
     //turn literaltype into value wrapped in value_type
     match literal {
         TokenType::NIL => return Ok(Value::nil()),
@@ -531,7 +541,7 @@ fn eval_literal(literal: TokenType) -> Result<Value, ThorLangError> {
             ret_val.fields = init_bool_fields(ret_val.clone());
             return Ok(ret_val)
         },
-        _ => Err(ThorLangError::EvalError("this is not a literal".to_string()))
+        _ => ThorLangError::eval_error(literal_token_index) 
     }
 }
 
@@ -541,7 +551,8 @@ fn eval_binary(
     operator: TokenType,
     right: &Expression,
     enclosing: Rc<RefCell<Environment>>,
-    overloadings : &mut Overloadings
+    overloadings : &mut Overloadings,
+    operator_token_index : usize
 ) -> Result<Value, ThorLangError> {
     let l = eval(left, enclosing.clone(), overloadings)?;
     let r = eval(right, enclosing.clone(), overloadings)?;
@@ -552,7 +563,7 @@ fn eval_binary(
 
     //again if some overloadings exist we evaluater them and return the result
     if let Some(op_overloadings) = op_overloadings {
-        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone()){
+        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone(), operator_token_index){
             return Ok(result)
         }
     }
@@ -571,23 +582,21 @@ fn eval_binary(
                 return Ok(Value::number(l + r));
             }
 
-            return Err(ThorLangError::EvalError("can only add strings and numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::MINUS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::number(l - r));
             }
 
-            return Err(ThorLangError::EvalError("can only subtract numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::STAR => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::number(l * r));
             }
             
-            return Err(ThorLangError::EvalError(
-                    format!("can only multiply numbers on line, got {:?}  and {:?} instead", left, right))
-                    )
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::SLASH => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
@@ -595,35 +604,35 @@ fn eval_binary(
             }
 
 
-            return Err(ThorLangError::EvalError("can only divide numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::LESSEQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l <= r));
             }
 
-            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::LESS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l < r));
             }
 
-            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::GREATEREQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l >= r));
             }
 
-            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::GREATER => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l > r));
             }
 
-            return Err(ThorLangError::EvalError("can only compare numbers".to_string()))
+            return ThorLangError::eval_error(operator_token_index)
         }
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
@@ -672,7 +681,8 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                     }
 
                 }
-                _ => Err(ThorLangError::EvalError(format!("{:?} is not retrievable", retrievee))),
+                _ => ThorLangError::unknown_value_error(lbrack_token_index + 1)
+
             }
         }
         
@@ -875,6 +885,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
                 enclosing.borrow_mut().set(
                     order.get(0).unwrap().0.get_string().unwrap(),
                     eval_value.clone(),
+                    *eq_token_index
                 )?;
 
                 return Ok(eval_value);
@@ -953,6 +964,7 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
             enclosing.borrow_mut().set(
                 order.get(0).unwrap().0.get_string().unwrap().to_string(),
                 value.clone(),
+                *eq_token_index
             )?;
 
             return Ok(eval_value);
@@ -973,14 +985,15 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
         }
        
         //these just return the value they evaluate to 
-        Expression::Unary { operator, right } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings),
-        Expression::Literal { literal, literal_token_index : _ } => return eval_literal(literal.clone()),
+        Expression::Unary { operator, right, operator_token_index } => return eval_unary(operator.clone(), &right, enclosing.clone(), overloadings, *operator_token_index),
+        Expression::Literal { literal, literal_token_index } => return eval_literal(literal.clone(), *literal_token_index),
         Expression::Grouping { inner } => return eval(&inner, enclosing, overloadings),
         Expression::Binary {
             left,
             operator,
             right,
-        } => return eval_binary(&left, operator.clone(), &right, enclosing, overloadings),
+            operator_token_index
+        } => return eval_binary(&left, operator.clone(), &right, enclosing, overloadings, *operator_token_index),
     }
 }
 
