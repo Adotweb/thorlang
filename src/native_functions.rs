@@ -181,6 +181,72 @@ pub fn init_native_functions() -> HashMap<String, Value> {
         ),
     );
 
+    native_functions.insert(
+        "cast_to".to_string(),
+        Value::native_function(
+            vec!["value", "target_type"],
+            Arc::new(|values|{
+                
+                let value = values.get("value").unwrap();
+
+                let target_type = values.get("target_type").unwrap();
+
+                if let ValueType::String(t) = &target_type.value{
+
+
+                    //make the String to a &str
+                    match &*t.clone() {
+                        "string" => {Ok(Value::string(stringify_value(value.clone())))},
+                        "number" => {
+                            match &value.value{
+                                ValueType::String(str) => {
+                                    return Ok(Value::number(str.parse::<f64>().unwrap()))
+                                },
+                                ValueType::Bool(b) => {
+                                    if *b{
+                                        return Ok(Value::number(0.0));
+                                    }else{
+                                        return Ok(Value::number(1.0));
+                                    }
+                                },
+                                ValueType::Number(num) => {
+                                    return Ok(value.clone())
+                                },
+                                _ => return Ok(Value::nil())
+                            }
+                        },
+                        "array" => {
+                            println!("cannot convert anything to an array, will return nil");
+                            return Ok(Value::nil())
+                        },
+                        "object" => {
+                            println!("cannot convert anything to an object, will return nil");
+                            return Ok(Value::nil())
+                        },
+                        "bool" => {
+                            if let ValueType::Number(num) = value.value.clone(){
+                                if num == 0.0 {
+                                    return Ok(Value::bool(false));
+                                }else{
+                                    return Ok(Value::bool(true))
+                                }
+                            }else{
+                                println!("can only convert numbers to booleans, will return nil");
+                                return Ok(Value::nil())
+                            }
+                        },
+                        _ => return Err(ThorLangError::UnknownError)
+                    }
+
+                }else{
+                    return Err(ThorLangError::UnknownError)
+                }
+
+            }),
+            None
+        )
+    );
+
     native_functions
 }
 

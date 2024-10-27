@@ -10,4 +10,9 @@ fn hello(n){
 	return "siuu";
 }
 
-print hello(10);
+
+let input = get_input("enter some number");
+
+input = cast_to(input, "number");
+
+print input + 20;

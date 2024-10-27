@@ -335,6 +335,8 @@ pub enum ValueType {
     Nil,
 }
 
+
+
 //this is still the same, everything 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Value {
@@ -346,6 +348,7 @@ pub struct Value {
 //nice instantiation functions for values 
 //default will return the nil value
 impl Value {
+    
     pub fn array(value: Vec<Value>) -> Value {
         Value {
             value: ValueType::Array(value),
