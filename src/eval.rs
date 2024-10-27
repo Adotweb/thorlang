@@ -681,7 +681,19 @@ pub fn eval(expr: &Expression, enclosing: Rc<RefCell<Environment>>, overloadings
 
                         return ThorLangError::index_error(lbrack_token_index.clone(), retrievee, num);
                     }    
-                }
+                },
+                (ValueType::String(str), ValueType::Number(num)) => {
+                    if num.round() != num {
+                        return ThorLangError::index_error(lbrack_token_index.clone(), retrievee, num);
+                    }
+
+                    if let Some(char) = str.chars().nth(num as usize){
+                        Ok(Value::string(char.to_string()))
+                    }else {
+
+                        return ThorLangError::index_error(lbrack_token_index.clone(), retrievee, num);
+                    }    
+                },
                 //the case of object and string
                 (ValueType::Object, ValueType::String(str)) =>{
                     if let Some(val) = retrievee.clone().fields.get(&str){

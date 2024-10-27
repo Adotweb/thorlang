@@ -11,8 +11,6 @@ fn hello(n){
 }
 
 
-let input = get_input("enter some number");
 
-input = cast_to(input, "number");
+let string = "01234";
 
-print input + 20;

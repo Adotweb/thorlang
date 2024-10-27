@@ -54,6 +54,20 @@ The primitives in Thorlang are
 
 To declare an object initialize a variable and put the fields on it. 
 
+### strings and arrays
+
+strings and array can be accessed using brackets like this: 
+
+```thor
+    let string = "hello";
+
+    let array = ["a", "b"];
+
+    print string[0]; //prints "h"
+
+    print array[1]; //prints "b"
+```
+
 ```thor
   let obj;
   obj.field = 0;
