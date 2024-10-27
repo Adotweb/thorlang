@@ -140,7 +140,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             Statement::Return { expression, line : _ } => {
                 let mut ret_value = eval(&expression, enclosing.clone(), overloadings)?;
 
-                ret_value.return_true = false;
+                ret_value.return_true = true;
 
                 return Ok(ret_value);
             }
@@ -185,20 +185,27 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
             } => {
                 if let ValueType::Bool(bool) = eval(&condition, enclosing.clone(), overloadings)?.value {
                     if bool {
-                        let mut return_val =
+                        let return_val =
                             eval_statement(*then_branch, enclosing.clone(), overloadings)?;
 
-                        return_val.return_true = true;
+                         
+            
 
-                        return Ok(return_val);
-                    } else {
-                        if let Some(ref _else_block) = else_branch {
-                            let mut return_val =
-                                eval_statement(*else_branch.unwrap(), enclosing.clone(), overloadings)?;
-
-                            return_val.return_true = true;
+                        if return_val.return_true{
 
                             return Ok(return_val);
+                        }
+
+                    } else {
+                        if let Some(ref _else_block) = else_branch {
+                            let return_val =
+                                eval_statement(*else_branch.unwrap(), enclosing.clone(), overloadings)?;
+
+
+
+                            if return_val.return_true{
+                                return Ok(return_val);
+                            }
                         }
                     }
                 }
