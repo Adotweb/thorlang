@@ -284,6 +284,26 @@ pub fn init_string_fields(init: Value) -> HashMap<String, Value> {
     let init_value = Some(Box::new(init));
 
 
+    fields.insert(
+        "len".to_string(),
+        Value::native_function(
+            vec![],
+            Arc::new(|values|{
+                let self_val = values.get("self").unwrap();
+
+                if let ValueType::String(str) = &self_val.value{
+                    
+                    Ok(Value::number(str.len() as f64))
+
+                }else{
+                    return Err(ThorLangError::UnknownError)
+                }
+
+            }),
+            init_value
+        )
+    );
+
     fields
 }
 
