@@ -1,21 +1,11 @@
-fn hello(n){
+overload + (a, b){
 
-	if(n == 0){
-		return "hello";
-	}else{
-		print "hello there";
-	}
-		
+	let string1 = cast_to(a, "string");
+	let string2 = cast_to(b, "string");
 
-	return "siuu";
+
+	return string1 + string2;
 }
 
 
-
-let string = "01234";
-
-let input = get_input("hello");
-
-
-
-print cast_to(input, "number") + 4;
+print 4 + "hello";

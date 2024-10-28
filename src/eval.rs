@@ -484,15 +484,7 @@ fn eval_unary(
     let r = eval(right, enclosing.clone(), overloadings)?;
 
     //first we try to eval the overloadings if there are any
-    if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
-        if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), operator_token_index){
-
-            
-            return Ok(result)
-        }
-
-    }
 
     //else we just return the normally evaluated value
     match operator {
@@ -503,7 +495,7 @@ fn eval_unary(
                 return Ok(Value::bool(!bool));
             } else {
 
-                ThorLangError::eval_error(operator_token_index)
+                return ThorLangError::eval_error(operator_token_index)
             }
         }
         //only negate arithmetically when is number
@@ -515,14 +507,27 @@ fn eval_unary(
 
                 //these errors will be overworked in the future
                 
-                ThorLangError::eval_error(operator_token_index) 
+                return ThorLangError::eval_error(operator_token_index) 
                 
             }
         }
-        _ => {
-                ThorLangError::eval_error(operator_token_index) 
-        }
+        _=> ()
     }
+
+        if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
+
+                if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), operator_token_index){
+
+            
+                    return Ok(result)
+                }else{
+                    return ThorLangError::eval_error(operator_token_index);
+                }
+
+            
+        }else{
+                return ThorLangError::eval_error(operator_token_index);
+        }
 }
 
 //evaluates the "atoms" these can not be further reduced and bubble up to form more complex data
@@ -567,17 +572,8 @@ fn eval_binary(
     let l = eval(left, enclosing.clone(), overloadings)?;
     let r = eval(right, enclosing.clone(), overloadings)?;
 
- 
-    let op_vec = vec![l.clone(), r.clone()];
-    let op_overloadings = overloadings.get(&(operator.clone(), 2));
-
-    //again if some overloadings exist we evaluater them and return the result
-    if let Some(op_overloadings) = op_overloadings {
-        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone(), operator_token_index){
-            return Ok(result)
-        }
-    }
-
+    let l_copy = l.clone();
+    let r_copy = r.clone();
 
     match operator {
         // the if let matches if the value of l and r both match the valuetype if there is no match
@@ -592,21 +588,18 @@ fn eval_binary(
                 return Ok(Value::number(l + r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::MINUS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::number(l - r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::STAR => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::number(l * r));
             }
             
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::SLASH => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
@@ -614,35 +607,30 @@ fn eval_binary(
             }
 
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::LESSEQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l <= r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::LESS => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l < r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::GREATEREQ => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l >= r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
         TokenType::GREATER => {
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l > r));
             }
 
-            return ThorLangError::eval_error(operator_token_index)
         }
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
@@ -653,7 +641,25 @@ fn eval_binary(
         TokenType::BANGEQ => {
             return Ok(Value::bool(l != r));
         }
-        _ => (),
+        _ => {
+
+
+
+
+
+            return ThorLangError::eval_error(operator_token_index)
+        }
+    }
+   
+    let op_vec = vec![l_copy.clone(), r_copy.clone()];
+    let op_overloadings = overloadings.get(&(operator.clone(), 2));
+
+
+    //again if some overloadings exist we evaluater them and return the result
+    if let Some(op_overloadings) = op_overloadings {
+        if let Ok(result) = eval_overloaded(op_overloadings.to_vec(), op_vec, enclosing.clone(), operator_token_index){
+                return Ok(result)
+        }
     }
 
     return Ok(Value::default());
