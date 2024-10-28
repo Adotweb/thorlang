@@ -23,7 +23,7 @@ let unix_time_start = get_now();
 
 let iter = 0;
 
-while(iter < 25){
+while(iter < 30){
 
 	print "iteration " + iter + ": fib(" + iter + ") = " + fib(iter);
 
