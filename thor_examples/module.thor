@@ -1,9 +1,6 @@
-let somevalue = 14;
 
 
-let a = 0;
-a = 9;
-
+//function that takes in a list of keys and values as lists and returns an object
 fn obj(list){
 
 
@@ -45,8 +42,5 @@ let o = obj([
 
 
 
-let a = 4 + "hello";
-
-print a;
 
 return obj;

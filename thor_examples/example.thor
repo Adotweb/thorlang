@@ -1,7 +1,17 @@
-let somevalue = import("module.thor");
+let init_obj = import("module.thor");
 
-printf(somevalue);
+let init_overloadings = import("overloadings.thor");
 
+init_overloadings();
+
+let obj = init_obj([
+	["key", "value"]
+]);
+
+print obj + "hello";
+
+
+//average operator for arrays
 overload ø (a){
 	if(typeOf(a) == "array"){
 
@@ -27,7 +37,9 @@ let s = 0;
 
 let list = [0, 4, 5, 67];
 
-print (ølist);
+//prints the average of list
+print ølist;
+
 
 fn makeCounter(){
 	let count = 0;	
@@ -36,12 +48,29 @@ fn makeCounter(){
 		printf(count);
 	}
 	
-	return inc;
+
+	// these two functions dont reference the same environment, because they have different closures.
+	// this will maybe change in the future, so closures are more of a reference thing pointing
+	// to the same thing if they are evaluated in the same context, making things both more efficient and smarter
+
+	fn dec(){
+		count = count - 1;
+		printf(count);
+	}
+
+	let ret;
+
+	ret.inc = inc;
+	ret.dec = dec;
+
+	return ret;
 }
 
 
-let inc = makeCounter();
+let c = makeCounter();
 
-inc();
-inc();
-inc();
+c.inc();
+c.inc();
+c.inc();
+
+c.dec();
