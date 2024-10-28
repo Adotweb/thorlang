@@ -4,7 +4,7 @@ overload + (a, b){
 	let string2 = cast_to(b, "string");
 
 
-	return string1 + string2;
+	return string1 + string2;;
 }
 
 
