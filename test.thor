@@ -14,3 +14,8 @@ fn hello(n){
 
 let string = "01234";
 
+let input = get_input("hello");
+
+
+
+print cast_to(input, "number") + 4;
