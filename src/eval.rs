@@ -517,6 +517,7 @@ fn eval_unary(
         _=> ()
     }
 
+    
         if let Some(operation_info) = overloadings.get(&(operator.clone(), 1)){
 
                 if let Ok(result) = eval_overloaded(operation_info.to_vec(), vec![r.clone()], enclosing.clone(), operator_token_index){
@@ -644,14 +645,7 @@ fn eval_binary(
         TokenType::BANGEQ => {
             return Ok(Value::bool(l != r));
         }
-        _ => {
-
-
-
-
-
-            return ThorLangError::eval_error(operator_token_index)
-        }
+        _ => ()
     }
    
     let op_vec = vec![l_copy.clone(), r_copy.clone()];
