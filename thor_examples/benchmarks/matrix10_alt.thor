@@ -17,38 +17,41 @@ fn m(a){
 	return ret;
 }
 
+//dot product
 overload * (a, b){
-
 	if(a.type == "vec"){
 		if(b.type == "vec"){
 			let iter = 0;
-				
+			let sum = 0;	
 			let ret = a;
 
+
 			while(iter < a.values.len()){
-				ret.values[iter] = a.values[iter] * b.values[iter];
+				sum = a.values[iter] * b.values[iter] + sum;
 
-
+				
 				iter = iter + 1;
 			}
 
-			return ret;
+			return sum;
 		}
 	}	
 	throw "";
 }
 
-//can ba used liket this: 
-// A_[4, 5] gives the element at the 4th row 5th column
+//can be used like this: 
+// A&[4, 5] gives the element at the 4th row 5th column
 // when one of the array entries is "i" then we return the entire column or entire row as a vector
-overload ^ (a, b){
-	print a;
-	print b;
+// essentially works like  A_54 in pure math
 
-	if(a.type == "matrix"){
+overload & (a, b){
+
+	if(a.type == "mat"){
 
 		let i = b[0];
 		let j = b[1];
+
+		
 
 		let res;
 		
@@ -59,13 +62,16 @@ overload ^ (a, b){
 		}
 
 		if(i == "i"){
-				
+			let res;	
+			res = a;
 			res.type = "vec";
-			res.values = a;
 			let iter = 0;
+
+
 			while(iter < res.values.len())	{
 				
-				res.values[iter] = a.values[iter][i];	
+				res.values[iter] = a.values[iter][j];
+				
 				
 				iter = iter + 1;
 			}
@@ -73,33 +79,43 @@ overload ^ (a, b){
 			return res;
 		}
 
-
-		return a[i][j];
+		return a.values[i][j];
 	}
 
 }
 
-
+//naive matrix multiplication for square matrices using operator overloading and instantiator functions
 overload * (a, b){
 	
 	if(a.type == "mat"){
 		
 		if(b.type == "mat"){
+			let res = a;
 			
 			let i = 0;
-			while(i < b.len()){
-
-				let row = mat[i];
-				let j = 0;
-
-				while(j < row.len()){
-			
+			while(i < a.values.len()){
 					
+				//get the ith row vector
+				let row = a&[i, "i"];
+			
 
+				let j = 0;
+				while(j < row.values.len()){
+					//get the jth column vector
+					let col = b&["i", j];
+				
+
+					//use already defined dot product to multiply the row and column vector 
+					let dot = row * col;
+
+					res.values[i][j] = dot;
+								
 					j = j + 1;
 				}
 				i = i + 1;
 			}
+
+			return res;
 
 		}
 
@@ -107,15 +123,15 @@ overload * (a, b){
 
 }
 
+
+let A = m([
+	[1, 2],
+	[3, 4]
+]);
+
 let I = m([
 	[1, 0],
 	[0, 1]
 ]);
 
-overload ^ (a, b){
-	print a;
-	print b;
-	return a + b;
-}
-
-let five = 4^5;
+print I * A * I;
