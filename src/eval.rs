@@ -131,7 +131,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 //if there is a list of overloadings for the given operator already we just push
                 //this overloading to it. Else we create such a list for use in the future
                 if let Some(operationlist) = overloadings.get_mut(&(operator.clone(), arity)){
-                    operationlist.push(operator_info);
+                    operationlist.insert(0, operator_info);
                 }else{
 
                     overloadings.insert((operator, arity), vec![operator_info]);
@@ -236,7 +236,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 }
             }
 
-            //print is built in, but can also be used with the printfunction printf
+            //print is built in, but can also be used with the printfunction 
             Statement::Print { expression, line : _ } => {
                 let result = eval(&expression, enclosing.clone(), overloadings)?;
 
