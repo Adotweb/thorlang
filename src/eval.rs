@@ -128,18 +128,20 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                         overloadings : defined_overloadings
                 };
 
+                //if there is a list of overloadings for the given operator already we just push
+                //this overloading to it. Else we create such a list for use in the future
                 if let Some(operationlist) = overloadings.get_mut(&(operator.clone(), arity)){
                     operationlist.push(operator_info);
-                    return Ok(Value::nil())
+                }else{
+
+                    overloadings.insert((operator, arity), vec![operator_info]);
                 }
-                
-
-                overloadings.insert((operator, arity), vec![operator_info]);
-
             },
             Statement::Return { expression, line : _ } => {
                 let mut ret_value = eval(&expression, enclosing.clone(), overloadings)?;
 
+                //we want the ret_value to bubble up through the statements above, so we need to
+                //mark it as a return value
                 ret_value.return_true = true;
 
                 return Ok(ret_value);
@@ -190,7 +192,8 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
 
                          
             
-
+                        //when we encounter a value with return_true = true, we need to bubble the
+                        //value up
                         if return_val.return_true{
 
                             return Ok(return_val);
@@ -202,7 +205,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                                 eval_statement(*else_branch.unwrap(), enclosing.clone(), overloadings)?;
 
 
-
+                            //same again
                             if return_val.return_true{
                                 return Ok(return_val);
                             }
@@ -233,7 +236,7 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
                 }
             }
 
-            //print is built in
+            //print is built in, but can also be used with the printfunction printf
             Statement::Print { expression, line : _ } => {
                 let result = eval(&expression, enclosing.clone(), overloadings)?;
 
