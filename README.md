@@ -217,13 +217,13 @@ Of course thorlang has some native functions (this list will be expanded):
 
 | Functions | arguments     | Description                       |
 | :-------- | :------- | :-------------------------------- |
-| `printf`      | `thing` | prints `thing` (this is the functional representation of the print statement)|
-| `get_input` | `any value : message` | prints the message to the terminal and accepts an input (text) which it returns | 
+| `printf`      | `value : any` | prints `thing` (this is the functional representation of the print statement)|
+| `get_input` | `message : string` | prints the message to the terminal and accepts an input (text) which it returns | 
 | `getTime` | No arguments | returns the current unix time (unimplemented)| 
-| `import` | `String : Namespace` | returns the returned value of the given file and throws if the file does not exist| 
-| `isError` | any value | returns true if the argument provided is an error and false else| 
+| `import` | `filename : any` | returns the returned value of the given file and throws if the file does not exist| 
+| `isError` | `any` | returns true if the argument provided is an error and false else| 
 | `get_now` | No arguments | returns the current unix time in milliseconds | 
-| `cast_to` | any value, string : type | tries to cast the first value to the type thats provided through a string | 
+| `cast_to` | `value : any, type : string` | tries to cast the first value to the type thats provided through a string | 
 
 #### Native Methods
 
