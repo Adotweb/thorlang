@@ -12,21 +12,25 @@ Thorlang is highly experimental and still in development, using it in production
 
 
 ## Installation 
-To install Thorlang you can either use the install.sh shell script (only on linux). Or you can compile thorlang using src : 
-`git clone https://github.com/Adotweb/thorlang`
-`cd thorlang`
 
-then you can run your code directly through cargo run 
-`cargo run run [your filename]`
+**Note That this section might undergo a lot of change in the future**
 
-or you can build an executable using cargo build
-`cargo build`
+### Binaries
+Thorlang provides binaries as releases, that can be installed and then executed.
 
-this will put an executable named `thorlang` into the target/debug/ folder
+### From source
+Thorlang can be installed from source and built using cargo and (on linux) quickly converted to a usable: 
 
-this executable can now be used as the thorlang runtime
+```
+git clone https://github.com/Adotweb/thorlang 
+cd thorlang 
+cargo build --release
 
-`[path/to/thorlang_executable] run [path/to/file.thor]`
+#only works on linux
+chmod +x ./simple_install.sh 
+./simple_install.sh
+```
+
 
 ## API Reference
 
@@ -37,6 +41,8 @@ To declare a variable simply put let in front of it.
 ```thor
   let variable = 0;
   //this is a comment
+
+
   //reassignment
   variable = 1;
 ```
@@ -48,13 +54,13 @@ The primitives in Thorlang are
 |String|Anything between ""|
 |Number| float of 64 bits|
 |Bool|true or false|
-|Array|any of the former between [] and seperated by commas|
-|Object| variable that have fields of the former types accessed by strings|
-|Nil| is just `nil`|
+|Array| any of the former between [] and seperated by commas |
+|Object| variables that have fields of the former types accessed by strings|
+|nil| is just `nil`|
 
 To declare an object initialize a variable and put the fields on it. 
 
-### strings and arrays
+### strings, arrays and objects
 
 strings and array can be accessed using brackets like this: 
 
@@ -68,17 +74,20 @@ strings and array can be accessed using brackets like this:
     print array[1]; //prints "b"
 ```
 
+Objects don't have shorthand initialization (yet), instead the fields have to be initialized one by one:
+
 ```thor
   let obj;
   obj.field = 0;
+
   //or use the dynamic field operator
   obj["field"] = 0;
 
   //to get the field do this
   print obj["field"];
-  //or
-  print obj.field;
 
+  //or this
+  print obj.field;
 ```
 
 
@@ -88,23 +97,12 @@ To declare a function use the fn keyword. Use the return keyword to return a val
 
 ```thor
   fn function_name(argument){
+
     //dosomething...
     return argument;
   }
 ```
-> **Note** 
-Functions in thor are pure by default, so they cannot change variables beyond of their scope.
 
-```thor
-let a = 0;
-
-fn something(init){
-  a = init;
-  print a; //<- prints init
-}
-
-print a; //<- prints 0;
-```
 
 #### Control flow
 If and else statements are very similar to every other language.
@@ -170,7 +168,7 @@ print a + b;
 
 ```
 
-when the code inside the overload (the operation) fails the operation will go to default behaviour.
+whenever an operation fails thorlang will try to find overloadings for the given operator and evaluate its logic before failing.
 
 **Note** The number of arguments in an overload determines whether it will be used as the arity of the operation.
 This means that to overload the (numerical) number operator you just put a inside the parenthesis : 
@@ -211,6 +209,8 @@ let something = 10;
 return something;
 ```
 
+**Note** This feauture is still in development and only works when executing a file in the current directory that only imports files from the same directory.
+
 #### Native functions
 
 Of course thorlang has some native functions (this list will be expanded):
@@ -234,12 +234,13 @@ And of course Thorlangs native types have methods on them to make your life easi
 |Number| sqrt | none | returns the square root of the number the method was called on| 
 |Array | len | none | returns the length of the array the method was called on |
 |Array | push | value | pushes the value to the array and returns the new array|
+|String| len | none| returns the length of the string|
 
 ## Roadmap 
 
 - [x] turing completeness
-- [ ] removing all weird bugs/making everything stable
-- [ ] removing bad code/pretty- and smartifying everything ive writte so far
-- [ ] better errors and error handling
+- [x] removing all weird bugs/making everything stable
+- [x] removing bad code/pretty- and smartifying everything ive written so far
+- [x] better errors and error handling
 - [ ] easifying installation and documentation
 - [ ] std library (for example weblib)
