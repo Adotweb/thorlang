@@ -239,7 +239,7 @@ And of course Thorlangs native types have methods on them to make your life easi
 ## Roadmap 
 
 - [x] turing completeness
-- [x] removing all weird bugs/making everything stable
+- [x] removing weirdest bugs/making thorlang somewhat stable
 - [x] removing bad code/pretty- and smartifying everything ive written so far
 - [x] better errors and error handling
 - [ ] easifying installation and documentation
