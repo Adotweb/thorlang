@@ -209,7 +209,6 @@ let something = 10;
 return something;
 ```
 
-**Note** This feauture is still in development and only works when executing a file in the current directory that only imports files from the same directory.
 
 #### Native functions
 
