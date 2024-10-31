@@ -266,9 +266,15 @@ pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
         Value::native_function(
             vec![],
             Arc::new(|values| {
+
+                //the self value is the thing that gets passed in as "init_value" below and it gets
+                //the name "self" in here. This is the procedure with all methods, the self value
+                //is just passed in as an argument to this function internally, instead of it being
+                //a method of the value itself (this makes for easier lookup and allows me to maybe
+                //define macros later)
                 let self_value = values.get("self").unwrap();
 
-
+                //if not a number return an error
                 if let ValueType::Number(num) = self_value.value{
                     return Ok(Value::number(num.sqrt()))
                 } else {
@@ -287,7 +293,7 @@ pub fn init_string_fields(init: Value) -> HashMap<String, Value> {
 
     let init_value = Some(Box::new(init));
 
-
+    //same as with numbers
     fields.insert(
         "len".to_string(),
         Value::native_function(
@@ -353,6 +359,9 @@ pub fn init_array_fields(
         "push".to_string(),
         Value::native_function(
             vec!["thing"],
+
+            //this move occurs because we move the env-tree from the outer function into this one, 
+            //so we can edit it
             Arc::new(move |values| {
                 let self_value = values.get("self").unwrap();
                 let thing = values.get("thing").unwrap();
@@ -419,7 +428,7 @@ pub fn stringify_value(val: Value) -> String {
                 if i > 0 {
                     ret_val += ", "
                 }
-
+                //move through the array recursively
                 ret_val += &stringify_value(arr.get(i).unwrap().clone())
             }
 
@@ -452,6 +461,8 @@ pub fn stringify_value(val: Value) -> String {
                 }
                 let key = obj.keys().nth(i).unwrap();
                 let value = obj.values().nth(i).unwrap();
+
+                //again move through the object recursively
                 ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
 
             }
