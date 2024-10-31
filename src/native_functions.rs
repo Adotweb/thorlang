@@ -1,4 +1,4 @@
-use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType, ThorLangError};
+use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType, ThorLangError, EnvState};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -12,8 +12,9 @@ use std::sync::Arc;
 use::std::io::{BufRead, self};
 
 
+
 //this is the initializer for all the global variables
-pub fn init_native_functions() -> HashMap<String, Value> {
+pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();
 
 
@@ -83,37 +84,6 @@ pub fn init_native_functions() -> HashMap<String, Value> {
     );
 
 
-    //function to make file splitting possible
-    //we can return values from programs and reuse them in other files using import
-    native_functions.insert(
-        "import".to_string(),
-        Value::native_function(
-            vec!["namespace"],
-            Arc::new(|values| {
-                let namespace = values
-                    .get("namespace")
-                    .unwrap_or_else(|| panic!("namespace required"));
-
-                //import only works for string
-
-                if let ValueType::String(string) = &namespace.value {
-                    let mut module_path = env::current_dir().unwrap();
-
-                    module_path.push(string);
-
-                    let module_text = fs::read_to_string(module_path).unwrap_or_else(|_| {
-                        panic!("module {string} does not exist in the current directory")
-                    });
-
-                    Ok(interpret_code(module_text))
-                } else {
-                    panic!("can only import from strings")
-                }
-            }),
-            None,
-        ),
-    );
-
     native_functions.insert(
         "get_input".to_string(),
         Value::native_function(
@@ -180,6 +150,39 @@ pub fn init_native_functions() -> HashMap<String, Value> {
             None,
         ),
     );
+
+    native_functions.insert(
+        "import".to_string(),
+        Value::native_function(
+            vec!["namespace"],
+            Arc::new(move |values| {
+                let namespace = values
+                    .get("namespace")
+                    .unwrap_or_else(|| panic!("namespace required"));
+
+
+                //import only works for string
+
+                if let ValueType::String(string) = &namespace.value {
+                    let mut module_path = env.clone().path;
+
+                    module_path.push(string);
+
+                    let module_text = fs::read_to_string(module_path).unwrap_or_else(|_| {
+                        panic!("module {string} does not exist in the current directory")
+                    });
+
+                    Ok(interpret_code(module_text, env.clone()))
+                } else {
+                    panic!("can only import from strings")
+                }
+            }),
+            None,
+        ),
+    );
+
+
+
 
     native_functions.insert(
         "cast_to".to_string(),
@@ -249,6 +252,7 @@ pub fn init_native_functions() -> HashMap<String, Value> {
 
     native_functions
 }
+
 
 pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
     let mut s = HashMap::new();
