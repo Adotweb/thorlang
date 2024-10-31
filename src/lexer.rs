@@ -75,6 +75,9 @@ pub struct Token {
     pub column : i32
 }
 
+
+//just a helper function for instantiation
+//could be rewritten as an impl, but would make the code even more verbose so no
 fn simple_token(token_type: TokenType, line: i32, column : i32) -> Token {
     return Token {
         token_type,
@@ -92,6 +95,8 @@ fn peek(current_index: usize, text: &str) -> String {
 
 
 //just a wrapper type, unelegant and will be overworked in the future
+//the token is just returned, while "iter_skip_steps" helps the loop keep track of how many chars
+//can safely be skipped because they have already been handled in one of the helper functions 
 struct OuterIter {
     token: Token,
     iter_skip_steps: usize,
@@ -139,16 +144,23 @@ fn iterate_number(current_index: usize, text: &str, current_line: i32, column : 
     while let Some(char) = text.chars().nth(current_index + iter_skip_steps){
         let char = char.to_string();
 
+
+        //quite simple if the current char is a number, mark it down
         if number_regex.is_match(&char){
             number += &char;
             iter_skip_steps += 1;
         } 
-        else if (char == ".".to_string()) && !dot_used{
 
+        //if we encounter a dot and we have already used one we cannot mark the dot down
+        else if (char == ".".to_string()) && !dot_used{
+            //else we need to check if the next char even is a number else we cannot mark the dot
+            //as part of the number and it is a grouping operator 
             let next_char = peek(current_index + iter_skip_steps, text);
             dot_used = true;
             if number_regex.is_match(&next_char){
                 number += &char;
+
+                //this is the part that consumes the dot token in case the next char is a number
                 iter_skip_steps += 1;
             } else {
                 break
@@ -179,10 +191,13 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32, colum
 
     let mut identifier = "".to_string();
 
+    //iterate over the identifier until there are no more letters that match the identifier_regex
     while let Some(char) = text.chars().nth(current_index + iter_skip_steps){
         let char = char.to_string();
 
         if id_regex.is_match(&char){
+
+            //again we need to tell the loop how many iterations are safely to skip
             iter_skip_steps += 1;
             identifier += &char;
         } else {
@@ -225,7 +240,7 @@ fn iterate_identifier(current_index: usize, text: &str, current_line: i32, colum
 fn iterate_comment(current_index: usize, text: &str) -> usize {
     let mut iter_skip_steps = 0;
 
-    //iterates until it finds newline character here 0xA and then returns the number of
+    //iterates until it finds newline character (here 0xA) and then returns the number of
     //iter_skip_steps 
     //i.e counts the chars in the comment
     while let Some(char) = text.chars().nth(current_index + iter_skip_steps) {
@@ -320,7 +335,7 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
             }
            
             
-            //this is straightforward
+            //matcht the token and return its corresponding value to 
             match char.as_str() { 
             "(" => {tokens.push(simple_token(TokenType::LPAREN, line_count, column_count));continue;},
             ")" => {tokens.push(simple_token(TokenType::RPAREN, line_count, column_count));continue;},
@@ -336,7 +351,8 @@ pub fn line_column_lexer(text : String) -> Vec<Token> {
             "-" => {tokens.push(simple_token(TokenType::MINUS, line_count, column_count));continue;},
 
             //any of the below matches either a single or double character token depending of the
-            //next value
+            //next value, also if the next token also matches we need to skip to chars, if not we
+            //just move on marking down the single char token
             "!" => {tokens.push(simple_token(
                 if peek(column, line).as_str() == "=" {
                     skip_chars = 2;

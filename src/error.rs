@@ -17,6 +17,9 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
     let mut pointer : &str = "";
     let mut tip : String = Default::default();
 
+    //almost all of the below work in the same way, the token_indices are retrieved from the token
+    //list and then their value is displayed in the error message, then the entire line of the
+    //error is displayed
     match error {
         ThorLangError::UnknownFunctionError { function_paren_token } => {
             
@@ -95,31 +98,6 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
                     
             }
         },
-        ThorLangError::FunctionArityError { function_paren_token, needed_arguments_length, arguments_length } => {
-
-
-            let paren_token = tokens[function_paren_token].clone();
-
-
-            //-2 because i registered the RPAREN 
-            //also every given argument also needs to be counted
-            //and if there is more than one then we need to also count the commas
-            //
-            //
-            let function_name_token = tokens[function_paren_token - 2].clone(); 
-
-
-            msg = format!("function '{}' on line {}:{}\nexpects {} arguments but got {}", 
-                    function_name_token.token_type.get_content().unwrap(),
-                    paren_token.line, 
-                    paren_token.column,
-                    needed_arguments_length, 
-                    arguments_length
-                );
-
-            error_line = format!("{} | {}", paren_token.line, text_lines[paren_token.line as usize - 1]);
-
-        }, 
         ThorLangError::FunctionArityError { function_paren_token, needed_arguments_length, arguments_length } => {
 
 
@@ -242,7 +220,6 @@ impl ThorLangError {
             encountered : encountered_index
         })
     }
-
     pub fn unexpected_token_of_many<T>(expected : Vec<TokenType>, encountered_index : usize) -> Result<T, ThorLangError>{
          
          Err(ThorLangError::UnexpectedToken{
@@ -270,6 +247,7 @@ impl ThorLangError {
 
     }
 
+    //function "..." expeceted n arguments but got m
     pub fn function_arity_error(function_paren_token : usize, needed_arguments_length : usize, arguments_length : usize) -> Result<Value, ThorLangError>{
 
         Err(ThorLangError::FunctionArityError{
@@ -280,6 +258,8 @@ impl ThorLangError {
 
     }
 
+    //this almost never happens (really almost always and only if we use special characters)
+    //operator "." expected n aruments but got m
     pub fn operation_arity_error(operator_token_index : usize, expected_arguments : usize,provided_arguments : usize) -> Result<Value, ThorLangError>{
         Err(ThorLangError::OperationArityError{
             operator_token_index,
@@ -288,6 +268,8 @@ impl ThorLangError {
         })
     }
 
+
+    //the function "..." could not be found in the current scope
     pub fn unkown_function_error(function_paren_token : usize) -> Result<Value, ThorLangError>{
         
         Err(ThorLangError::UnknownFunctionError{
@@ -295,6 +277,7 @@ impl ThorLangError {
         })
     }
 
+    //the value "..." could not be found in the current scope
     pub fn unknown_value_error(identifier_token_index : usize) -> Result<Value, ThorLangError>{
 
         Err(ThorLangError::UnknownValueError{
@@ -303,6 +286,8 @@ impl ThorLangError {
 
     }
 
+
+    //the operation "." is defined for values of type "..." and "..."
     pub fn eval_error(operation_token_index : usize) -> Result<Value, ThorLangError>{
         Err(ThorLangError::EvalError{
             operation_token_index
@@ -313,8 +298,6 @@ impl ThorLangError {
 
 //returns the type of token that is wrong or that was expected
 pub fn stringify_token_type(token_type : TokenType) -> &'static str{
-  
-
     if let TokenType::IDENTIFIER(str) = token_type {
         return "identifier"
     }
@@ -380,7 +363,6 @@ pub fn stringify_token_type(token_type : TokenType) -> &'static str{
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ThorLangError{
-
     UnexpectedToken{
         expected : Vec<TokenType>,
         encountered : usize 

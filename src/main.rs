@@ -53,11 +53,15 @@ fn main() {
 
 
                 current_dir.push(filename);
-
                 let file_dir = current_dir.clone();
                 //remove
                 current_dir.pop();
 
+
+                //when i introduce methods like "get_file" or something i need to have access to
+                //the environment of 
+                //1. the executable
+                //2. the file thats run
                 let env = EnvState{
                     path : current_dir
                 };
@@ -107,7 +111,11 @@ pub fn interpret_code(text: String, env : EnvState) -> Value {
     //same with overloadings
     let overloadings = &mut HashMap::new();
 
-
+    //again try to run the given list of statements generated form "parse" and if they fail handle
+    //the error
+    //
+    //we need to return this because the import function and later maybe an "eval" function need to
+    //evaluate code from text inside of the runtime
     return match eval_statement(ast, global_env, overloadings) {
         Ok(val) => val,
         Err(err) => {

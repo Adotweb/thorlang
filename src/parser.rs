@@ -85,20 +85,20 @@ fn get_statement_line<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> 
 
 //consumes the current token and checks if it is of the desired token type and throws an unexpected
 //token if it is not and returns the next token else
-fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> Result<&'a Token, ThorLangError>{
-    
-    let prev_token =  get_previous_token(current_index, tokens);
+fn match_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>, token_type : TokenType) -> Result<&'a Token, ThorLangError>{ 
     let token = get_current_token(current_index, tokens);
 
+    //if the token is not of the wanted token type we return an error
+    //becuase of the nature of rust erros we just have to end a function call with "?" and the
+    //error automatically bubbles as far up as we want it to (in this case to the very top so the
+    //error handler can take over)
     if token.token_type != token_type{
-
         if let Err(err) = ThorLangError::unexpected_token::<Statement>(token_type, *current_index){
             return Err(err)
         };
     }
     
-    *current_index += 1;
-
+    consume_token(current_index, tokens);
     Ok(&tokens[*current_index])
 }
 
@@ -110,7 +110,13 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
 
     let mut ret : Result<Statement, ThorLangError>;
 
+
+    //while loop with integrated checking if the value exists, if there is not value left we exit
+    //(which we will do anyway since we exit as soon as we encoutner EOF)
+    
     while let Some(token) = tokens.get(*current_index) {
+        //matches the given starting sequence to the logic behind it and recursively defines the
+        //output (if there is one)
         match token.token_type { 
             TokenType::OVERLOAD => {
                 consume_token(current_index, tokens);
@@ -163,9 +169,14 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
                 //dont consume the else token as it is needed one layer of recursion above
                 return Ok(statements);
             },
+    
 
+            //in reality this is where we return, but we need to return outside of this as well
+            //sicne it could theoretically be that this fails
             TokenType::EOF => return Ok(statements),
 
+            //if there is no starting sequence, we automatically assume the next thing is an
+            //expression (do statement)
             _ => {
                 ret = do_statement(current_index, tokens);
             }
@@ -174,6 +185,7 @@ pub fn statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Vec<S
         statements.push(ret?);
     }
 
+    //return all the accumulated statements as a statement list
     return Ok(statements);
 }
 
@@ -194,8 +206,6 @@ fn throw_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Sta
 
 //returns a overload statement
 fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statement, ThorLangError>{
-
-
     //traditional operators
     let operations = vec![
         TokenType::PLUS, 
@@ -209,9 +219,8 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
         TokenType::LESSEQ,
     ];
 
-
+    //line in case something inside of this fails 
     let line = get_statement_line(current_index, tokens);
-
     let token = get_current_token(current_index, tokens);
     //checks if operator is special character
     let mut is_op = false;
@@ -228,6 +237,8 @@ fn overload_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     }
 
     let operator = token.token_type.clone();
+
+    //consume the operator token
     consume_token(current_index, tokens);
 
 
@@ -291,8 +302,6 @@ fn while_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Sta
 
 
     match_token(current_index, tokens, TokenType::RPAREN)?;
-
-
     match_token(current_index, tokens, TokenType::LBRACE)?;
 
     let block = Box::new(statement(current_index, tokens)?);
@@ -323,14 +332,17 @@ fn if_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Statem
 
     //if the next token is an ELSE then we create an else block and consume the ELSE token and the
     //LBRACE token
+    //
+    //if the next token is not an else token we dont need to conume it and we ignore this section
     let next_token = tokens.get(*current_index).unwrap();
-
 
     if next_token.token_type == TokenType::ELSE {
         consume_token(current_index, tokens);
         consume_token(current_index, tokens);
         else_branch = Some(Box::new(statement(current_index, tokens)?));
     }
+
+    
 
     return Ok(Statement::If {
         condition,
@@ -373,13 +385,15 @@ fn function_statement(current_index: &mut usize, tokens: &Vec<Token>) -> Result<
     //consume the identifier token
     let mut token = &consume_token(current_index, tokens).clone();
 
+
     let mut args = vec![];
 
     token = match_token(current_index, tokens, TokenType::LPAREN)?;
 
 
     
-
+    //arguments to functions could theoretically not be seperated by commas, both in declaration as
+    //in call
     while token.token_type != TokenType::RPAREN {
 
         match &token.token_type {
@@ -430,16 +444,15 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     let mut token = tokens.get(*current_index).unwrap().clone();
 
 
-
+    //the first thing after let has to be a variable name
     if let TokenType::IDENTIFIER(str) = token.token_type {
         name = str;
     }
     else if let TokenType::SPECIAL(ref str) = token.token_type {
-        
+        //specal characters cannot be assigned to as they are reserved for operators 
         return ThorLangError::unexpected_token(TokenType::SPECIAL(str.to_string()),*current_index);
     }
     else {
-
         return ThorLangError::unexpected_token(
             TokenType::IDENTIFIER("".to_string()),*current_index);
     }
@@ -447,21 +460,23 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     let literal_token_index = current_index.clone();
 
     token = consume_token(current_index, tokens).clone();
-    
+   
     let mut init : Expression = Expression::Literal{
         literal : TokenType::NIL,
         literal_token_index
     };
 
-
+    //if the syntax is correct so far we create a value to assign to that is assigned to whatever
+    //variable name we encountered above
     if token.token_type == TokenType::EQ {
       
-        token = consume_token(current_index, tokens).clone();
+        let _ = consume_token(current_index, tokens).clone();
         init = expr(current_index, tokens)?;
     }
 
     match_token(current_index, tokens, TokenType::SEMICOLON)?;
 
+    //if the syntax of the let statement is correct we create a literal statement with the 
     return Ok(Statement::Variable {
         name,
         expression:init,
@@ -607,7 +622,7 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
                 let operator_token_index = *current_index;     
                 
                 consume_token(current_index, tokens);
-
+            
                 let right = comp(current_index, tokens);
                 expression = Expression::Binary {
                     left: Box::new(expression),
@@ -742,6 +757,9 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
             let operator_token_index = *current_index;
             consume_token(current_index, tokens);
 
+            //since we want to handle something like -(-(5));
+            //we need to be able to recursively walk down that expression, therefore heres another
+            //call to unary
             let right = unary(current_index, tokens);
             return Ok(Expression::Unary{
                 operator, 
@@ -754,8 +772,10 @@ fn unary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, T
             let operator = token.token_type.clone();
             let operator_token_index = *current_index;
             consume_token(current_index, tokens);
-            let right = unary(current_index, tokens);
 
+            //same here 
+            let right = unary(current_index, tokens);
+            
             return Ok(Expression::Unary{
                 operator, 
                 right : Box::new(right?),
@@ -833,6 +853,8 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
 
     while let Some(token) = tokens.get(*current_index) {
         match &token.token_type {
+            //we return the Call expression when we encouter the closing parenthesis : ), else we
+            //try to find an identifier, a comma or a value (expression)
             TokenType::RPAREN => {
                 return Ok(Expression::Call {
                     callee: Box::new(callee),
@@ -869,7 +891,8 @@ fn finish_call(current_index: &mut usize, tokens: &Vec<Token>, callee: Expressio
 
 
 //the lowest precedence, returns the "atoms" , numbers, strings, arrays, ... and variables
-//maybe objects in the future
+//
+//this is quite verbose because of the type and memory safety...
 fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     if let Some(token) = tokens.get(*current_index) {
         consume_token(current_index, tokens);
@@ -909,7 +932,10 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                 let mut array: Vec<Expression> = vec![];
 
                 array.push(expr(current_index, tokens)?);
-
+            
+                //this again means that arrays could theoretically come about with no commas that
+                //seperate the entries, the commas are just there for readability, or distinction
+                //when juggling ambigous expressions
                 while let Some(token) = tokens.get(*current_index) {
                     match token.token_type {
                         TokenType::RBRACK => {
