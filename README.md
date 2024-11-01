@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://i.imgur.com/KlMPmEe.png" style="width:400px"/>
+</p>
+
 # Thorlang 
 
 ## Overview 
