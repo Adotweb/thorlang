@@ -5,6 +5,8 @@ use std::rc::Rc;
 
 use std::fmt;
 
+use libloading::Library;
+
 //the different token types
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum TokenType {
@@ -260,7 +262,14 @@ impl Environment {
 //Functions are either built into rust (rust closures) or defined as a procedure in thor itself
 //both do the same but have different data to them
 #[derive(Clone)]
-pub enum Function {
+pub enum Function{
+    //libfunctions work by referencing the name of the function inside of the library to prevent
+    //overcrossing
+    LibFunction{
+        name : &'static str,
+        needed_arguments : usize,
+        library : Arc<Library>
+    },
     NativeFunction {
         //this atrocious type is the dynamic closure type in rust (functions that have closures)
         //because we cant use pure functions
@@ -291,6 +300,11 @@ impl PartialEq for Function {
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Function::LibFunction { name, needed_arguments, library } => {
+                f.debug_struct("Function")
+                    .field("name", name)
+                    .finish()
+            },
             Function::NativeFunction {
                 body: _,
                 needed_arguments,

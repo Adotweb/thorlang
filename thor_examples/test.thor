@@ -1,3 +1,7 @@
+let s = import_lib("liblib.so");
+
+print s;
+
 overload + (a, b){
 		
 

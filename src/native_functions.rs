@@ -1,12 +1,12 @@
 use crate::{interpret_code, Environment, Value, ThorLangError, EnvState};
-use type_lib::{ValueType, Function};
+use type_lib::{ValueType};
 
+use libloading::{Library, Symbol};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -14,6 +14,35 @@ use std::sync::Arc;
 use::std::io::{BufRead, self};
 
 
+fn load_lib(path : String) -> Result<HashMap<String, Value>, ThorLangError>{
+
+    unsafe {
+        let lib = Library::new(path);
+
+
+        match lib{
+            Ok(lib) => {
+
+                match lib.get::<Symbol<extern "Rust" fn() -> HashMap<String, Value>>>(b"value_map"){
+                    Ok(map)=> return Ok(map()),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err(ThorLangError::UnknownError)
+                    }
+                }
+
+            },
+            Err(e) => {
+
+                println!("{:?}", e);
+                Err(ThorLangError::UnknownError)
+            }
+        }
+
+    }
+     
+
+}
 
 //this is the initializer for all the global variables
 pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
@@ -151,6 +180,37 @@ pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
             Arc::new(|_values| Ok(Value::number(69420.0))),
             None,
         ),
+    );
+
+    let env_copy = env.clone();
+
+    native_functions.insert(
+        "import_lib".to_string(),
+        Value::native_function(
+            vec!["namespace"],
+            Arc::new(move |values|{
+
+                let namespace = values.get("namespace").unwrap();
+
+
+                if let ValueType::String(path) = &namespace.value{
+                    let path_string = env_copy.path.to_str().unwrap().to_string() + "/" + path;
+
+                    let lib_map = load_lib(path_string);
+
+
+                    let mut ret = Value::nil();
+                    ret.value = ValueType::Object;
+
+                    ret.fields = lib_map?;
+
+                    return Ok(ret)
+                }
+                
+                Err(ThorLangError::UnknownError)
+            }),
+            None
+        )
     );
 
     native_functions.insert(
