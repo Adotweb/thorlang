@@ -5,14 +5,18 @@ mod native_functions;
 mod parser;
 
 use std::panic;
-use error::{ThorLangError, handle_error};
-use eval::{eval_statement, Environment, Function, Value, ValueType};
-use lexer::{lexer, Token, TokenType};
+use error::handle_error;
+use eval::eval_statement;
+use lexer::lexer;
 use native_functions::{
     hash_value, init_array_fields, init_bool_fields, init_native_functions, init_number_fields,
     init_string_fields, stringify_value,
 };
-use parser::{parse, Expression, Statement};
+
+
+use type_lib::{ThorLangError, Environment, Value};
+
+use parser::parse;
 use std::collections::HashMap;
 
 use std::cell::RefCell;

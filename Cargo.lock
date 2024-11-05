@@ -51,4 +51,9 @@ name = "thorlang"
 version = "0.1.0"
 dependencies = [
  "regex",
+ "type_lib",
 ]
+
+[[package]]
+name = "type_lib"
+version = "0.1.0"

@@ -1,23 +1,14 @@
 use crate::{
     hash_value, init_array_fields, init_bool_fields, init_number_fields, init_string_fields,
-    stringify_value, Expression, Statement, TokenType,
-    ThorLangError
+    stringify_value,
 };
+
+use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt;
-use std::rc::Rc;
-use std::sync::Arc;
-//eval statements
 
-//this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
-//environment object at will (its just some trickery so we can do that) terrible performance
-//decision, but makes it work
-#[derive(Debug, Clone, PartialEq)]
-pub struct Environment {
-    pub values: RefCell<HashMap<String, Value>>,
-    pub enclosing: Option<Rc<RefCell<Environment>>>,
-}
+use type_lib::{Expression, Statement, TokenType, Environment, ValueType, Value, ThorLangError};
+
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -30,59 +21,6 @@ pub struct OperationInfo {
 //Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
 type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
 
-//its easier to instantiate a get and set function that automatically search the entire env tree
-//(for existence for example) to
-//look for a value than doing that over and over again in the later following code
-impl Environment {
-    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Environment {
-            values: RefCell::new(HashMap::new()),
-            enclosing,
-        }))
-    }
-   
-    //this method recursively iterates through the environment in search of the given key
-    pub fn get(&self, key: &str) -> Option<Value> {
-        
-        //in case that the current environment level already contains the key, return the value
-        //behind it
-        if let Some(value) = self.values.borrow().get(key) {
-            Some(value.clone())
-        } 
-        //if not we return a reference to the environment that closes over the current one and
-        //apply this "get" method to it
-        else if let Some(ref parent) = self.enclosing {
-            parent.borrow().get(key)
-        }
-        //if both of the above fail the key does not exist (and so the variable does not)
-        else {
-            None
-        }
-    }
-
-
-    //almost the same as with get but we have to change the .borrow() (normal reference) to a
-    //.borrow_mut() (mutable reference) since we want to be able to change whatever value we
-    //encounter
-    pub fn set(&self, key: String, value: Value, eq_token_index : usize) -> Result<Value, ThorLangError> {
-        
-        if self.values.borrow().contains_key(&key) {
-            let p = self.values.borrow_mut().insert(key, value);
-            Ok(p.unwrap())
-        } else if let Some(ref parent) = self.enclosing {
-            parent.borrow_mut().set(key, value, eq_token_index)
-        } else {
-
-            //this is for safety measures, because Assignment automatically inserts any key that
-            //does not yet exist in the environment
-
-
-            ThorLangError::eval_error(eq_token_index)
-
-        }
-    }
-
-}
 
 //here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
 //of the env tree is not needed it automatically disappears, meaning that we can only
@@ -267,177 +205,6 @@ pub fn eval_statement(stmts: Vec<Statement>, enclosing: Rc<RefCell<Environment>>
     Ok(Value::default())
 }
 
-
-//Functions are either built into rust (rust closures) or defined as a procedure in thor itself
-//both do the same but have different data to them
-#[derive(Clone)]
-pub enum Function {
-    NativeFunction {
-        //this atrocious type is the dynamic closure type in rust (functions that have closures)
-        //because we cant use pure functions
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
-        needed_arguments: Vec<String>,
-        self_value: Option<Box<Value>>,
-    },
-    ThorFunction {
-        body: Vec<Statement>,
-        needed_arguments: Vec<String>,
-        closure: Rc<RefCell<Environment>>,
-    },
-}
-
-//later i have to implement equality for functions
-//since we cannot create a function that is "equal" in any sense to a native function it will only
-//be the case for thorfunctions (equality on arguments and body, the env is not important when )
-impl PartialEq for Function {
-    fn eq(&self, _other: &Self) -> bool {
-        false
-    }
-    fn ne(&self, _other: &Self) -> bool {
-        true
-    }
-}
-
-//printing functions also has to be implemented in the future
-impl fmt::Debug for Function {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Function::NativeFunction {
-                body: _,
-                needed_arguments,
-                self_value: _,
-            } => f
-                .debug_struct("Function")
-                .field("args", needed_arguments)
-                .finish(),
-            Function::ThorFunction {
-                body: _,
-                needed_arguments,
-                closure: _,
-            } => f
-                .debug_struct("Function")
-                .field("args", needed_arguments)
-                .finish(),
-        }
-    }
-}
-
-
-//i rewrote this to improve the code readability and logic, unlike before we can just get the value
-//given that it has some type, data that is not represantable simply cant exist and we dont have no
-//unwraps all over the place anymore
-#[derive(PartialEq, Debug, Clone)]
-pub enum ValueType {
-    String(String),
-    Number(f64),
-    Bool(bool),
-    Function(Function),
-    Array(Vec<Value>),
-    Error(ThorLangError),
-    Object,
-    Nil,
-}
-
-
-
-//this is still the same, everything 
-#[derive(PartialEq, Debug, Clone)]
-pub struct Value {
-    pub value: ValueType,
-    pub fields: HashMap<String, Value>,
-    pub return_true: bool,
-}
-
-//nice instantiation functions for values 
-//default will return the nil value
-impl Value {
-    
-    pub fn array(value: Vec<Value>) -> Value {
-        Value {
-            value: ValueType::Array(value),
-            ..Value::default()
-        }
-    }
-
-    pub fn number(value: f64) -> Value {
-        Value {
-            value: ValueType::Number(value),
-            ..Value::default()
-        }
-    }
-
-    pub fn string(value: String) -> Value {
-        Value {
-            value: ValueType::String(value),
-            ..Value::default()
-        }
-    }
-
-    pub fn bool(value: bool) -> Value {
-        Value {
-            value: ValueType::Bool(value),
-            ..Value::default()
-        }
-    }
-
-    pub fn nil() -> Value {
-        Value {
-            value: ValueType::Nil,
-            ..Value::default()
-        }
-    }
-
-    pub fn error(err : ThorLangError) -> Value{
-        Value{
-            value : ValueType::Error(err),
-            ..Value::default()
-        }
-    }
-
-    //native functions still need to be instantiated using absolutely horrendous typing
-    pub fn native_function(
-        arguments: Vec<&str>,
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
-        self_value: Option<Box<Value>>,
-    ) -> Value {
-        Value {
-            value: ValueType::Function(Function::NativeFunction {
-                self_value,
-                needed_arguments: arguments.iter().map(|x| x.to_string()).collect(),
-                body,
-            }),
-            ..Value::default()
-        }
-    }
-
-    //unlike thorfunctions which are just a holder for a block and a closure
-    pub fn thor_function(
-        arguments: Vec<String>,
-        body: Vec<Statement>,
-        closure: Rc<RefCell<Environment>>,
-    ) -> Value {
-        Value {
-            value: ValueType::Function(Function::ThorFunction {
-                needed_arguments: arguments,
-                body,
-                closure,
-            }),
-            ..Value::default()
-        }
-    }
-}
-
-
-//returns nil value
-impl Default for Value {
-    fn default() -> Value {
-        Value {
-            value: ValueType::Nil,
-            fields: HashMap::new(),
-            return_true: false,
-        }
-    }
-}
 
 //helper function to check whether or not a operation works for the inputs provided
 fn eval_overloaded(operation_list : Vec<OperationInfo>, arguments : Vec<Value>, enclosing: Rc<RefCell<Environment>>, operator_token_index : usize) 

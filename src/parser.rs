@@ -1,57 +1,5 @@
-use crate::{Token, TokenType, ThorLangError};
+use type_lib::{Token, TokenType, Expression, Statement, ThorLangError};
 
-//the different kinds of statments and what data they hold
-#[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
-    Throw{
-        exception : Expression,
-        throw_token_index : usize
-    },
-    Print {
-        expression: Expression,
-        line : i32
-    },
-    Do {
-        expression: Expression,
-        line : i32
-    },
-    Variable {
-        name: String,
-        expression: Expression,
-        line : i32
-    },
-    Block {
-        statements: Vec<Statement>,
-        line : i32
-    },
-    If {
-        condition: Expression,
-        then_branch: Box<Vec<Statement>>,
-        else_branch: Option<Box<Vec<Statement>>>,
-        line : i32
-    },
-    While {
-        condition: Expression,
-        block: Box<Vec<Statement>>,
-        line : i32
-    },
-    Function {
-        name: String,
-        body: Box<Vec<Statement>>,
-        arguments: Vec<String>,
-        line : i32
-    },
-    Return {
-        expression: Expression,
-        line : i32
-    },
-    Overload {
-        operator : TokenType, 
-        operands : Vec<String>,
-        operation : Vec<Statement>,
-        line : i32
-    }
-}
 
 //returns the previous token in the tokenlist
 fn get_previous_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token{
@@ -484,61 +432,6 @@ fn declaration(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Stateme
     });
 }
 
-
-//unlike parser errors we know that the tokenlist works in here and we can point to the token that
-//has an error 
-//this means it sufficces to just put in the index to the wanted token
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
-    Try {
-        block : Vec<Statement>
-    },
-    Identifier {
-        name: String,
-        identifier_token_index : usize
-    },
-    Binary {
-        left: Box<Expression>,
-        operator: TokenType,
-        right: Box<Expression>,
-        operator_token_index : usize
-    },
-    Unary {
-        operator: TokenType,
-        right: Box<Expression>,
-        operator_token_index : usize
-    },
-    Grouping {
-        inner: Box<Expression>,
-    },
-    Literal {
-        literal: TokenType,
-        literal_token_index : usize
-    },
-    Assignment {
-        target: Box<Expression>,
-        value: Box<Expression>,
-        eq_token_index : usize
-    },
-    Array {
-        values: Vec<Expression>,
-    },
-    Call {
-        callee: Box<Expression>,
-        paren_token_index: usize,
-        arguments: Vec<Expression>,
-    },
-    Retrieve {
-        retrievee: Box<Expression>,
-        key: Box<Expression>,
-        lbrack_token_index : usize
-    },
-    FieldCall {
-        callee: Box<Expression>,
-        key: Box<Expression>,
-        dot_token_index : usize
-    },
-}
 
 //all of the below are part of the precedence hierarchy
 

@@ -1,6 +1,7 @@
-use std::result::Result;
-use crate::{Statement, Token, TokenType, Value, stringify_value, ValueType};
-use std::ops::Range;
+use type_lib::{ TokenType, Token, ValueType, ThorLangError};
+
+use crate::stringify_value;
+
 
    
 
@@ -209,91 +210,6 @@ pub fn handle_error(text : String, tokens : Vec<Token>, error : ThorLangError){
 
 
 
-//easier methods to return nice errors
-impl ThorLangError {
-
-    //errors have form:
-    //expected ... after ..., encountered ...
-    pub fn unexpected_token<T>(expected : TokenType, encountered_index : usize) -> Result<T, ThorLangError>{
-        Err(ThorLangError::UnexpectedToken{
-            expected : vec![expected],
-            encountered : encountered_index
-        })
-    }
-    pub fn unexpected_token_of_many<T>(expected : Vec<TokenType>, encountered_index : usize) -> Result<T, ThorLangError>{
-         
-         Err(ThorLangError::UnexpectedToken{
-            expected,
-            encountered : encountered_index
-        })                  
-    }
-
-    //object and field can be retrieved from the tokens surrounding the dot or the lbrack
-    pub fn retrieval_error(retrieve_seperator_token_index : usize) -> Result<Value, ThorLangError>{
-        Err(ThorLangError::RetrievalError{
-            retrieve_seperator_token_index
-        })
-    }
-
-
-    //index is out of bounds or a non natural number
-    pub fn index_error(index_number_token_index : usize, array_value : Value, tried_index : f64) -> Result<Value, ThorLangError>{
-
-        Err(ThorLangError::IndexError{
-            index_number_token_index,
-            array_value : Box::new(array_value),
-            tried_index
-        })
-
-    }
-
-    //function "..." expeceted n arguments but got m
-    pub fn function_arity_error(function_paren_token : usize, needed_arguments_length : usize, arguments_length : usize) -> Result<Value, ThorLangError>{
-
-        Err(ThorLangError::FunctionArityError{
-            function_paren_token,
-            needed_arguments_length, 
-            arguments_length
-        })
-
-    }
-
-    //this almost never happens (really almost always and only if we use special characters)
-    //operator "." expected n aruments but got m
-    pub fn operation_arity_error(operator_token_index : usize, expected_arguments : usize,provided_arguments : usize) -> Result<Value, ThorLangError>{
-        Err(ThorLangError::OperationArityError{
-            operator_token_index,
-            expected_arguments, 
-            provided_arguments
-        })
-    }
-
-
-    //the function "..." could not be found in the current scope
-    pub fn unkown_function_error(function_paren_token : usize) -> Result<Value, ThorLangError>{
-        
-        Err(ThorLangError::UnknownFunctionError{
-            function_paren_token
-        })
-    }
-
-    //the value "..." could not be found in the current scope
-    pub fn unknown_value_error(identifier_token_index : usize) -> Result<Value, ThorLangError>{
-
-        Err(ThorLangError::UnknownValueError{
-            identifier_token_index
-        })
-
-    }
-
-
-    //the operation "." is defined for values of type "..." and "..."
-    pub fn eval_error(operation_token_index : usize) -> Result<Value, ThorLangError>{
-        Err(ThorLangError::EvalError{
-            operation_token_index
-        })
-    }
-}
 
 
 //returns the type of token that is wrong or that was expected
@@ -359,53 +275,5 @@ pub fn stringify_token_type(token_type : TokenType) -> &'static str{
     return string
 }
 
-
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum ThorLangError{
-    UnexpectedToken{
-        expected : Vec<TokenType>,
-        encountered : usize 
-    },
-    //evaluation errors : 
-    
-    IndexError{
-        index_number_token_index : usize,
-        array_value: Box<Value>,
-        tried_index : f64
-    },
-    
-    RetrievalError{
-        //the token of either "[" or "."
-        retrieve_seperator_token_index : usize
-    },
-    FunctionArityError{
-        function_paren_token : usize,
-        needed_arguments_length : usize,
-        arguments_length : usize
-    },
-    OperationArityError{
-        operator_token_index : usize,
-        expected_arguments : usize,
-        provided_arguments : usize
-    },
-    UnknownFunctionError{
-        function_paren_token : usize
-    },
-    UnknownValueError{
-        identifier_token_index : usize
-    },
-    
-    //can be used to throw userside
-    ThorLangException{
-        exception :  Box<Value>,
-        throw_token_index : usize 
-    }, 
-    EvalError{
-        operation_token_index : usize
-    },
-
-    UnknownError
-}
 
 
