@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use type_lib::{Expression, Statement, TokenType, Environment, ValueType, Value, ThorLangError};
+use type_lib::{Expression, Statement, TokenType, Environment, ValueType, Value, ThorLangError, Function};
 
 
 

@@ -1,4 +1,6 @@
-use crate::{eval_statement, interpret_code, Environment, Function, Value, ValueType, ThorLangError, EnvState};
+use crate::{interpret_code, Environment, Value, ThorLangError, EnvState};
+use type_lib::{ValueType, Function};
+
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

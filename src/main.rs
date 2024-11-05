@@ -13,7 +13,6 @@ use native_functions::{
     init_string_fields, stringify_value,
 };
 
-
 use type_lib::{ThorLangError, Environment, Value};
 
 use parser::parse;
