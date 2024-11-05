@@ -13,18 +13,48 @@ use std::sync::Arc;
 
 use::std::io::{BufRead, self};
 
-
+//loads a .so library and makes all the lib functions executable by storing the library in cache
+//using an Arc
 fn load_lib(path : String) -> Result<HashMap<String, Value>, ThorLangError>{
 
+
     unsafe {
+
+        //load the lib
         let lib = Library::new(path);
-
-
+        
+        
+        //check if the lib exists
         match lib{
             Ok(lib) => {
-
+                //move the lib into an arc
+                let lib = Arc::new(lib);
+            
                 match lib.get::<Symbol<extern "Rust" fn() -> HashMap<String, Value>>>(b"value_map"){
-                    Ok(map)=> return Ok(map()),
+                    Ok(map)=> {
+                        
+                        let v_map = map();
+
+
+                        let ret_map = v_map.iter().map(|(key, value)|{
+                            //create executable lib functions by puttint a reference to the lib
+                            //into them 
+                            match &value.value{
+                                ValueType::Function(
+                                    type_lib::Function::LibFunction { name, needed_arguments, library, self_value }) => {
+                           
+                                    (key.to_string(),  Value::lib_function(name, needed_arguments.clone(), Some(Arc::clone(&lib)), self_value.clone()))
+                                    
+
+                                }
+                                _ => (key.to_string(), (*value).clone())
+                            }
+
+                        }).collect();
+
+
+                        Ok(ret_map)
+                    },
                     Err(e) => {
                         println!("{:?}", e);
                         Err(ThorLangError::UnknownError)
@@ -41,7 +71,43 @@ fn load_lib(path : String) -> Result<HashMap<String, Value>, ThorLangError>{
 
     }
      
+}
 
+pub fn execute_lib_function(lib_function : Value, arguments : HashMap<String, Value>) -> Result<Value, ThorLangError>{
+
+    //execution of a lib function works by invokint the name with the lib.get method
+    if let ValueType::Function(type_lib::Function::LibFunction { name, needed_arguments, library, self_value }) = lib_function.value {
+
+        let name_string = format!("{}", name);
+        let bytes = name_string.as_bytes();
+
+
+        unsafe {
+
+            let lib = library.unwrap().clone();
+
+
+        
+        //function inside of the lib gets called and then executed with the arguments it needs 
+        let function = match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>) -> Value>>(bytes){
+            Ok(function) => Ok(function),
+            Err(e) => {
+                println!("{:?}", e);
+                Err(ThorLangError::UnknownError)
+            }
+
+        }?;
+
+        return Ok(function(arguments));
+
+
+         
+
+        }   
+    }
+
+     
+    Err(ThorLangError::UnknownError)
 }
 
 //this is the initializer for all the global variables

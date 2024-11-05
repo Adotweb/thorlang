@@ -1,6 +1,8 @@
 let s = import_lib("liblib.so");
 
-print s;
+let p = s.add(3, 4);
+
+print p;
 
 overload + (a, b){
 		

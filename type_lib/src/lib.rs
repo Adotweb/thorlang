@@ -267,8 +267,10 @@ pub enum Function{
     //overcrossing
     LibFunction{
         name : &'static str,
-        needed_arguments : usize,
-        library : Arc<Library>
+        needed_arguments : Vec<String>,
+        library : Option<Arc<Library>>,
+        //only needs self value in case of method
+        self_value : Option<Box<Value>>
     },
     NativeFunction {
         //this atrocious type is the dynamic closure type in rust (functions that have closures)
@@ -300,7 +302,7 @@ impl PartialEq for Function {
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Function::LibFunction { name, needed_arguments, library } => {
+            Function::LibFunction { name, needed_arguments, library, self_value } => {
                 f.debug_struct("Function")
                     .field("name", name)
                     .finish()
@@ -424,6 +426,24 @@ impl Value {
                 needed_arguments: arguments,
                 body,
                 closure,
+            }),
+            ..Value::default()
+        }
+    }
+
+
+    pub fn lib_function(
+        name : &'static str,
+        needed_arguments : Vec<String>,
+        library : Option<Arc<Library>>,
+        self_value: Option<Box<Value>>
+    ) -> Value{
+        Value{
+            value : ValueType::Function(Function::LibFunction{
+                name , 
+                needed_arguments, 
+                library,
+                self_value
             }),
             ..Value::default()
         }

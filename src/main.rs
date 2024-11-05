@@ -4,16 +4,16 @@ mod lexer;
 mod native_functions;
 mod parser;
 
-use std::panic;
 use error::handle_error;
 use eval::eval_statement;
 use lexer::lexer;
 use native_functions::{
-    hash_value, init_array_fields, init_bool_fields, init_native_functions, init_number_fields,
-    init_string_fields, stringify_value,
+    execute_lib_function, hash_value, init_array_fields, init_bool_fields, init_native_functions,
+    init_number_fields, init_string_fields, stringify_value,
 };
+use std::panic;
 
-use type_lib::{ThorLangError, Environment, Value};
+use type_lib::{Environment, ThorLangError, Value};
 
 use parser::parse;
 use std::collections::HashMap;
@@ -28,8 +28,8 @@ use std::path::PathBuf;
 //structure to get executable information later (for now it only serves so we can get the current
 //execution directory)
 #[derive(Clone, Debug)]
-pub struct EnvState{
-    path : PathBuf,
+pub struct EnvState {
+    path: PathBuf,
 }
 
 fn main() {
@@ -37,7 +37,6 @@ fn main() {
 
     let mut current_dir =
         env::current_dir().expect("something went wrong reading the current directory");
-
 
     //this will be the entry point of the cli
     match args.get(1).unwrap().as_str() {
@@ -53,56 +52,46 @@ fn main() {
                     filename += ".thor";
                 }
 
-
-
                 current_dir.push(filename);
                 let file_dir = current_dir.clone();
                 //remove
                 current_dir.pop();
 
-
                 //when i introduce methods like "get_file" or something i need to have access to
-                //the environment of 
+                //the environment of
                 //1. the executable
                 //2. the file thats run
-                let env = EnvState{
-                    path : current_dir
-                };
-            
+                let env = EnvState { path: current_dir };
 
                 let file_text = fs::read_to_string(file_dir).expect("no such file found");
 
                 interpret_code(file_text, env);
             }
         }
-        _ => {
-        }
-
+        _ => {}
     }
 }
 
-
 //allows functions files to return values that can be used by other files
 //basically modules
-pub fn interpret_code(text: String, env : EnvState) -> Value {
+pub fn interpret_code(text: String, env: EnvState) -> Value {
     let tokens = lexer(text.clone());
     //println!("{:#?}", tokens.clone());
-    panic::set_hook(Box::new(|x|{
+    panic::set_hook(Box::new(|x| {
 
-            //println!("{x}");
+        //println!("{x}");
     }));
 
-    //custom error handling can be defined in these match arms 
-    let ast = match parse(tokens.clone()){
+    //custom error handling can be defined in these match arms
+    let ast = match parse(tokens.clone()) {
         Ok(stmts) => stmts,
         Err(err) => {
             handle_error(text, tokens.clone(), err);
             panic!();
         }
     };
-  
+
     //println!("{:#?}", ast);
-    
 
     //the global env instantiation (global values and functions)
     let natives: HashMap<String, Value> = init_native_functions(env);
@@ -125,5 +114,5 @@ pub fn interpret_code(text: String, env : EnvState) -> Value {
             handle_error(text, tokens, err);
             panic!();
         }
-    }
+    };
 }
