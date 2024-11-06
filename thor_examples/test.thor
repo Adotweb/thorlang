@@ -1,8 +1,7 @@
-let s = import_lib("liblib.so");
+//import .so files
+//let s = import_lib("liblib.so");
 
-let p = s.add(3, 4);
-
-print p;
+//s.open_window();
 
 overload + (a, b){
 		
