@@ -1,5 +1,5 @@
-use crate::{interpret_code, Environment, Value, ThorLangError, EnvState};
-use type_lib::{ValueType};
+use crate::{interpret_code, EnvState, Environment, ThorLangError, Value};
+use type_lib::{FnType, RegisteredFnMap, ValueType};
 
 use libloading::{Library, Symbol};
 
@@ -9,291 +9,221 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use::std::io::{BufRead, self};
+use ::std::io::{self, BufRead};
+
+static FN_MAP: RegisteredFnMap = Mutex::new(None);
 
 //loads a .so library and makes all the lib functions executable by storing the library in cache
 //using an Arc
-fn load_lib(path : String) -> Result<HashMap<String, Value>, ThorLangError>{
-
-
+fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
     unsafe {
-
         //load the lib
         let lib = Library::new(path);
-        
-        
+
         //check if the lib exists
-        match lib{
+        match lib {
             Ok(lib) => {
                 //move the lib into an arc
                 let lib = Arc::new(lib);
-            
-                match lib.get::<Symbol<extern "Rust" fn() -> HashMap<String, Value>>>(b"value_map"){
-                    Ok(map)=> {
-                        
+
+                match lib.get::<Symbol<extern "Rust" fn() -> HashMap<String, Value>>>(b"value_map")
+                {
+                    Ok(map) => {
                         let v_map = map();
 
-
-                        let ret_map = v_map.iter().map(|(key, value)|{
-                            //create executable lib functions by puttint a reference to the lib
-                            //into them 
-                            match &value.value{
-                                ValueType::Function(
-                                    type_lib::Function::LibFunction { name, needed_arguments, library, self_value }) => {
-                           
-                                    (key.to_string(),  Value::lib_function(name, needed_arguments.clone(), Some(Arc::clone(&lib)), self_value.clone()))
-                                    
-
+                        let ret_map = v_map
+                            .iter()
+                            .map(|(key, value)| {
+                                //create executable lib functions by puttint a reference to the lib
+                                //into them
+                                match &value.value {
+                                    ValueType::Function(type_lib::Function::LibFunction {
+                                        name,
+                                        needed_arguments,
+                                        library,
+                                        self_value,
+                                    }) => (
+                                        key.to_string(),
+                                        Value::lib_function(
+                                            name,
+                                            needed_arguments.clone(),
+                                            Some(Arc::clone(&lib)),
+                                            self_value.clone(),
+                                        ),
+                                    ),
+                                    _ => (key.to_string(), (*value).clone()),
                                 }
-                                _ => (key.to_string(), (*value).clone())
-                            }
-
-                        }).collect();
-
+                            })
+                            .collect();
 
                         Ok(ret_map)
-                    },
+                    }
                     Err(e) => {
                         println!("{:?}", e);
                         Err(ThorLangError::UnknownError)
                     }
                 }
-
-            },
+            }
             Err(e) => {
-
                 println!("{:?}", e);
                 Err(ThorLangError::UnknownError)
             }
         }
-
     }
-     
 }
 
-pub fn execute_lib_function(lib_function : Value, arguments : HashMap<String, Value>) -> Result<Value, ThorLangError>{
-
+pub fn execute_lib_function(
+    lib_function: Value,
+    arguments: HashMap<String, Value>,
+) -> Result<Value, ThorLangError> {
     //execution of a lib function works by invokint the name with the lib.get method
-    if let ValueType::Function(type_lib::Function::LibFunction { name, needed_arguments, library, self_value }) = lib_function.value {
-
+    if let ValueType::Function(type_lib::Function::LibFunction {
+        name,
+        needed_arguments,
+        library,
+        self_value,
+    }) = lib_function.value
+    {
         let name_string = format!("{}", name);
         let bytes = name_string.as_bytes();
 
-
         unsafe {
-
             let lib = library.unwrap().clone();
 
+            //function inside of the lib gets called and then executed with the arguments it needs
+            let function =
+                match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>) -> Value>>(bytes) {
+                    Ok(function) => Ok(function),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err(ThorLangError::UnknownError)
+                    }
+                }?;
 
-        
-        //function inside of the lib gets called and then executed with the arguments it needs 
-        let function = match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>) -> Value>>(bytes){
-            Ok(function) => Ok(function),
-            Err(e) => {
-                println!("{:?}", e);
-                Err(ThorLangError::UnknownError)
-            }
-
-        }?;
-
-        return Ok(function(arguments));
-
-
-         
-
-        }   
+            return Ok(function(arguments));
+        }
     }
 
-     
     Err(ThorLangError::UnknownError)
 }
 
+pub fn get_registered_function(name: String) -> Result<FnType, ThorLangError> {
+    let mut map = FN_MAP.lock().unwrap();
 
-//this is the initializer for all the global variables
-pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
-    let mut native_functions = HashMap::new();
+    if let Some(ref mut map) = *map {
+        return Ok(map.get(&name).unwrap().clone());
+    }
 
+    Err(ThorLangError::UnknownError)
+}
 
-    //returns the type of the inputed value
-    native_functions.insert(
-        "typeOf".to_string(),
-        Value::native_function(
-            vec!["val"],
-            Arc::new(|values|{
-
-                let val = values.get("val").unwrap();
-
-            
-
-                return Ok(Value::string(match &val.value {
-                    ValueType::String(_str) => "string",
-                    ValueType::Number(_num) => "number",
-                    ValueType::Nil => "nil",
-                    ValueType::Object => "object",
-                    ValueType::Array(_arr) => "array",
-                    ValueType::Function(_func) => "function",
-                    ValueType::Bool(_bool) => "bool",
-                    ValueType::Error(_err) => "error"
-                }.to_string()))
-
-            }),
-            None
-        )
-    );
-
-    //start_timer returns this function and it can only be obtained as such
-   
-
-    // a time measuring function
-    native_functions.insert(
-        "get_now".to_string(),
-        Value::native_function(
-            vec![],
-            Arc::new(|_values|{
-               
-                let now = SystemTime::now();
-
-                return Ok(Value::number(now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64))
-
-            }),
-            None
-        )
-    );
+pub fn register_string_methods(self_value: Value) -> HashMap<String, Value>{
+    let mut map = HashMap::new();
 
 
-    //returns true if the input value is an error and false if it is a normal value
-    native_functions.insert(
-        "isError".to_string(),
-        Value::native_function(
-            vec!["val"],
-            Arc::new(|values| {
-                let val = values.get("val").unwrap();
-
-                if let ValueType::Error(_err) = &val.value {
-                    return Ok(Value::bool(true))
-                } else {
-                    return Ok(Value::bool(false))
+    //primitive methods only need a name some inputs and a reference to themselves
+    //the "register function body" method can be used to register the actual calculations but not
+    //to the struct but to the FN_MAP static variable instead, making the functions easily lazy
+    //loadable in the future
+    Value::primitive_method("length", vec![], self_value.clone())
+        .register_function_body(
+            &FN_MAP, 
+            Arc::new(|_, self_value, _, _, _|{
+                if let ValueType::String(self_string) = &self_value.unwrap().value{
+                    return Ok(Value::number(self_string.len() as f64))
                 }
-            }), 
-            None
-        ),
-    );
+                Err(ThorLangError::UnknownError)
+            })
+        ).insert_to(&mut map);
 
+    Value::primitive_method("parse_number", vec![], self_value)
+        .register_function_body(
+            &FN_MAP, 
+            Arc::new(|_, self_value, _, _, _|{
 
-    native_functions.insert(
-        "get_input".to_string(),
-        Value::native_function(
-            vec!["message"],
-            Arc::new(|values|{
-               
+                if let ValueType::String(self_value) = &self_value.unwrap().value{
 
-                let message = values.get("message").unwrap();
+                    return match self_value.parse::<f64>(){
+                        Ok(num) => Ok(Value::number(num)), 
+                        Err(_) => Err((ThorLangError::UnknownError))
+                    }
 
-                //this functions needs nil as an input if there is no message to print
-                if let ValueType::Nil = message.value{
-                         
-                }else {
-                    println!("{}", stringify_value(message.clone()));
                 }
-                
+                Err(ThorLangError::UnknownError)
+            })
+        ).insert_to(&mut map);
 
-                let mut input_line = String::new();          
+    map
+}
 
-                let stdin = io::stdin();
+pub fn register_bool_methods(self_value: Value) -> HashMap<String, Value>{
+    let mut map = HashMap::new();
 
+    map
+}
 
-                stdin.lock().read_line(&mut input_line).unwrap();
+pub fn register_object_methods(self_value: Value) -> HashMap<String, Value>{
+    let mut map = HashMap::new();
 
+    map
+}
 
-                let ret_val = Value::string(input_line.replace("\n", ""));
+pub fn register_function_methods(self_value: Value) -> HashMap<String, Value>{
+    let mut map = HashMap::new();
 
-
-                return Ok(ret_val)
-
-            }),
-            None
-        )
-    );
-
-
-    //printing but using a function instead of a statement
-    native_functions.insert(
-        "printf".to_string(),
-        Value::native_function(
-            vec!["value"],
-            Arc::new(|values| {
-                let value = values.get("value").unwrap();
+    map
+}
 
 
-                if let ValueType::String(str) = &value.value{
-                    println!("{str}");
-                } else {
-                    println!("{}", stringify_value(value.clone()));
+//creates only named functions and inserts the function body itself inside of the FN_MAP
+pub fn register_number_methods(self_value: Value) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+
+    Value::named_function("sqrt", vec![], Some(Box::new(self_value)), None, None, None)
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|_, self_value: Option<Value>, _, _, _| {
+                if let ValueType::Number(num) = &self_value.unwrap().value {
+                    return Ok(Value::number(num.sqrt()));
                 }
-
-                Ok(Value::default())
-            }),
-            None,
-        ),
-    );
-
-    //thsi does not work but it would if i wanted to 
-    native_functions.insert(
-        "getTime".to_string(),
-        Value::native_function(
-            vec![],
-            Arc::new(|_values| Ok(Value::number(69420.0))),
-            None,
-        ),
-    );
-
-    let env_copy = env.clone();
-
-    native_functions.insert(
-        "import_lib".to_string(),
-        Value::native_function(
-            vec!["namespace"],
-            Arc::new(move |values|{
-
-                let namespace = values.get("namespace").unwrap();
-
-
-                if let ValueType::String(path) = &namespace.value{
-                    let path_string = env_copy.path.to_str().unwrap().to_string() + "/" + path;
-
-                    let lib_map = load_lib(path_string);
-
-
-                    let mut ret = Value::nil();
-                    ret.value = ValueType::Object;
-
-                    ret.fields = lib_map?;
-
-                    return Ok(ret)
-                }
-                
                 Err(ThorLangError::UnknownError)
             }),
-            None
         )
-    );
+        .insert_to(&mut map);
 
-    native_functions.insert(
-        "import".to_string(),
-        Value::native_function(
-            vec!["namespace"],
-            Arc::new(move |values| {
-                let namespace = values
+    map
+}
+
+pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+
+    Value::simple_function("some_func", vec![])
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|args, _, _, _, _| {
+                println!("hello from some_func");
+
+                Ok(Value::nil())
+            }),
+        )
+        .insert_to(&mut map);
+
+    Value::env_function("import", vec!["namespace"], env.clone())
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|args, _, _, _, env_state| {
+                let path = env_state.clone().unwrap().path;
+
+                let namespace = args
                     .get("namespace")
                     .unwrap_or_else(|| panic!("namespace required"));
-
 
                 //import only works for string
 
                 if let ValueType::String(string) = &namespace.value {
-                    let mut module_path = env.clone().path;
+                    let mut module_path = path;
 
                     module_path.push(string);
 
@@ -301,225 +231,159 @@ pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
                         panic!("module {string} does not exist in the current directory")
                     });
 
-                    Ok(interpret_code(module_text, env.clone()))
+                    return Ok(interpret_code(module_text, env_state.unwrap().clone()));
                 } else {
                     panic!("can only import from strings")
                 }
             }),
-            None,
-        ),
-    );
+        )
+        .insert_to(&mut map);
 
 
+    Value::env_function("import_lib", vec!["namespace"], env)
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|args, _, _, _, env_state| {
+                let namespace = args.get("namespace").unwrap();
 
+                if let ValueType::String(path) = &namespace.value {
+                    let path_string = env_state.unwrap().path.to_str().unwrap().to_string() + "/" + path;
 
-    native_functions.insert(
-        "cast_to".to_string(),
-        Value::native_function(
-            vec!["value", "target_type"],
-            Arc::new(|values|{
-                
-                let value = values.get("value").unwrap();
+                    let lib_map = load_lib(path_string);
 
-                let target_type = values.get("target_type").unwrap();
+                    let mut ret = Value::nil();
+                    ret.value = ValueType::Object;
 
-                if let ValueType::String(t) = &target_type.value{
+                    ret.fields = lib_map?;
 
-
-                    //make the String to a &str
-                    match &*t.clone() {
-                        "string" => {Ok(Value::string(stringify_value(value.clone())))},
-                        "number" => {
-                            match &value.value{
-                                ValueType::String(str) => {
-                                    return Ok(Value::number(str.parse::<f64>().unwrap()))
-                                },
-                                ValueType::Bool(b) => {
-                                    if *b{
-                                        return Ok(Value::number(0.0));
-                                    }else{
-                                        return Ok(Value::number(1.0));
-                                    }
-                                },
-                                ValueType::Number(num) => {
-                                    return Ok(value.clone())
-                                },
-                                _ => return Ok(Value::nil())
-                            }
-                        },
-                        "array" => {
-                            println!("cannot convert anything to an array, will return nil");
-                            return Ok(Value::nil())
-                        },
-                        "object" => {
-                            println!("cannot convert anything to an object, will return nil");
-                            return Ok(Value::nil())
-                        },
-                        "bool" => {
-                            if let ValueType::Number(num) = value.value.clone(){
-                                if num == 0.0 {
-                                    return Ok(Value::bool(false));
-                                }else{
-                                    return Ok(Value::bool(true))
-                                }
-                            }else{
-                                println!("can only convert numbers to booleans, will return nil");
-                                return Ok(Value::nil())
-                            }
-                        },
-                        _ => return Err(ThorLangError::UnknownError)
-                    }
-
-                }else{
-                    return Err(ThorLangError::UnknownError)
+                    return Ok(ret);
                 }
 
+                Err(ThorLangError::UnknownError)
             }),
-            None
         )
-    );
+        .insert_to(&mut map);
 
-    native_functions
-}
+    Value::simple_function("get_input", vec!["message"])
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|args, _, _, _, _|{
+                let message = args.get("message").unwrap();
 
-
-pub fn init_number_fields(init: Value) -> HashMap<String, Value> {
-    let mut s = HashMap::new();
-
-    let init_value = Some(Box::new(init));
-
-   
-    //returns the square root of a function
-    s.insert(
-        "sqrt".to_string(),
-        Value::native_function(
-            vec![],
-            Arc::new(|values| {
-
-                //the self value is the thing that gets passed in as "init_value" below and it gets
-                //the name "self" in here. This is the procedure with all methods, the self value
-                //is just passed in as an argument to this function internally, instead of it being
-                //a method of the value itself (this makes for easier lookup and allows me to maybe
-                //define macros later)
-                let self_value = values.get("self").unwrap();
-
-                //if not a number return an error
-                if let ValueType::Number(num) = self_value.value{
-                    return Ok(Value::number(num.sqrt()))
+                //this functions needs nil as an input if there is no message to print
+                if let ValueType::Nil = message.value {
                 } else {
-                    return Err(ThorLangError::UnknownError)
-                }
-            }),
-            init_value,
-        ),
-    );
-
-    s
-}
-
-pub fn init_string_fields(init: Value) -> HashMap<String, Value> {
-    let mut fields = HashMap::new();
-
-    let init_value = Some(Box::new(init));
-
-    //same as with numbers
-    fields.insert(
-        "len".to_string(),
-        Value::native_function(
-            vec![],
-            Arc::new(|values|{
-                let self_val = values.get("self").unwrap();
-
-                if let ValueType::String(str) = &self_val.value{
-                    
-                    Ok(Value::number(str.len() as f64))
-
-                }else{
-                    return Err(ThorLangError::UnknownError)
+                    println!("{}", stringify_value(message.clone()));
                 }
 
-            }),
-            init_value
-        )
-    );
+                let mut input_line = String::new();
 
-    fields
+                let stdin = io::stdin();
+
+                stdin.lock().read_line(&mut input_line).unwrap();
+
+                let ret_val = Value::string(input_line.replace("\n", ""));
+
+                return Ok(ret_val);
+
+            })
+        ).insert_to(&mut map);
+
+    Value::simple_function("type_of", vec!["value"])
+        .register_function_body(
+            &FN_MAP, 
+            Arc::new(|args, _, _, _, _|{
+                let val = args.get("value").unwrap();
+
+                return Ok(Value::string(
+                    match &val.value {
+                        ValueType::String(_str) => "string",
+                        ValueType::Number(_num) => "number",
+                        ValueType::Nil => "nil",
+                        ValueType::Object => "object",
+                        ValueType::Array(_arr) => "array",
+                        ValueType::Function(_func) => "function",
+                        ValueType::Bool(_bool) => "bool",
+                        ValueType::Error(_err) => "error",
+                    }
+                    .to_string(),
+                ));
+            })
+        ).insert_to(&mut map);
+    
+    Value::simple_function("stringify", vec!["value"])
+        .register_function_body(
+            &FN_MAP, 
+            Arc::new(|args, _, _, _, _|{
+                let val = args.get("value").unwrap();
+
+
+                Ok(Value::string(stringify_value(val.clone())))
+            })
+        ).insert_to(&mut map);
+
+
+
+
+    map
 }
 
-pub fn init_bool_fields(_init: Value) -> HashMap<String, Value> {
-    let fields = HashMap::new();
-
-    fields
-}
-
-//methods like push need to be able to alter the environment so we need to pass it in as an
-//argument, also since we need to know what variable (which array) is altered we need to know the
-//name (or later the expression) of the variable to be able to read the value in the env
-pub fn init_array_fields(
-    arr: Value,
+pub fn register_array_methods(
+    self_value: Value,
     enclosing: Rc<RefCell<Environment>>,
     var_name: String,
 ) -> HashMap<String, Value> {
-    let mut fields = HashMap::new();
+    let mut map = HashMap::new();
 
-    let init_val = Some(Box::new(arr));
-
-    fields.insert(
-        "len".to_string(),
-        Value::native_function(
-            vec![],
-            Arc::new(|values| {
-                let self_value = values.get("self").unwrap();
-
-                if let ValueType::Array(arr) = &self_value.value {
-                    return Ok(Value::number(arr.len() as f64))
-                }
-                else {
-                    panic!("?")
-                } 
-            }),
-            init_val.clone(),
-        ),
-    );
-
-
-    //push updates the env tree itself, meaning that we need to get it in the arguments of init_array_fields
-    fields.insert(
-        "push".to_string(),
-        Value::native_function(
-            vec!["thing"],
-
-            //this move occurs because we move the env-tree from the outer function into this one, 
-            //so we can edit it
-            Arc::new(move |values| {
-                let self_value = values.get("self").unwrap();
-                let thing = values.get("thing").unwrap();
-
-
-                if let ValueType::Array(arr) = &self_value.value {
-                    let mut newarr = arr.clone();        
-
-                    newarr.push(thing.clone());
-
-                    if var_name != "" {
-                        let _ = enclosing
-                            .borrow_mut()
-                            .set(var_name.clone(), 
-                                Value::array(newarr.clone()), 0)?;
-                    }
-
-                    return Ok(Value::array(newarr))
-                } else {
-                    return Err(ThorLangError::UnknownError)
+    Value::primitive_method("len", vec![], self_value.clone())
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|_, self_value, _, _, _| {
+                if let ValueType::Array(arr) = &self_value.unwrap().value {
+                    return Ok(Value::number(arr.len() as f64));
                 }
 
+                Err(ThorLangError::UnknownError)
             }),
-            init_val.clone(),
-        ),
-    );
+        )
+        .insert_to(&mut map);
+
+    Value::named_function(
+        "push",
+        vec!["value"],
+        Some(Box::new(self_value)),
+        Some(enclosing),
+        Some(var_name),
+        None,
+    )
+    .register_function_body(
+        &FN_MAP,
+        Arc::new(|args, self_value: Option<Value>, enclosing, var_name, _| {
+            if let ValueType::Array(arr) = &self_value.unwrap().value {
+                let value = args.get("value").unwrap();
+                let mut new_arr = arr.clone();
+                new_arr.push(value.clone());
+
+                let new_arr_value = Value::array(new_arr);
+
+                if let Some(var_name) = var_name {
+                    let _ = enclosing
+                        .unwrap()
+                        .borrow_mut()
+                        .set(var_name, new_arr_value.clone(), 0);
+                }
+
+                return Ok(new_arr_value);
+            }
+
+            Err(ThorLangError::UnknownError)
+        }),
+    )
+    .insert_to(&mut map);
 
 
-    fields
+
+    map
 }
 
 
@@ -528,11 +392,10 @@ pub fn hash_value(val: Value) -> String {
     return match val.value {
         ValueType::Bool(b) => b.to_string(),
         ValueType::Number(n) => n.to_string(),
-        ValueType::String(s) => s.to_string(), 
+        ValueType::String(s) => s.to_string(),
         _ => panic!("cannot hash {:?}", val.value),
     };
 }
-
 
 //helper function to pretty print values (especially array and objects, later functions as well)
 pub fn stringify_value(val: Value) -> String {
@@ -540,18 +403,19 @@ pub fn stringify_value(val: Value) -> String {
 
     match val.value {
         ValueType::Error(err) => {
-
-            if let ThorLangError::ThorLangException { exception, throw_token_index } = err{ 
+            if let ThorLangError::ThorLangException {
+                exception,
+                throw_token_index : _,
+            } = err
+            {
                 ret_val = format!("Error({})", stringify_value(*exception));
-            } else  {
-
+            } else {
                 ret_val = format!("{:?}", err);
             }
-
-        },
+        }
         ValueType::Array(arr) => {
             ret_val += "[";
-        
+
             //add a comma for every value folowing the first one
             for i in 0..arr.len() {
                 if i > 0 {
@@ -562,16 +426,16 @@ pub fn stringify_value(val: Value) -> String {
             }
 
             ret_val += "]"
-        }, 
+        }
         ValueType::Bool(b) => {
             ret_val = b.to_string();
-        },
+        }
         ValueType::Number(b) => {
             ret_val = b.to_string();
-        },
+        }
         ValueType::String(b) => {
             ret_val = b.to_string();
-        },
+        }
         ValueType::Nil => {
             ret_val = "nil".to_string();
         }
@@ -582,10 +446,8 @@ pub fn stringify_value(val: Value) -> String {
 
             //adding "field" : "value" for every field
             //and a comma for every field following the first one
-            for i in 0..obj.values().len(){
-
+            for i in 0..obj.values().len() {
                 if i > 0 {
-
                     ret_val += ", ";
                 }
                 let key = obj.keys().nth(i).unwrap();
@@ -593,7 +455,6 @@ pub fn stringify_value(val: Value) -> String {
 
                 //again move through the object recursively
                 ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
-
             }
 
             ret_val += " }"

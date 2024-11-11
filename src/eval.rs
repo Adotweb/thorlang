@@ -1,6 +1,7 @@
 use crate::{
-    execute_lib_function, hash_value, init_array_fields, init_bool_fields, init_number_fields,
-    init_string_fields, stringify_value,
+    execute_lib_function, get_registered_function, hash_value, register_bool_methods, register_array_methods, register_number_methods,
+    register_string_methods, 
+    stringify_value,
 };
 
 use std::cell::RefCell;
@@ -335,22 +336,22 @@ fn eval_literal(literal: TokenType, literal_token_index: usize) -> Result<Value,
         TokenType::NIL => return Ok(Value::nil()),
         TokenType::TRUE => {
             let mut ret_val = Value::bool(true);
-            ret_val.fields = init_bool_fields(ret_val.clone());
+            ret_val.fields = register_bool_methods(ret_val.clone());
             return Ok(ret_val);
         }
         TokenType::FALSE => {
             let mut ret_val = Value::bool(false);
-            ret_val.fields = init_bool_fields(ret_val.clone());
+            ret_val.fields = register_bool_methods(ret_val.clone());
             return Ok(ret_val);
         }
         TokenType::NUMBER(value) => {
             let mut ret_val = Value::number(value.parse().unwrap());
-            ret_val.fields = init_bool_fields(ret_val.clone());
+            ret_val.fields = register_bool_methods(ret_val.clone());
             return Ok(ret_val);
         }
         TokenType::STRING(value) => {
             let mut ret_val = Value::string(value);
-            ret_val.fields = init_bool_fields(ret_val.clone());
+            ret_val.fields = register_bool_methods(ret_val.clone());
             return Ok(ret_val);
         }
         _ => ThorLangError::eval_error(literal_token_index),
@@ -567,12 +568,14 @@ pub fn eval(
             //(init_prototype_fields)
             match callee_value.value.clone() {
                 ValueType::String(_str) => {
-                    if let Some(field) = init_string_fields(callee_value.clone()).get(&key_string) {
+                    if let Some(field) = register_string_methods(callee_value.clone()).get(&key_string) {
                         ret_val = field.clone();
                     }
                 }
                 ValueType::Number(num) => {
-                    if let Some(field) = init_number_fields(callee_value.clone()).get(&key_string) {
+                    if let Some(field) =
+                        register_number_methods(callee_value.clone()).get(&key_string)
+                    {
                         ret_val = field.clone()
                     }
                 }
@@ -588,7 +591,7 @@ pub fn eval(
                     }
 
                     if let Some(field) =
-                        init_array_fields(callee_value.clone(), enclosing.clone(), var_name)
+                        register_array_methods(callee_value.clone(), enclosing.clone(), var_name)
                             .get(&key_string)
                     {
                         ret_val = field.clone();
@@ -652,13 +655,15 @@ pub fn eval(
                 return execute_lib_function(function, eval_args);
             }
 
-            if let ValueType::Function(Function::NativeFunction {
-                body,
+            if let ValueType::Function(Function::NamedFunction {
+                name,
                 needed_arguments,
                 self_value,
+                env_state,
+                env,
+                var_name,
             }) = function.clone().value
             {
-                //check if arity of args is ok
                 if needed_arguments.len() != arguments.len() {
                     return ThorLangError::function_arity_error(
                         paren_token_index.clone(),
@@ -676,15 +681,14 @@ pub fn eval(
                     eval_args.insert(arg_name.to_string(), arg);
                 }
 
-                if let Some(sv) = self_value {
-                    eval_args.insert("self".to_string(), *sv.clone());
-                }
+                let function = get_registered_function(name)?;
 
-                //we can just call the function with the args given that the functions is rust
-                //builtin
-                let function = body(eval_args)?;
+                let self_value = match self_value {
+                    Some(self_value) => Some(*self_value),
+                    None => None,
+                };
 
-                return Ok(function);
+                return function(eval_args, self_value, env.clone(), var_name, env_state);
             }
 
             if let ValueType::Function(Function::ThorFunction {

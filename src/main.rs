@@ -8,12 +8,13 @@ use error::handle_error;
 use eval::eval_statement;
 use lexer::lexer;
 use native_functions::{
-    execute_lib_function, hash_value, init_array_fields, init_bool_fields, init_native_functions,
-    init_number_fields, init_string_fields, stringify_value,
+    execute_lib_function, get_registered_function, hash_value,  register_bool_methods,
+    register_array_methods,
+    register_native_functions, register_number_methods, register_string_methods, stringify_value,
 };
 use std::panic;
 
-use type_lib::{Environment, ThorLangError, Value, EnvState};
+use type_lib::{EnvState, Environment, ThorLangError, Value};
 
 use parser::parse;
 use std::collections::HashMap;
@@ -22,7 +23,6 @@ use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::rc::Rc;
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -86,7 +86,7 @@ pub fn interpret_code(text: String, env: EnvState) -> Value {
     //println!("{:#?}", ast);
 
     //the global env instantiation (global values and functions)
-    let natives: HashMap<String, Value> = init_native_functions(env);
+    let natives: HashMap<String, Value> = register_native_functions(env);
     let global_env = Rc::new(RefCell::new(Environment {
         values: natives.into(),
         enclosing: None,

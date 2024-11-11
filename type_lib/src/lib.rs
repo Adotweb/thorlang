@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync:: {Arc, Mutex};
 use std::rc::Rc;
 
 use std::fmt;
@@ -268,6 +268,11 @@ impl Environment {
 }
 
 
+//these functions are the ones actually loaded in
+//arguments, self_value, environment, variable name, env_state
+pub type FnType = Arc<fn(HashMap<String, Value>, Option<Value>, Option<Rc<RefCell<Environment>>>, Option<String>, Option<EnvState>) -> Result<Value, ThorLangError>>;
+
+pub type RegisteredFnMap = Mutex<Option<HashMap<String, FnType>>>;
 
 //Functions are either built into rust (rust closures) or defined as a procedure in thor itself
 //both do the same but have different data to them
@@ -282,13 +287,6 @@ pub enum Function{
         //only needs self value in case of method
         self_value : Option<Box<Value>>
     },
-    NativeFunction {
-        //this atrocious type is the dynamic closure type in rust (functions that have closures)
-        //because we cant use pure functions
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
-        needed_arguments: Vec<String>,
-        self_value: Option<Box<Value>>,
-    },
     ThorFunction {
         body: Vec<Statement>,
         needed_arguments: Vec<String>,
@@ -299,7 +297,8 @@ pub enum Function{
         needed_arguments : Vec<String>,
         self_value : Option<Box<Value>>, 
         env_state : Option<EnvState>,
-        env : Option<Rc<RefCell<Environment>>>
+        env : Option<Rc<RefCell<Environment>>>,
+        var_name : Option<String>
     }
 }
 
@@ -324,14 +323,6 @@ impl fmt::Debug for Function {
                     .field("name", name)
                     .finish()
             },
-            Function::NativeFunction {
-                body: _,
-                needed_arguments,
-                self_value: _,
-            } => f
-                .debug_struct("Function")
-                .field("args", needed_arguments)
-                .finish(),
             Function::ThorFunction {
                 body: _,
                 needed_arguments,
@@ -417,34 +408,84 @@ impl Value {
         }
     }
 
-    //native functions still need to be instantiated using absolutely horrendous typing
-    pub fn native_function(
-        arguments: Vec<&str>,
-        body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
-        self_value: Option<Box<Value>>,
-    ) -> Self {
-        Value {
-            value: ValueType::Function(Function::NativeFunction {
-                self_value,
-                needed_arguments: arguments.iter().map(|x| x.to_string()).collect(),
-                body,
+    
+    pub fn env_function(name : &'static str, needed_arguments : Vec<&str>, env : EnvState) -> Self{
+        Value{
+            value : ValueType::Function(Function::NamedFunction{
+                self_value : None, 
+                needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
+                name : name.to_string(), 
+                env : None, 
+                env_state : Some(env),
+                var_name : None
             }),
-            ..Value::default()
-        }
+            ..Default::default()
+        } 
     }
 
-    pub fn named_function(name : &'static str, needed_arguments : Vec<&str>, self_value: Option<Box<Value>>, env : Option<Rc<RefCell<Environment>>>, env_state : Option<EnvState>) -> Self{
+    pub fn simple_function(name : &'static str, needed_arguments : Vec<&str>) -> Self{
+        Value{
+            value : ValueType::Function(Function::NamedFunction{
+                self_value : None, 
+                needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
+                name : name.to_string(), 
+                env : None, 
+                env_state : None,
+                var_name : None
+            }),
+            ..Default::default()
+        } 
+    }
+
+    pub fn named_function(name : &'static str, needed_arguments : Vec<&str>, self_value: Option<Box<Value>>, env : Option<Rc<RefCell<Environment>>>, var_name : Option<String>, env_state : Option<EnvState>) -> Self{
         Value{
             value : ValueType::Function(Function::NamedFunction{
                 self_value, 
                 needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
                 name : name.to_string(), 
                 env, 
-                env_state
+                env_state,
+                var_name
             }),
             ..Default::default()
         } 
+    }
 
+    pub fn primitive_method(name : &'static str, needed_arguments : Vec<&str>, self_value: Value) -> Self{
+        Value{
+            value : ValueType::Function(Function::NamedFunction{
+                self_value : Some(Box::new(self_value)),
+                env : None,
+                env_state : None,
+                var_name : None,
+                name : name.to_string(), 
+                needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect()
+            }),
+            ..Default::default()
+        }
+    }
+
+    pub fn register_function_body(&self, map: &RegisteredFnMap, function : FnType) -> Self{
+
+        let mut fn_map = map.lock().unwrap();
+      
+        
+
+        if let ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env, var_name }) = &self.value{
+            if let Some(ref mut inner_map) = *fn_map{
+                
+                //check if the function is already registered
+                if let Some(_) = inner_map.get(name){
+                    return self.clone()
+                }
+
+                inner_map.insert(name.to_string(), function);
+            }else{
+                *fn_map = Some(HashMap::new());
+                fn_map.as_mut().unwrap().insert(name.to_string(), function);
+            }
+        }
+        self.clone()
     }
 
     //unlike thorfunctions which are just a holder for a block and a closure
@@ -486,7 +527,7 @@ impl Value {
             ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value })=> {
                 map.insert(name.to_string(), self.clone());
             },
-            ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env }) => {
+            ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env , var_name}) => {
                 map.insert(name.to_string(), self.clone());
             },
             _ => ()
