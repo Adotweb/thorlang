@@ -4,7 +4,7 @@
 fn obj(list){
 
 
-	if(typeOf(list) != "array"){
+	if(type_of(list) != "array"){
 		throw "list must be an array";
 	}
 
@@ -16,7 +16,7 @@ fn obj(list){
 		
 		let key_value_pair = list[iter];
 
-		if(typeOf(key_value_pair) != "array"){
+		if(type_of(key_value_pair) != "array"){
 			throw "any key value pair must be an array";
 		}
 

@@ -13,7 +13,7 @@ print obj + "hello";
 
 //average operator for arrays
 overload ø (a){
-	if(typeOf(a) == "array"){
+	if(type_of(a) == "array"){
 
 		let i = 0;
 		let sum = 0;	
@@ -45,7 +45,7 @@ fn makeCounter(){
 	let count = 0;	
 	fn inc(){
 		count = count + 1;
-		printf(count);
+		print(count);
 	}
 	
 
@@ -55,7 +55,7 @@ fn makeCounter(){
 
 	fn dec(){
 		count = count - 1;
-		printf(count);
+		print(count);
 	}
 
 	let ret;
