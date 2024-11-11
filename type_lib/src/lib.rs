@@ -357,28 +357,28 @@ pub struct Value {
 //default will return the nil value
 impl Value {
     
-    pub fn array(value: Vec<Value>) -> Value {
+    pub fn array(value: Vec<Value>) -> Self {
         Value {
             value: ValueType::Array(value),
             ..Value::default()
         }
     }
 
-    pub fn number(value: f64) -> Value {
+    pub fn number(value: f64) -> Self {
         Value {
             value: ValueType::Number(value),
             ..Value::default()
         }
     }
 
-    pub fn string(value: String) -> Value {
+    pub fn string(value: String) -> Self {
         Value {
             value: ValueType::String(value),
             ..Value::default()
         }
     }
 
-    pub fn bool(value: bool) -> Value {
+    pub fn bool(value: bool) -> Self {
         Value {
             value: ValueType::Bool(value),
             ..Value::default()
@@ -392,7 +392,7 @@ impl Value {
         }
     }
 
-    pub fn error(err : ThorLangError) -> Value{
+    pub fn error(err : ThorLangError) -> Self {
         Value{
             value : ValueType::Error(err),
             ..Value::default()
@@ -404,7 +404,7 @@ impl Value {
         arguments: Vec<&str>,
         body: Arc<dyn Fn(HashMap<String, Value>) -> Result<Value, ThorLangError>>,
         self_value: Option<Box<Value>>,
-    ) -> Value {
+    ) -> Self {
         Value {
             value: ValueType::Function(Function::NativeFunction {
                 self_value,
@@ -420,7 +420,7 @@ impl Value {
         arguments: Vec<String>,
         body: Vec<Statement>,
         closure: Rc<RefCell<Environment>>,
-    ) -> Value {
+    ) -> Self {
         Value {
             value: ValueType::Function(Function::ThorFunction {
                 needed_arguments: arguments,
@@ -437,7 +437,7 @@ impl Value {
         needed_arguments : Vec<String>,
         library : Option<Arc<Library>>,
         self_value: Option<Box<Value>>
-    ) -> Value{
+    ) -> Self {
         Value{
             value : ValueType::Function(Function::LibFunction{
                 name , 
@@ -446,6 +446,15 @@ impl Value {
                 self_value
             }),
             ..Value::default()
+        }
+    }
+
+    pub fn insert_to<'a>(&self, map : &'a mut HashMap<String, Value>){
+        match &self.value{
+            ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value })=> {
+                map.insert(name.to_string(), self.clone());
+            },
+            _ => ()
         }
     }
 }
