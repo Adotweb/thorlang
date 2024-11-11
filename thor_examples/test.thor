@@ -1,8 +1,14 @@
 //import .so files
 //let s = import_lib("liblib.so");
 
+
 //s.start_window();
 
+let p = [0, 1, 2];
+
+p.push(4);
+
+print p;
 
 overload + (a, b){
 		

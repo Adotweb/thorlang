@@ -181,7 +181,7 @@ pub fn register_function_methods(self_value: Value) -> HashMap<String, Value>{
 pub fn register_number_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
-    Value::named_function("sqrt", vec![], Some(Box::new(self_value)), None, None, None)
+    Value::named_function("sqrt", vec![], Some(Box::new(self_value)), None, None)
         .register_function_body(
             &FN_MAP,
             Arc::new(|_, self_value: Option<Value>, _, _, _| {
@@ -330,7 +330,6 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
 
 pub fn register_array_methods(
     self_value: Value,
-    enclosing: Rc<RefCell<Environment>>,
     var_name: String,
 ) -> HashMap<String, Value> {
     let mut map = HashMap::new();
@@ -352,7 +351,6 @@ pub fn register_array_methods(
         "push",
         vec!["value"],
         Some(Box::new(self_value)),
-        Some(enclosing),
         Some(var_name),
         None,
     )

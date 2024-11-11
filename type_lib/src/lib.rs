@@ -297,7 +297,6 @@ pub enum Function{
         needed_arguments : Vec<String>,
         self_value : Option<Box<Value>>, 
         env_state : Option<EnvState>,
-        env : Option<Rc<RefCell<Environment>>>,
         var_name : Option<String>
     }
 }
@@ -415,7 +414,6 @@ impl Value {
                 self_value : None, 
                 needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
                 name : name.to_string(), 
-                env : None, 
                 env_state : Some(env),
                 var_name : None
             }),
@@ -429,7 +427,6 @@ impl Value {
                 self_value : None, 
                 needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
                 name : name.to_string(), 
-                env : None, 
                 env_state : None,
                 var_name : None
             }),
@@ -437,13 +434,12 @@ impl Value {
         } 
     }
 
-    pub fn named_function(name : &'static str, needed_arguments : Vec<&str>, self_value: Option<Box<Value>>, env : Option<Rc<RefCell<Environment>>>, var_name : Option<String>, env_state : Option<EnvState>) -> Self{
+    pub fn named_function(name : &'static str, needed_arguments : Vec<&str>, self_value: Option<Box<Value>>, var_name : Option<String>, env_state : Option<EnvState>) -> Self{
         Value{
             value : ValueType::Function(Function::NamedFunction{
                 self_value, 
                 needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
                 name : name.to_string(), 
-                env, 
                 env_state,
                 var_name
             }),
@@ -455,7 +451,6 @@ impl Value {
         Value{
             value : ValueType::Function(Function::NamedFunction{
                 self_value : Some(Box::new(self_value)),
-                env : None,
                 env_state : None,
                 var_name : None,
                 name : name.to_string(), 
@@ -471,7 +466,7 @@ impl Value {
       
         
 
-        if let ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env, var_name }) = &self.value{
+        if let ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, var_name }) = &self.value{
             if let Some(ref mut inner_map) = *fn_map{
                 
                 //check if the function is already registered
@@ -527,7 +522,7 @@ impl Value {
             ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value })=> {
                 map.insert(name.to_string(), self.clone());
             },
-            ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env , var_name}) => {
+            ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state,  var_name}) => {
                 map.insert(name.to_string(), self.clone());
             },
             _ => ()

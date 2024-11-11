@@ -591,7 +591,7 @@ pub fn eval(
                     }
 
                     if let Some(field) =
-                        register_array_methods(callee_value.clone(), enclosing.clone(), var_name)
+                        register_array_methods(callee_value.clone(), var_name)
                             .get(&key_string)
                     {
                         ret_val = field.clone();
@@ -660,7 +660,6 @@ pub fn eval(
                 needed_arguments,
                 self_value,
                 env_state,
-                env,
                 var_name,
             }) = function.clone().value
             {
@@ -688,7 +687,7 @@ pub fn eval(
                     None => None,
                 };
 
-                return function(eval_args, self_value, env.clone(), var_name, env_state);
+                return function(eval_args, self_value, Some(enclosing.clone()), var_name, env_state);
             }
 
             if let ValueType::Function(Function::ThorFunction {
