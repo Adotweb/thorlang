@@ -110,6 +110,7 @@ pub fn execute_lib_function(lib_function : Value, arguments : HashMap<String, Va
     Err(ThorLangError::UnknownError)
 }
 
+
 //this is the initializer for all the global variables
 pub fn init_native_functions(env : EnvState) -> HashMap<String, Value> {
     let mut native_functions = HashMap::new();

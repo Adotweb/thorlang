@@ -13,7 +13,7 @@ use native_functions::{
 };
 use std::panic;
 
-use type_lib::{Environment, ThorLangError, Value};
+use type_lib::{Environment, ThorLangError, Value, EnvState};
 
 use parser::parse;
 use std::collections::HashMap;
@@ -23,14 +23,6 @@ use std::env;
 use std::fs;
 use std::rc::Rc;
 
-use std::path::PathBuf;
-
-//structure to get executable information later (for now it only serves so we can get the current
-//execution directory)
-#[derive(Clone, Debug)]
-pub struct EnvState {
-    path: PathBuf,
-}
 
 fn main() {
     let args: Vec<String> = env::args().collect();

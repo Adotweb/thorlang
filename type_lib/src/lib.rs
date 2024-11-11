@@ -7,6 +7,16 @@ use std::fmt;
 
 use libloading::Library;
 
+
+use std::path::PathBuf;
+
+//structure to get executable information later (for now it only serves so we can get the current
+//execution directory)
+#[derive(Clone, Debug)]
+pub struct EnvState {
+    pub path: PathBuf,
+}
+
 //the different token types
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum TokenType {
@@ -210,7 +220,7 @@ impl Environment {
     pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Environment {
             values: RefCell::new(HashMap::new()),
-            enclosing,
+            enclosing
         }))
     }
    
@@ -284,6 +294,13 @@ pub enum Function{
         needed_arguments: Vec<String>,
         closure: Rc<RefCell<Environment>>,
     },
+    NamedFunction{
+        name : String, 
+        needed_arguments : Vec<String>,
+        self_value : Option<Box<Value>>, 
+        env_state : Option<EnvState>,
+        env : Option<Rc<RefCell<Environment>>>
+    }
 }
 
 //later i have to implement equality for functions
@@ -323,6 +340,7 @@ impl fmt::Debug for Function {
                 .debug_struct("Function")
                 .field("args", needed_arguments)
                 .finish(),
+            _ => f.debug_struct("Function").finish()
         }
     }
 }
@@ -415,6 +433,20 @@ impl Value {
         }
     }
 
+    pub fn named_function(name : &'static str, needed_arguments : Vec<&str>, self_value: Option<Box<Value>>, env : Option<Rc<RefCell<Environment>>>, env_state : Option<EnvState>) -> Self{
+        Value{
+            value : ValueType::Function(Function::NamedFunction{
+                self_value, 
+                needed_arguments : needed_arguments.iter().map(|x|x.to_string()).collect(),
+                name : name.to_string(), 
+                env, 
+                env_state
+            }),
+            ..Default::default()
+        } 
+
+    }
+
     //unlike thorfunctions which are just a holder for a block and a closure
     pub fn thor_function(
         arguments: Vec<String>,
@@ -452,6 +484,9 @@ impl Value {
     pub fn insert_to<'a>(&self, map : &'a mut HashMap<String, Value>){
         match &self.value{
             ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value })=> {
+                map.insert(name.to_string(), self.clone());
+            },
+            ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state, env }) => {
                 map.insert(name.to_string(), self.clone());
             },
             _ => ()
