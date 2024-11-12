@@ -1,7 +1,6 @@
 use crate::{
     execute_lib_function, get_registered_function, hash_value, register_bool_methods, register_array_methods, register_number_methods,
     register_string_methods, 
-    stringify_value,
 };
 
 use std::sync::{Arc, Mutex};
@@ -11,7 +10,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use type_lib::{
-    Environment, Expression, Function, Statement, ThorLangError, TokenType, Value, ValueType,
+    Environment, Expression, Function, Statement, ThorLangError, TokenType, Value, ValueType, stringify_value
 };
 
 #[derive(Debug, Clone, PartialEq)]

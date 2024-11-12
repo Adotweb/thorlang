@@ -10,7 +10,7 @@ use lexer::lexer;
 use native_functions::{
     execute_lib_function, get_registered_function, hash_value,  register_bool_methods,
     register_array_methods,
-    register_native_functions, register_number_methods, register_string_methods, stringify_value,
+    register_native_functions, register_number_methods, register_string_methods,
 };
 use std::panic;
 

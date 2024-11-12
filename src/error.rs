@@ -1,6 +1,5 @@
-use type_lib::{ThorLangError, Token, TokenType, ValueType};
+use type_lib::{ThorLangError, Token, TokenType, ValueType, stringify_value};
 
-use crate::stringify_value;
 
 //handles error when parsing (unexpected tokens and typos)
 pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {

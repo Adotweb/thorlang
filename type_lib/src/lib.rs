@@ -581,6 +581,77 @@ impl Default for Value {
 }
 
 
+//helper function to pretty print values (especially array and objects, later functions as well)
+pub fn stringify_value(val: Value) -> String {
+    let mut ret_val = "".to_string();
+
+    match val.value {
+        ValueType::Error(err) => {
+            if let ThorLangError::ThorLangException {
+                exception,
+                throw_token_index : _,
+            } = err
+            {
+                ret_val = format!("Error({})", stringify_value(*exception));
+            } else {
+                ret_val = format!("{:?}", err);
+            }
+        }
+        ValueType::Array(arr) => {
+            ret_val += "[";
+
+            //add a comma for every value folowing the first one
+            for i in 0..arr.len() {
+                if i > 0 {
+                    ret_val += ", "
+                }
+                //move through the array recursively
+                ret_val += &stringify_value(arr.get(i).unwrap().clone())
+            }
+
+            ret_val += "]"
+        }
+        ValueType::Bool(b) => {
+            ret_val = b.to_string();
+        }
+        ValueType::Number(b) => {
+            ret_val = b.to_string();
+        }
+        ValueType::String(b) => {
+            ret_val = b.to_string();
+        }
+        ValueType::Nil => {
+            ret_val = "nil".to_string();
+        }
+        ValueType::Object => {
+            let obj = val.fields;
+
+            ret_val += "{ ";
+
+            //adding "field" : "value" for every field
+            //and a comma for every field following the first one
+            for i in 0..obj.values().len() {
+                if i > 0 {
+                    ret_val += ", ";
+                }
+                let key = obj.keys().nth(i).unwrap();
+                let value = obj.values().nth(i).unwrap();
+
+                //again move through the object recursively
+                ret_val += &(key.to_string() + " : " + &stringify_value(value.clone()));
+            }
+
+            ret_val += " }"
+        }
+        _ => {
+            ret_val = "Function".to_string();
+        }
+    }
+
+    ret_val
+}
+
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ThorLangError{
