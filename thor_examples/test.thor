@@ -1,8 +1,8 @@
 //import .so files
-//let s = import_lib("liblib.so");
+let s = import_lib("liblib.so");
 
 
-//s.start_window();
+s.start_window();
 
 let p = [0, 1, 2];
 
@@ -32,3 +32,7 @@ overload + (a, b){
 }
 print 4 + "hello";
 
+
+while(true){
+	s.send_message(4);
+}

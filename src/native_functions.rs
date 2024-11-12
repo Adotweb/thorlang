@@ -367,7 +367,7 @@ pub fn register_array_methods(
                 if let Some(var_name) = var_name {
                     let _ = enclosing
                         .unwrap()
-                        .borrow_mut()
+                        .lock().unwrap()
                         .set(var_name, new_arr_value.clone(), 0);
                 }
 

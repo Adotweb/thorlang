@@ -207,18 +207,18 @@ pub enum Expression {
 //this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
 //environment object at will (its just some trickery so we can do that) terrible performance
 //decision, but makes it work
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Environment {
     pub values: RefCell<HashMap<String, Value>>,
-    pub enclosing: Option<Rc<RefCell<Environment>>>,
+    pub enclosing: Option<Arc<Mutex<Environment>>>,
 }
 
 //its easier to instantiate a get and set function that automatically search the entire env tree
 //(for existence for example) to
 //look for a value than doing that over and over again in the later following code
 impl Environment {
-    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Environment {
+    pub fn new(enclosing: Option<Arc<Mutex<Environment>>>) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Environment {
             values: RefCell::new(HashMap::new()),
             enclosing
         }))
@@ -235,7 +235,7 @@ impl Environment {
         //if not we return a reference to the environment that closes over the current one and
         //apply this "get" method to it
         else if let Some(ref parent) = self.enclosing {
-            parent.borrow().get(key)
+            parent.lock().unwrap().get(key)
         }
         //if both of the above fail the key does not exist (and so the variable does not)
         else {
@@ -253,7 +253,7 @@ impl Environment {
             let p = self.values.borrow_mut().insert(key, value);
             Ok(p.unwrap())
         } else if let Some(ref parent) = self.enclosing {
-            parent.borrow_mut().set(key, value, eq_token_index)
+            parent.lock().unwrap().set(key, value, eq_token_index)
         } else {
 
             //this is for safety measures, because Assignment automatically inserts any key that
@@ -270,7 +270,7 @@ impl Environment {
 
 //these functions are the ones actually loaded in
 //arguments, self_value, environment, variable name, env_state
-pub type FnType = Arc<fn(HashMap<String, Value>, Option<Value>, Option<Rc<RefCell<Environment>>>, Option<String>, Option<EnvState>) -> Result<Value, ThorLangError>>;
+pub type FnType = Arc<fn(HashMap<String, Value>, Option<Value>, Option<Arc<Mutex<Environment>>>, Option<String>, Option<EnvState>) -> Result<Value, ThorLangError>>;
 
 pub type RegisteredFnMap = Mutex<Option<HashMap<String, FnType>>>;
 
@@ -290,7 +290,7 @@ pub enum Function{
     ThorFunction {
         body: Vec<Statement>,
         needed_arguments: Vec<String>,
-        closure: Rc<RefCell<Environment>>,
+        closure: Arc<Mutex<Environment>>,
     },
     NamedFunction{
         name : String, 
@@ -487,13 +487,13 @@ impl Value {
     pub fn thor_function(
         arguments: Vec<String>,
         body: Vec<Statement>,
-        closure: Rc<RefCell<Environment>>,
+        closure: Arc<Mutex<Environment>>,
     ) -> Self {
         Value {
             value: ValueType::Function(Function::ThorFunction {
                 needed_arguments: arguments,
                 body,
-                closure,
+                closure 
             }),
             ..Value::default()
         }

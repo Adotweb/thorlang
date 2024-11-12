@@ -4,6 +4,8 @@ use crate::{
     stringify_value,
 };
 
+use std::sync::{Arc, Mutex};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -31,7 +33,7 @@ type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
 //old values back.
 pub fn eval_statement(
     stmts: Vec<Statement>,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
 ) -> Result<Value, ThorLangError> {
     //evaluating statement by statement
@@ -98,20 +100,21 @@ pub fn eval_statement(
                 arguments,
                 line: _,
             } => {
-                let closure = Rc::new(RefCell::new(enclosing.borrow().clone()));
+                let closure = Arc::new(Mutex::new(enclosing.lock().unwrap().clone()));
 
                 let function = Value::thor_function(arguments, *body, closure.clone());
 
                 //insert the function with its name into the environment
                 enclosing
-                    .borrow_mut()
+                    .lock()
+                    .unwrap()
                     .values
                     .borrow_mut()
                     .insert(name.clone(), function.clone());
 
                 //insert the function with its name into the closure to allow for recursion
                 closure
-                    .borrow_mut()
+                    .lock().unwrap()
                     .values
                     .borrow_mut()
                     .insert(name, function);
@@ -219,7 +222,7 @@ pub fn eval_statement(
             } => {
                 let val = eval(&expression, enclosing.clone(), overloadings)?;
 
-                enclosing.borrow_mut().values.borrow_mut().insert(name, val);
+                enclosing.lock().unwrap().values.borrow_mut().insert(name, val);
             }
         }
     }
@@ -231,10 +234,10 @@ pub fn eval_statement(
 fn eval_overloaded(
     operation_list: Vec<OperationInfo>,
     arguments: Vec<Value>,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     operator_token_index: usize,
 ) -> Result<Value, ThorLangError> {
-    let op_env = enclosing.borrow().clone();
+    let op_env = enclosing.lock().unwrap().clone();
 
     //loops over every operation associated with the given operator sign
     //when they throw we move on to the next one
@@ -260,7 +263,7 @@ fn eval_overloaded(
 
         let tried_eval = eval_statement(
             operation,
-            Rc::new(RefCell::new(op_env.clone())),
+            Arc::new(Mutex::new(op_env.clone())),
             overloadings,
         );
 
@@ -279,7 +282,7 @@ fn eval_overloaded(
 fn eval_unary(
     operator: TokenType,
     right: &Expression,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
     operator_token_index: usize,
 ) -> Result<Value, ThorLangError> {
@@ -363,7 +366,7 @@ fn eval_binary(
     left: &Expression,
     operator: TokenType,
     right: &Expression,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
     operator_token_index: usize,
 ) -> Result<Value, ThorLangError> {
@@ -453,7 +456,7 @@ fn eval_binary(
 
 pub fn eval(
     expr: &Expression,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
 ) -> Result<Value, ThorLangError> {
     //recursivley traverses the expr tree.
@@ -686,7 +689,7 @@ pub fn eval(
                     Some(self_value) => Some(*self_value),
                     None => None,
                 };
-
+            
                 return function(eval_args, self_value, Some(enclosing.clone()), var_name, env_state);
             }
 
@@ -712,12 +715,16 @@ pub fn eval(
                     eval_args.insert(arg_name.to_string(), arg);
                 }
 
+                
+
                 // Create a new environment for the function call, using the closure's environment
                 let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
 
+            
+
                 for (name, value) in eval_args {
                     function_env
-                        .borrow_mut()
+                        .lock().unwrap()
                         .values
                         .borrow_mut()
                         .insert(name, value);
@@ -749,13 +756,13 @@ pub fn eval(
             let order = generate_field_order(target.clone(), enclosing.clone(), overloadings)?;
 
             let value: &mut Value = &mut enclosing
-                .borrow()
+                .lock().unwrap()
                 .get(&order.get(0).unwrap().0.get_string().unwrap().to_string())
                 .unwrap()
                 .clone();
 
             if order.len() == 1 {
-                enclosing.borrow_mut().set(
+                enclosing.lock().unwrap().set(
                     order.get(0).unwrap().0.get_string().unwrap(),
                     eval_value.clone(),
                     *eq_token_index,
@@ -834,7 +841,7 @@ pub fn eval(
                 current.value = ValueType::Object
             }
 
-            enclosing.borrow_mut().set(
+            enclosing.lock().unwrap().set(
                 order.get(0).unwrap().0.get_string().unwrap().to_string(),
                 value.clone(),
                 *eq_token_index,
@@ -849,7 +856,7 @@ pub fn eval(
             name,
             identifier_token_index,
         } => {
-            let value = enclosing.borrow().get(name);
+            let value = enclosing.lock().unwrap().get(name);
 
             if let Some(val) = value {
                 return Ok(val);
@@ -917,7 +924,7 @@ impl FieldKey {
 //obj.hello[0]["hello"] turns to ["hello", 0, "hello"]
 fn generate_field_order(
     target: Box<Expression>,
-    enclosing: Rc<RefCell<Environment>>,
+    enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
 ) -> Result<Vec<(FieldKey, usize)>, ThorLangError> {
     let mut order = vec![];

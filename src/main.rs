@@ -19,10 +19,9 @@ use type_lib::{EnvState, Environment, ThorLangError, Value};
 use parser::parse;
 use std::collections::HashMap;
 
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 use std::env;
 use std::fs;
-use std::rc::Rc;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -87,7 +86,7 @@ pub fn interpret_code(text: String, env: EnvState) -> Value {
 
     //the global env instantiation (global values and functions)
     let natives: HashMap<String, Value> = register_native_functions(env);
-    let global_env = Rc::new(RefCell::new(Environment {
+    let global_env = Arc::new(Mutex::new(Environment {
         values: natives.into(),
         enclosing: None,
     }));
