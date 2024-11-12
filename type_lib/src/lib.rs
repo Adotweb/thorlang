@@ -206,7 +206,7 @@ pub enum Expression {
 
 //this is a bit more complicated, Rc<Refcell<T>> provides us with the ability to mutate the entire
 //environment object at will (its just some trickery so we can do that) terrible performance
-//decision, but makes it work
+//decision, but makes it wor
 #[derive(Debug, Clone)]
 pub struct Environment {
     pub values: RefCell<HashMap<String, Value>>,
@@ -364,6 +364,44 @@ pub struct Value {
 //nice instantiation functions for values 
 //default will return the nil value
 impl Value {
+  
+    //conversion methods for extracting the values
+    pub fn to_string(&self) -> Option<String>{
+        match &self.value{
+            ValueType::String(str) => Some(str.to_string()),
+            _ => None
+        }
+    }
+
+    pub fn to_f64(&self) -> Option<f64>{
+        match &self.value{
+            ValueType::Number(num) => Some(*num),
+            _ => None
+        }
+    }
+
+    pub fn to_bool(&self) -> Option<bool>{
+        match &self.value{
+            ValueType::Bool(bool) => Some(*bool),
+            _ => None
+        }
+    }
+
+    pub fn to_arr(&self) -> Option<Vec<Value>>{
+        match &self.value{
+            ValueType::Array(arr) => Some(arr.to_vec()),
+            _ => None
+        }
+    }
+
+    pub fn to_ob(&self) -> Option<HashMap<String, Value>>{
+        match &self.value{
+            ValueType::Object => Some(self.fields.clone()),
+            _ => None
+        }
+    }
+
+    //conversion stops here
     
     pub fn array(value: Vec<Value>) -> Self {
         Value {
