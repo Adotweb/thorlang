@@ -48,7 +48,7 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
                                         key.to_string(),
                                         Value::lib_function(
                                             name,
-                                            needed_arguments.clone(),
+                                            needed_arguments.iter().map(|x|x.as_str()).collect(),
                                             Some(Arc::clone(&lib)),
                                             self_value.clone(),
                                         ),

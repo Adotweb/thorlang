@@ -540,14 +540,14 @@ impl Value {
 
     pub fn lib_function(
         name : &'static str,
-        needed_arguments : Vec<String>,
+        needed_arguments : Vec<&str>,
         library : Option<Arc<Library>>,
         self_value: Option<Box<Value>>
     ) -> Self {
         Value{
             value : ValueType::Function(Function::LibFunction{
                 name , 
-                needed_arguments, 
+                needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
                 library,
                 self_value
             }),
