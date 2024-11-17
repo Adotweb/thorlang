@@ -210,6 +210,19 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
         )
         .insert_to(&mut map);
 
+
+    Value::simple_function("get_now", vec![])
+        .register_function_body(
+            &FN_MAP, 
+            Arc::new(|_, _, _, _, _|{
+
+                let now = UNIX_EPOCH.elapsed().unwrap().as_millis() as f64;
+                Ok(Value::number(now))
+            })
+        ).insert_to(&mut map);
+
+
+
     Value::env_function("import", vec!["namespace"], env.clone())
         .register_function_body(
             &FN_MAP,

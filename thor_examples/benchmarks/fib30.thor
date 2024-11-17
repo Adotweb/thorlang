@@ -1,7 +1,7 @@
 overload + (a, b){
 	
-	let string1 = cast_to(a, "string");
-	let string2 = cast_to(b, "string");
+	let string1 = stringify(a);
+	let string2 = stringify(b);
 
 	return string1 + string2;
 }
