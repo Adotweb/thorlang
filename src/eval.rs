@@ -698,6 +698,8 @@ pub fn eval(
                 closure,
             }) = function.value
             {
+
+
                 if needed_arguments.len() != arguments.len() {
                     return ThorLangError::function_arity_error(
                         paren_token_index.clone(),
@@ -717,7 +719,7 @@ pub fn eval(
                 
 
                 // Create a new environment for the function call, using the closure's environment
-                let function_env = closure; // Only capture the closure's environment
+                let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
 
             
 

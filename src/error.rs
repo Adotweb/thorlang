@@ -13,6 +13,7 @@ pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {
     let mut pointer: &str = "";
     let mut tip: String = Default::default();
 
+
     //almost all of the below work in the same way, the token_indices are retrieved from the token
     //list and then their value is displayed in the error message, then the entire line of the
     //error is displayed
@@ -121,7 +122,8 @@ pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {
             //and if there is more than one then we need to also count the commas
             //
             //
-            let function_name_token = tokens[function_paren_token - 2].clone();
+            let function_name_token = tokens[function_paren_token - 1].clone();
+
 
             msg = format!(
                 "function '{}' on line {}:{}\nexpects {} arguments but got {}",
