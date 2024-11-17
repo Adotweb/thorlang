@@ -426,7 +426,7 @@ fn eval_binary(
         TokenType::TO => {
             if let (ValueType::Number(n1), ValueType::Number(n2)) = (l.value, r.value){
                 
-                if (n1.fract() == 0.0) && (n2.fract() == 0.0) && n1 < n2{
+                if (n1.fract() == 0.0) && (n2.fract() == 0.0) && n1 <= n2{
                     let range = n1 as i64 .. n2 as i64 + 1;
                     return Ok(Value::array(range.map(|x|Value::number(x as f64)).collect()))
                 }
