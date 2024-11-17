@@ -33,6 +33,7 @@ pub enum TokenType {
     SEMICOLON,
     SLASH,
     STAR,
+    TO, //array initializer
 
     BANG,
     BANGEQ,

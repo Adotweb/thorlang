@@ -132,6 +132,7 @@ fn iterate_identifier(
     //check if identifier is part of keywords and if it is change the tokentype
     match identifier.as_str() {
         "try" => token_type = TokenType::TRY,
+        "to" => token_type = TokenType::TO,
         "overload" => token_type = TokenType::OVERLOAD,
         "if" => token_type = TokenType::IF,
         "else" => token_type = TokenType::ELSE,

@@ -521,7 +521,7 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
 
 //numerical comparison is one level of precedence deeper
 fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
-    let mut expression = term(current_index, tokens)?;
+    let mut expression = iterate(current_index, tokens)?;
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
@@ -531,7 +531,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
 
                 consume_token(current_index, tokens);
 
-                let right = term(current_index, tokens);
+                let right = iterate(current_index, tokens);
                 expression = Expression::Binary {
                     left: Box::new(expression),
                     operator,
@@ -544,6 +544,33 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         }
     }
 
+    Ok(expression)
+}
+
+fn iterate(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError>{
+    let mut expression = term(current_index, tokens)?;
+
+    while let Some(token) = tokens.get(*current_index){
+        if let TokenType::TO = token.token_type{
+
+
+            let operator = token.token_type.clone();
+            let operator_token_index = *current_index;
+
+            consume_token(current_index, tokens);
+
+            let right = term(current_index, tokens)?;
+
+            expression = Expression::Binary{
+                left : Box::new(expression),
+                operator_token_index, 
+                operator, 
+                right : Box::new(right)
+            };
+
+        };
+        break;
+    }
     Ok(expression)
 }
 

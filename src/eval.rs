@@ -422,7 +422,17 @@ fn eval_binary(
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l > r));
             }
-        }
+        },
+        TokenType::TO => {
+            if let (ValueType::Number(n1), ValueType::Number(n2)) = (l.value, r.value){
+                
+                if (n1.fract() == 0.0) && (n2.fract() == 0.0) && n1 < n2{
+                    let range = n1 as i64 .. n2 as i64 + 1;
+                    return Ok(Value::array(range.map(|x|Value::number(x as f64)).collect()))
+                }
+
+            }
+        },
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
         //same
