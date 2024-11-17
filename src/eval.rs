@@ -99,7 +99,7 @@ pub fn eval_statement(
                 arguments,
                 line: _,
             } => {
-                let closure = Arc::new(Mutex::new(enclosing.lock().unwrap().clone()));
+                let closure = Environment::new(Some(enclosing.clone()));
 
                 let function = Value::thor_function(arguments, *body, closure.clone());
 
@@ -717,7 +717,7 @@ pub fn eval(
                 
 
                 // Create a new environment for the function call, using the closure's environment
-                let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
+                let function_env = closure; // Only capture the closure's environment
 
             
 
