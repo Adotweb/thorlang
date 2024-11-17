@@ -51,7 +51,7 @@ To declare a variable simply put let in front of it.
   variable = 1;
 ```
 
-The primitives in Thorlang are 
+The primitives in Thorlang are
 
 |Primitive|Explanation|
 |--|--|
@@ -220,12 +220,10 @@ Of course thorlang has some native functions (this list will be expanded):
 
 | Functions | arguments     | Description                       |
 | :-------- | :------- | :-------------------------------- |
-| `printf`      | `value : any` | prints `thing` (this is the functional representation of the print statement)|
 | `get_input` | `message : string` | prints the message to the terminal and accepts an input (text) which it returns | 
-| `getTime` | No arguments | returns the current unix time (unimplemented)| 
+| `get_now` | No arguments | returns the current unix time (unimplemented)| 
 | `import` | `filename : any` | returns the returned value of the given file and throws if the file does not exist| 
-| `isError` | `any` | returns true if the argument provided is an error and false else| 
-| `get_now` | No arguments | returns the current unix time in milliseconds | 
+| `import_lib` | `filename : any` | returns the returned value of the given file (in this case shared libraries ".so" or ".dll") and throws if the file does not exist| 
 | `cast_to` | `value : any, type : string` | tries to cast the first value to the type thats provided through a string | 
 
 #### Native Methods
