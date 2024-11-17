@@ -66,7 +66,7 @@ To declare an object initialize a variable and put the fields on it.
 
 ### strings, arrays and objects
 
-strings and array can be accessed using brackets like this: 
+strings and arrays can be accessed using brackets like this: 
 
 ```thor
     let string = "hello";
@@ -76,6 +76,13 @@ strings and array can be accessed using brackets like this:
     print string[0]; //prints "h"
 
     print array[1]; //prints "b"
+```
+
+Iterator arrays can also be initialized using the `to` keyword: 
+
+```thor
+    let i = 0 to 10;
+    print i; //prints [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 ```
 
 Objects don't have shorthand initialization (yet), instead the fields have to be initialized one by one:
