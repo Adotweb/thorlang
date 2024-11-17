@@ -224,7 +224,7 @@ Of course thorlang has some native functions (this list will be expanded):
 | `get_now` | No arguments | returns the current unix time (unimplemented)| 
 | `import` | `filename : any` | returns the returned value of the given file and throws if the file does not exist| 
 | `import_lib` | `filename : any` | returns the returned value of the given file (in this case shared libraries ".so" or ".dll") and throws if the file does not exist| 
-| `stringify` | `value : any, type : string` | tries to cast the first value to the type thats provided through a string | 
+| `stringify` | `value : any, type : string` | converts the input to the a string. example : `stringify(4)` becomes `4`| 
 
 #### Native Methods
 
