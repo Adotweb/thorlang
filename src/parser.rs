@@ -168,6 +168,7 @@ fn overload_statement(
         TokenType::GREATER,
         TokenType::GREATEREQ,
         TokenType::LESSEQ,
+        TokenType::TO
     ];
 
     //line in case something inside of this fails
