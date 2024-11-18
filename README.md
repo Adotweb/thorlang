@@ -43,12 +43,12 @@ To declare a variable simply put let in front of it.
 
 
 ```thor
-  let variable = 0;
-  //this is a comment
+let variable = 0;
+//this is a comment
 
 
-  //reassignment
-  variable = 1;
+//reassignment
+variable = 1;
 ```
 
 The primitives in Thorlang are
@@ -69,36 +69,42 @@ To declare an object initialize a variable and put the fields on it.
 strings and arrays can be accessed using brackets like this: 
 
 ```thor
-    let string = "hello";
+let string = "hello";
 
-    let array = ["a", "b"];
+let array = ["a", "b"];
 
-    print string[0]; //prints "h"
+print string[0]; //prints "h"
 
-    print array[1]; //prints "b"
+print array[1]; //prints "b"
 ```
 
 Iterator arrays can also be initialized using the `to` keyword: 
 
 ```thor
-    let i = 0 to 10;
-    print i; //prints [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let iter = 0 to 10;
+print iter; //prints [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    
+//using the "step" keyword we can change the amount of step we have: 
+
+let iter2 = 0 to 10 step 2;
+print iter2; //prints [0, 2, 4, 6, 8, 10]
+
 ```
 
 Objects don't have shorthand initialization (yet), instead the fields have to be initialized one by one:
 
 ```thor
-  let obj;
-  obj.field = 0;
+let obj;
+obj.field = 0;
 
-  //or use the dynamic field operator
-  obj["field"] = 0;
+//or use the dynamic field operator
+obj["field"] = 0;
 
-  //to get the field do this
-  print obj["field"];
+//to get the field do this
+print obj["field"];
 
-  //or this
-  print obj.field;
+//or this
+print obj.field;
 ```
 
 
@@ -107,11 +113,11 @@ To declare a function use the fn keyword. Use the return keyword to return a val
 
 
 ```thor
-  fn function_name(argument){
+fn function_name(argument){
 
     //dosomething...
     return argument;
-  }
+}
 ```
 
 
