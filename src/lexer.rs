@@ -133,6 +133,7 @@ fn iterate_identifier(
     match identifier.as_str() {
         "try" => token_type = TokenType::TRY,
         "to" => token_type = TokenType::TO,
+        "step" => token_type = TokenType::STEP,
         "on" => token_type = TokenType::ON,
 
         "overload" => token_type = TokenType::OVERLOAD,

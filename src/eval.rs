@@ -457,6 +457,15 @@ fn eval_binary(
 
             }
         },
+        TokenType::STEP => {
+            if let (ValueType::Array(arr), ValueType::Number(step)) = (l.value, r.value){
+                
+                let new_arr = arr.iter().step_by(step as usize).map(|x|x.to_owned());
+
+                return Ok(Value::array(new_arr.collect()))
+
+            }
+        }
 
         //equality doesnt need a typecheck, if the Value object is the same, two values are the
         //same

@@ -172,7 +172,8 @@ fn overload_statement(
         TokenType::GREATER,
         TokenType::GREATEREQ,
         TokenType::LESSEQ,
-        TokenType::TO
+        TokenType::TO,
+        TokenType::STEP
     ];
 
     //line in case something inside of this fails
@@ -600,7 +601,7 @@ fn eq(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Thor
 
 //numerical comparison is one level of precedence deeper
 fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
-    let mut expression = iterate(current_index, tokens)?;
+    let mut expression = step(current_index, tokens)?;
 
     while let Some(token) = tokens.get(*current_index) {
         match token.token_type {
@@ -610,7 +611,7 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
 
                 consume_token(current_index, tokens);
 
-                let right = iterate(current_index, tokens);
+                let right = step(current_index, tokens);
                 expression = Expression::Binary {
                     left: Box::new(expression),
                     operator,
@@ -652,6 +653,31 @@ fn iterate(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
     }
     Ok(expression)
 }
+
+fn step(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError>{
+    let mut expression = iterate(current_index, tokens)?;
+
+    if let Some(token) = tokens.get(*current_index){
+        if let TokenType::STEP = token.token_type{
+
+
+            let operator = token.token_type.clone();
+            let operator_token_index = *current_index;
+
+            consume_token(current_index, tokens);
+
+            let right = iterate(current_index, tokens)?;
+
+            expression = Expression::Binary{
+                left : Box::new(expression),
+                operator_token_index, 
+                operator, 
+                right : Box::new(right)
+            };
+
+        };
+    }
+    Ok(expression)}
 
 //then comes math (first + or -)
 fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {

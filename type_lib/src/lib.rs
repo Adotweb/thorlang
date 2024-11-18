@@ -35,6 +35,7 @@ pub enum TokenType {
     STAR,
     TO, //array initializer
     ON,
+    STEP,
 
     BANG,
     BANGEQ,
