@@ -569,7 +569,16 @@ pub fn eval(
         }
         Expression::On { block, variable, on_token_index } => {
             //listeners here
-            todo!()
+           
+            if let Some(block) = block{ 
+                let ret = enclosing.lock().unwrap().add_listener(variable.get_content().unwrap(), block.clone(), *on_token_index)?;
+
+
+                return Ok(ret)
+            }
+
+
+            ThorLangError::eval_error(*on_token_index)
         }
 
         Expression::FieldCall {
@@ -801,11 +810,18 @@ pub fn eval(
                 .clone();
 
             if order.len() == 1 {
-                enclosing.lock().unwrap().set(
+                let set_val = enclosing.lock().unwrap().set(
                     order.get(0).unwrap().0.get_string().unwrap(),
                     eval_value.clone(),
                     *eq_token_index,
                 )?;
+
+
+                if let Some(listeners) = set_val.listeners{
+                    for listener in listeners { 
+                        let _ = eval_statement(listener, enclosing.clone(), overloadings);
+                    }
+                }
 
                 return Ok(eval_value);
             }
@@ -880,11 +896,19 @@ pub fn eval(
                 current.value = ValueType::Object
             }
 
-            enclosing.lock().unwrap().set(
+            let set_val = enclosing.lock().unwrap().set(
                 order.get(0).unwrap().0.get_string().unwrap().to_string(),
                 value.clone(),
                 *eq_token_index,
             )?;
+
+
+                if let Some(listeners) = set_val.listeners{
+                    for listener in listeners {
+                        
+                        let _ = eval_statement(listener, enclosing.clone(), overloadings);
+                    }
+                }
 
             return Ok(eval_value);
         }

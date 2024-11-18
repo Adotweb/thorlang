@@ -280,6 +280,26 @@ impl Environment {
         }
     }
 
+    pub fn add_listener(&self, key : String, listener : Vec<Statement>, on_token_index : usize) -> Result<Value, ThorLangError>{
+
+
+        if let Some(value) = self.values.borrow_mut().get_mut(&key){
+            match &mut value.listeners {
+                Some(listeners) => {
+                    listeners.push(listener) 
+                },
+                None => {
+                    value.listeners = Some(vec![listener])
+                }
+            } 
+            return Ok(Value::nil())
+        } else if let Some(ref parent) = self.enclosing {
+            parent.lock().unwrap().add_listener(key, listener, on_token_index)?;
+            return Ok(Value::nil())
+        } 
+
+        ThorLangError::eval_error(on_token_index)
+    }
 }
 
 
@@ -374,6 +394,7 @@ pub struct Value {
     pub value: ValueType,
     pub fields: HashMap<String, Value>,
     pub return_true: bool,
+    pub listeners : Option<Vec<Vec<Statement>>>
 }
 
 //nice instantiation functions for values 
@@ -591,6 +612,7 @@ impl Default for Value {
             value: ValueType::Nil,
             fields: HashMap::new(),
             return_true: false,
+            listeners : None
         }
     }
 }
