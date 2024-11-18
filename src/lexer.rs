@@ -139,6 +139,8 @@ fn iterate_identifier(
         "true" => token_type = TokenType::TRUE,
         "false" => token_type = TokenType::FALSE,
         "while" => token_type = TokenType::WHILE,
+        "for" => token_type = TokenType::FOR,
+        "in" => token_type = TokenType::IN,
         "fn" => token_type = TokenType::FN,
         "nil" => token_type = TokenType::NIL,
         "let" => token_type = TokenType::LET,

@@ -188,7 +188,31 @@ pub fn eval_statement(
                         condition_value.value = ValueType::Nil
                     }
                 }
-            }
+            },
+            Statement::For { iterator, iteration_variable, block } => {
+
+                let iter = eval(&iterator, enclosing.clone(), overloadings)?;
+
+
+                if let ValueType::Array(arr) = iter.value{
+                    for val in arr.iter(){
+                        let intermediate_environment = Environment::new(Some(enclosing.clone()));
+
+                        let var_name = iteration_variable.get_content().unwrap();
+
+                        intermediate_environment.lock().unwrap()
+                            .values.borrow_mut().insert(var_name.clone(), val.clone()); 
+                   
+                        let ret_val = eval_statement(block.clone(), intermediate_environment, overloadings)?;
+        
+
+                        if ret_val.return_true {
+                            return Ok(ret_val.clone());
+                        }
+                    }    
+                }
+
+            },
 
             //print is built in, but can also be used with the printfunction
             Statement::Print {

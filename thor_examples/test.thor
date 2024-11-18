@@ -1,8 +1,15 @@
-overload to (a, b){
+let sum = 0;
+for i in 1 to 100 {
 	
-	return a;
+	sum = sum + i;
 }
 
 
-let a = "hello" to "siuu";
-print a;
+let animals = ["cat", "dog"];
+
+
+for animal in animals {
+	print animal;
+}
+
+print sum;

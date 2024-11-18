@@ -98,6 +98,10 @@ pub fn statement(
                 consume_token(current_index, tokens);
                 ret = while_statement(current_index, tokens)
             }
+            TokenType::FOR => {
+                consume_token(current_index, tokens);
+                ret = for_statement(current_index, tokens)
+            }
             TokenType::LET => {
                 consume_token(current_index, tokens);
                 ret = declaration(current_index, tokens)
@@ -260,6 +264,39 @@ fn while_statement(
         block,
         line,
     });
+}
+
+fn for_statement(
+    current_index: &mut usize, 
+    tokens: &Vec<Token>
+) -> Result<Statement, ThorLangError>{
+    let line = get_statement_line(current_index, tokens);
+
+    let current = tokens.get(*current_index).unwrap().token_type.clone();
+
+    match current {
+        TokenType::IDENTIFIER(_) => {
+            let iteration_variable = current.clone();
+            consume_token(current_index, tokens);
+
+            match_token(current_index, tokens, TokenType::IN)?;  
+
+            let iterator = expr(current_index, tokens)?; 
+            
+            match_token(current_index, tokens, TokenType::LBRACE)?;
+
+            let block = statement(current_index, tokens)?;
+
+            Ok(Statement::For{
+                iteration_variable,
+                iterator, 
+                block
+            })
+        },
+        _ => {
+            ThorLangError::unexpected_token(current, *current_index)
+        }
+    }
 }
 
 //like while but has the potential to have an else part

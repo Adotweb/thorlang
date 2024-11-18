@@ -117,8 +117,8 @@ To declare a function use the fn keyword. Use the return keyword to return a val
 
 #### Control flow
 If and else statements are very similar to every other language.
-While loops are the only loop structure available in thorlang.
 
+While statements are quite simple:
 ```thor
 if (condition){
   //do something
@@ -130,6 +130,25 @@ while (condition){
   //do something
 }
 ```
+
+For loops are specifically designed for looping over arrays. To simplify this, we can use the iteration operator `to`:
+
+```thor
+
+for i in 1 to 10{
+    print i; //prints 1 2 3 4 5 6 7 8 9 10
+}
+
+//or we can iterate over some other array
+
+let animals = ["dog", "cat", "sheep"];
+
+for animal in animals {
+    print animal; //prints dot cat sheep
+}
+
+```
+
 
 #### Try expressions and isError 
 

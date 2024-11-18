@@ -65,6 +65,8 @@ pub enum TokenType {
     LET,
     WHILE,
     THROW,
+    FOR,
+    IN,
 
     EOF,
 }
@@ -129,6 +131,11 @@ pub enum Statement {
         condition: Expression,
         block: Box<Vec<Statement>>,
         line : i32
+    },    
+    For{
+        iterator : Expression,
+        iteration_variable : TokenType,
+        block : Vec<Statement>
     },
     Function {
         name: String,
