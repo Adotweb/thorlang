@@ -222,6 +222,23 @@ print -a;
 
 ```
 
+#### On keyword 
+
+We can introduce reactivity using the `on` keyword (highly experimental and under development): 
+
+```thor
+let a = 5;
+
+on a { 
+    //this code block is executed everytime a changes.
+    print a;
+
+}; //needs semicolon because is expression
+
+a = 6; //prints 6;
+```
+in the futurue this feature will return a derived reference to the original values (or multiple values),
+so that both push and pull based reactivity work.
 
 #### Modules
 
