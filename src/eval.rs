@@ -567,6 +567,10 @@ pub fn eval(
                 }
             };
         }
+        Expression::On { block, variable, on_token_index } => {
+            //listeners here
+            todo!()
+        }
 
         Expression::FieldCall {
             callee,

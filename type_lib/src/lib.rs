@@ -34,6 +34,7 @@ pub enum TokenType {
     SLASH,
     STAR,
     TO, //array initializer
+    ON,
 
     BANG,
     BANGEQ,
@@ -164,6 +165,12 @@ pub enum Expression {
     Try {
         block : Vec<Statement>
     },
+    On{
+        block : Option<Vec<Statement>>,
+        variable : TokenType,
+        on_token_index : usize
+    },
+
     Identifier {
         name: String,
         identifier_token_index : usize

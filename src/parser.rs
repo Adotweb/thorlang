@@ -484,6 +484,43 @@ fn try_expression(
     return Ok(Expression::Try { block });
 }
 
+fn on_expression(
+    current_index: &mut usize, 
+    tokens: &Vec<Token>
+) -> Result<Expression, ThorLangError>{
+    
+    let current_token = get_current_token(current_index, tokens);
+
+    let on_token_index = *current_index - 1;
+    let encountered_token_index = *current_index;
+
+    if let TokenType::IDENTIFIER(var_name) = &current_token.token_type{
+
+        consume_token(current_index, tokens);
+       
+        if let Err(_) = match_token(current_index, tokens, TokenType::LBRACE){
+            return Ok(Expression::On{
+                block : None,
+                on_token_index, 
+                variable : current_token.token_type.clone()
+            })
+        }
+
+        let block = statement(current_index, tokens)?; 
+
+        return Ok(Expression::On{
+            block : Some(block), 
+            on_token_index, 
+            variable : current_token.token_type.clone()
+        })
+    }
+    
+    Err(ThorLangError::UnexpectedToken{
+        expected : vec![TokenType::IDENTIFIER("something".to_string())],
+        encountered : encountered_token_index
+    })
+}
+
 //matches every expression
 //precedence works on the deepest possible match i.e.
 //the more specific an expression the deeper the function goes
@@ -496,6 +533,10 @@ fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         TokenType::TRY => {
             consume_token(current_index, tokens);
             return try_expression(current_index, tokens);
+        },
+        TokenType::ON => {
+            consume_token(current_index, tokens);
+            return on_expression(current_index, tokens)
         }
         _ => (),
     }
