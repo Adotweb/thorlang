@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 regex = "1.3.9"
 type_lib = { path = "./type_lib" }
+execution_lib = {path = "./execution_lib"}
 libloading = "0.7"

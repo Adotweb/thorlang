@@ -1,0 +1,9 @@
+[package]
+name = "execution_lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+type_lib = {path = "../type_lib"}
+regex = "1.3.9"
+libloading = "0.7"
