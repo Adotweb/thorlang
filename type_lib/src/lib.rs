@@ -321,7 +321,9 @@ pub enum Function{
         needed_arguments : Vec<String>,
         library : Option<Arc<Library>>,
         //only needs self value in case of method
-        self_value : Option<Box<Value>>
+        self_value : Option<Box<Value>>,
+
+        mutating : bool    
     },
     ThorFunction {
         body: Vec<Statement>,
@@ -353,7 +355,7 @@ impl PartialEq for Function {
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Function::LibFunction { name, needed_arguments, library, self_value } => {
+            Function::LibFunction { name, needed_arguments, library, self_value, mutating } => {
                 f.debug_struct("Function")
                     .field("name", name)
                     .finish()
@@ -586,7 +588,26 @@ impl Value {
                 name , 
                 needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
                 library,
-                self_value
+                self_value,
+                mutating : false
+            }),
+            ..Value::default()
+        }
+    }
+
+
+    pub fn mut_lib_function(
+        name : &'static str,
+        needed_arguments : Vec<&str>,
+        library : Option<Arc<Library>>,
+    ) -> Self {
+        Value{
+            value : ValueType::Function(Function::LibFunction{
+                name , 
+                needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
+                library,
+                self_value : None,
+                mutating : true
             }),
             ..Value::default()
         }
@@ -594,7 +615,7 @@ impl Value {
 
     pub fn insert_to<'a>(&self, map : &'a mut HashMap<String, Value>){
         match &self.value{
-            ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value })=> {
+            ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value, mutating })=> {
                 map.insert(name.to_string(), self.clone());
             },
             ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state,  var_name}) => {

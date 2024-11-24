@@ -691,6 +691,7 @@ pub fn eval(
                 needed_arguments,
                 library,
                 self_value,
+                mutating
             }) = &function.value
             {
                 if needed_arguments.len() != arguments.len() {
@@ -710,7 +711,7 @@ pub fn eval(
                     eval_args.insert(arg_name.to_string(), arg);
                 }
 
-                return execute_lib_function(function, eval_args);
+                return execute_lib_function(function, eval_args, enclosing);
             }
 
             if let ValueType::Function(Function::NamedFunction {

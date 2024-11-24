@@ -45,7 +45,11 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
                                         needed_arguments,
                                         library,
                                         self_value,
-                                    }) => (
+                                        mutating
+                                    }) => 
+                                    {
+                                        if !mutating {
+(
                                         key.to_string(),
                                         Value::lib_function(
                                             name,
@@ -53,8 +57,21 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
                                             Some(Arc::clone(&lib)),
                                             self_value.clone(),
                                         ),
-                                    ),
-                                    _ => (key.to_string(), (*value).clone()),
+                                    )
+
+                                        }else{
+(
+                                        key.to_string(),
+                                        Value::mut_lib_function(
+                                            name,
+                                            needed_arguments.iter().map(|x|x.as_str()).collect(),
+                                            Some(Arc::clone(&lib)),
+                                        ),
+                                            )
+
+                                        }
+                                    }
+                                                                        _ => (key.to_string(), (*value).clone()),
                                 }
                             })
                             .collect();
@@ -78,6 +95,7 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
 pub fn execute_lib_function(
     lib_function: Value,
     arguments: HashMap<String, Value>,
+    enclosing : Arc<Mutex<Environment>>
 ) -> Result<Value, ThorLangError> {
     //execution of a lib function works by invokint the name with the lib.get method
     if let ValueType::Function(type_lib::Function::LibFunction {
@@ -85,6 +103,7 @@ pub fn execute_lib_function(
         needed_arguments,
         library,
         self_value,
+        mutating
     }) = lib_function.value
     {
         let name_string = format!("{}", name);
@@ -92,6 +111,21 @@ pub fn execute_lib_function(
 
         unsafe {
             let lib = library.unwrap().clone();
+
+            if mutating {
+
+            //function inside of the lib gets called and then executed with the arguments it needs
+            let function =
+                match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>, Arc<Mutex<Environment>>) -> Value>>(bytes) {
+                    Ok(function) => Ok(function),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err(ThorLangError::UnknownError)
+                    }
+                }?;
+
+            return Ok(function(arguments, enclosing));
+            }
 
             //function inside of the lib gets called and then executed with the arguments it needs
             let function =

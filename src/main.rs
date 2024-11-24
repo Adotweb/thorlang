@@ -1,7 +1,7 @@
-use type_lib::EnvState;
 use execution_lib::interpret_code;
-use std::fs;
 use std::env;
+use std::fs;
+use type_lib::EnvState;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -42,5 +42,3 @@ fn main() {
         _ => {}
     }
 }
-
-
