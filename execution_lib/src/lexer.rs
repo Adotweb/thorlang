@@ -279,6 +279,10 @@ pub fn line_column_lexer(text: String) -> Vec<Token> {
                     tokens.push(simple_token(TokenType::RBRACK, line_count, column_count));
                     continue;
                 }
+                ":" => {
+                    tokens.push(simple_token(TokenType::COLON, line_count, column_count));
+                    continue;
+                }
                 ";" => {
                     tokens.push(simple_token(TokenType::SEMICOLON, line_count, column_count));
                     continue;

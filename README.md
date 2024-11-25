@@ -62,7 +62,6 @@ The primitives in Thorlang are
 |Object| variables that have fields of the former types accessed by strings|
 |nil| is just `nil`|
 
-To declare an object initialize a variable and put the fields on it. 
 
 ### strings, arrays and objects
 
@@ -91,20 +90,18 @@ print iter2; //prints [0, 2, 4, 6, 8, 10]
 
 ```
 
-Objects don't have shorthand initialization (yet), instead the fields have to be initialized one by one:
+to initialize objects you can use this familiar syntax : 
+
 
 ```thor
-let obj;
-obj.field = 0;
+let obj = {
+    //keys must be strings
+    "hello" : 6,
+    "siuu" : "siuuu"
+}
 
-//or use the dynamic field operator
-obj["field"] = 0;
+print obj["hello"]
 
-//to get the field do this
-print obj["field"];
-
-//or this
-print obj.field;
 ```
 
 

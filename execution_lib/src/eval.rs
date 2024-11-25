@@ -1,6 +1,6 @@
 use crate::{
-    execute_lib_function, get_registered_function, hash_value, register_bool_methods, register_array_methods, register_number_methods,
-    register_string_methods, 
+    execute_lib_function, get_registered_function, hash_value, register_array_methods,
+    register_bool_methods, register_number_methods, register_string_methods,
 };
 
 use std::sync::{Arc, Mutex};
@@ -101,7 +101,8 @@ pub fn eval_statement(
 
                 //insert the function with its name into the closure to allow for recursion
                 closure
-                    .lock().unwrap()
+                    .lock()
+                    .unwrap()
                     .values
                     .borrow_mut()
                     .insert(name, function);
@@ -176,31 +177,36 @@ pub fn eval_statement(
                         condition_value.value = ValueType::Nil
                     }
                 }
-            },
-            Statement::For { iterator, iteration_variable, block } => {
-
+            }
+            Statement::For {
+                iterator,
+                iteration_variable,
+                block,
+            } => {
                 let iter = eval(&iterator, enclosing.clone(), overloadings)?;
 
-
-                if let ValueType::Array(arr) = iter.value{
-                    for val in arr.iter(){
+                if let ValueType::Array(arr) = iter.value {
+                    for val in arr.iter() {
                         let intermediate_environment = Environment::new(Some(enclosing.clone()));
 
                         let var_name = iteration_variable.get_content().unwrap();
 
-                        intermediate_environment.lock().unwrap()
-                            .values.borrow_mut().insert(var_name.clone(), val.clone()); 
-                   
-                        let ret_val = eval_statement(block.clone(), intermediate_environment, overloadings)?;
-        
+                        intermediate_environment
+                            .lock()
+                            .unwrap()
+                            .values
+                            .borrow_mut()
+                            .insert(var_name.clone(), val.clone());
+
+                        let ret_val =
+                            eval_statement(block.clone(), intermediate_environment, overloadings)?;
 
                         if ret_val.return_true {
                             return Ok(ret_val.clone());
                         }
-                    }    
+                    }
                 }
-
-            },
+            }
 
             //print is built in, but can also be used with the printfunction
             Statement::Print {
@@ -233,7 +239,12 @@ pub fn eval_statement(
             } => {
                 let val = eval(&expression, enclosing.clone(), overloadings)?;
 
-                enclosing.lock().unwrap().values.borrow_mut().insert(name, val);
+                enclosing
+                    .lock()
+                    .unwrap()
+                    .values
+                    .borrow_mut()
+                    .insert(name, val);
             }
         }
     }
@@ -434,24 +445,22 @@ fn eval_binary(
             if let (ValueType::Number(l), ValueType::Number(r)) = (l.value, r.value) {
                 return Ok(Value::bool(l > r));
             }
-        },
+        }
         TokenType::TO => {
-            if let (ValueType::Number(n1), ValueType::Number(n2)) = (l.value, r.value){
-                
-                if (n1.fract() == 0.0) && (n2.fract() == 0.0) && n1 <= n2{
-                    let range = n1 as i64 .. n2 as i64 + 1;
-                    return Ok(Value::array(range.map(|x|Value::number(x as f64)).collect()))
+            if let (ValueType::Number(n1), ValueType::Number(n2)) = (l.value, r.value) {
+                if (n1.fract() == 0.0) && (n2.fract() == 0.0) && n1 <= n2 {
+                    let range = n1 as i64..n2 as i64 + 1;
+                    return Ok(Value::array(
+                        range.map(|x| Value::number(x as f64)).collect(),
+                    ));
                 }
-
             }
-        },
+        }
         TokenType::STEP => {
-            if let (ValueType::Array(arr), ValueType::Number(step)) = (l.value, r.value){
-                
-                let new_arr = arr.iter().step_by(step as usize).map(|x|x.to_owned());
+            if let (ValueType::Array(arr), ValueType::Number(step)) = (l.value, r.value) {
+                let new_arr = arr.iter().step_by(step as usize).map(|x| x.to_owned());
 
-                return Ok(Value::array(new_arr.collect()))
-
+                return Ok(Value::array(new_arr.collect()));
             }
         }
 
@@ -564,16 +573,22 @@ pub fn eval(
                 }
             };
         }
-        Expression::On { block, variable, on_token_index } => {
+        Expression::On {
+            block,
+            variable,
+            on_token_index,
+        } => {
             //listeners here
-           
-            if let Some(block) = block{ 
-                let ret = enclosing.lock().unwrap().add_listener(variable.get_content().unwrap(), block.clone(), *on_token_index)?;
 
+            if let Some(block) = block {
+                let ret = enclosing.lock().unwrap().add_listener(
+                    variable.get_content().unwrap(),
+                    block.clone(),
+                    *on_token_index,
+                )?;
 
-                return Ok(ret)
+                return Ok(ret);
             }
-
 
             ThorLangError::eval_error(*on_token_index)
         }
@@ -614,7 +629,9 @@ pub fn eval(
             //(init_prototype_fields)
             match callee_value.value.clone() {
                 ValueType::String(_str) => {
-                    if let Some(field) = register_string_methods(callee_value.clone()).get(&key_string) {
+                    if let Some(field) =
+                        register_string_methods(callee_value.clone()).get(&key_string)
+                    {
                         ret_val = field.clone();
                     }
                 }
@@ -637,8 +654,7 @@ pub fn eval(
                     }
 
                     if let Some(field) =
-                        register_array_methods(callee_value.clone(), var_name)
-                            .get(&key_string)
+                        register_array_methods(callee_value.clone(), var_name).get(&key_string)
                     {
                         ret_val = field.clone();
                     }
@@ -665,6 +681,23 @@ pub fn eval(
 
             Ok(Value::array(value_array))
         }
+        Expression::Object { keys, values } => {
+            let mut value_object = Value::nil();
+            value_object.value = ValueType::Object;
+
+            for i in 0..keys.len() {
+                let key = eval(&keys[i].clone(), enclosing.clone(), overloadings)?;
+                let value = eval(&values[i].clone(), enclosing.clone(), overloadings)?;
+
+                let key_string = stringify_value(key.clone());
+
+
+
+                value_object.fields.insert(key_string, value);
+            }
+
+            Ok(value_object)
+        }
         Expression::Call {
             callee,
             paren_token_index,
@@ -679,7 +712,7 @@ pub fn eval(
                 needed_arguments,
                 library,
                 self_value,
-                mutating
+                mutating,
             }) = &function.value
             {
                 if needed_arguments.len() != arguments.len() {
@@ -733,8 +766,14 @@ pub fn eval(
                     Some(self_value) => Some(*self_value),
                     None => None,
                 };
-            
-                return function(eval_args, self_value, Some(enclosing.clone()), var_name, env_state);
+
+                return function(
+                    eval_args,
+                    self_value,
+                    Some(enclosing.clone()),
+                    var_name,
+                    env_state,
+                );
             }
 
             if let ValueType::Function(Function::ThorFunction {
@@ -743,8 +782,6 @@ pub fn eval(
                 closure,
             }) = function.value
             {
-
-
                 if needed_arguments.len() != arguments.len() {
                     return ThorLangError::function_arity_error(
                         paren_token_index.clone(),
@@ -761,16 +798,13 @@ pub fn eval(
                     eval_args.insert(arg_name.to_string(), arg);
                 }
 
-                
-
                 // Create a new environment for the function call, using the closure's environment
                 let function_env = Environment::new(Some(closure.clone())); // Only capture the closure's environment
 
-            
-
                 for (name, value) in eval_args {
                     function_env
-                        .lock().unwrap()
+                        .lock()
+                        .unwrap()
                         .values
                         .borrow_mut()
                         .insert(name, value);
@@ -802,7 +836,8 @@ pub fn eval(
             let order = generate_field_order(target.clone(), enclosing.clone(), overloadings)?;
 
             let value: &mut Value = &mut enclosing
-                .lock().unwrap()
+                .lock()
+                .unwrap()
                 .get(&order.get(0).unwrap().0.get_string().unwrap().to_string())
                 .unwrap()
                 .clone();
@@ -814,9 +849,8 @@ pub fn eval(
                     *eq_token_index,
                 )?;
 
-
-                if let Some(listeners) = set_val.listeners{
-                    for listener in listeners { 
+                if let Some(listeners) = set_val.listeners {
+                    for listener in listeners {
                         let _ = eval_statement(listener, enclosing.clone(), overloadings);
                     }
                 }
@@ -900,13 +934,11 @@ pub fn eval(
                 *eq_token_index,
             )?;
 
-
-                if let Some(listeners) = set_val.listeners{
-                    for listener in listeners {
-                        
-                        let _ = eval_statement(listener, enclosing.clone(), overloadings);
-                    }
+            if let Some(listeners) = set_val.listeners {
+                for listener in listeners {
+                    let _ = eval_statement(listener, enclosing.clone(), overloadings);
                 }
+            }
 
             return Ok(eval_value);
         }

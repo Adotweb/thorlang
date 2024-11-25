@@ -1,5 +1,7 @@
 use type_lib::{Expression, Statement, ThorLangError, Token, TokenType};
 
+use std::collections::HashMap;
+
 //returns the previous token in the tokenlist
 fn get_previous_token<'a>(current_index: &mut usize, tokens: &'a Vec<Token>) -> &'a Token {
     let current_token = tokens.get(*current_index - 1).unwrap();
@@ -173,7 +175,7 @@ fn overload_statement(
         TokenType::GREATEREQ,
         TokenType::LESSEQ,
         TokenType::TO,
-        TokenType::STEP
+        TokenType::STEP,
     ];
 
     //line in case something inside of this fails
@@ -268,9 +270,9 @@ fn while_statement(
 }
 
 fn for_statement(
-    current_index: &mut usize, 
-    tokens: &Vec<Token>
-) -> Result<Statement, ThorLangError>{
+    current_index: &mut usize,
+    tokens: &Vec<Token>,
+) -> Result<Statement, ThorLangError> {
     let line = get_statement_line(current_index, tokens);
 
     let current = tokens.get(*current_index).unwrap().token_type.clone();
@@ -280,23 +282,21 @@ fn for_statement(
             let iteration_variable = current.clone();
             consume_token(current_index, tokens);
 
-            match_token(current_index, tokens, TokenType::IN)?;  
+            match_token(current_index, tokens, TokenType::IN)?;
 
-            let iterator = expr(current_index, tokens)?; 
-            
+            let iterator = expr(current_index, tokens)?;
+
             match_token(current_index, tokens, TokenType::LBRACE)?;
 
             let block = statement(current_index, tokens)?;
 
-            Ok(Statement::For{
+            Ok(Statement::For {
                 iteration_variable,
-                iterator, 
-                block
+                iterator,
+                block,
             })
-        },
-        _ => {
-            ThorLangError::unexpected_token(current, *current_index)
         }
+        _ => ThorLangError::unexpected_token(current, *current_index),
     }
 }
 
@@ -486,39 +486,37 @@ fn try_expression(
 }
 
 fn on_expression(
-    current_index: &mut usize, 
-    tokens: &Vec<Token>
-) -> Result<Expression, ThorLangError>{
-    
+    current_index: &mut usize,
+    tokens: &Vec<Token>,
+) -> Result<Expression, ThorLangError> {
     let current_token = get_current_token(current_index, tokens);
 
     let on_token_index = *current_index - 1;
     let encountered_token_index = *current_index;
 
-    if let TokenType::IDENTIFIER(var_name) = &current_token.token_type{
-
+    if let TokenType::IDENTIFIER(var_name) = &current_token.token_type {
         consume_token(current_index, tokens);
-       
-        if let Err(_) = match_token(current_index, tokens, TokenType::LBRACE){
-            return Ok(Expression::On{
-                block : None,
-                on_token_index, 
-                variable : current_token.token_type.clone()
-            })
+
+        if let Err(_) = match_token(current_index, tokens, TokenType::LBRACE) {
+            return Ok(Expression::On {
+                block: None,
+                on_token_index,
+                variable: current_token.token_type.clone(),
+            });
         }
 
-        let block = statement(current_index, tokens)?; 
+        let block = statement(current_index, tokens)?;
 
-        return Ok(Expression::On{
-            block : Some(block), 
-            on_token_index, 
-            variable : current_token.token_type.clone()
-        })
+        return Ok(Expression::On {
+            block: Some(block),
+            on_token_index,
+            variable: current_token.token_type.clone(),
+        });
     }
-    
-    Err(ThorLangError::UnexpectedToken{
-        expected : vec![TokenType::IDENTIFIER("something".to_string())],
-        encountered : encountered_token_index
+
+    Err(ThorLangError::UnexpectedToken {
+        expected: vec![TokenType::IDENTIFIER("something".to_string())],
+        encountered: encountered_token_index,
     })
 }
 
@@ -534,10 +532,10 @@ fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         TokenType::TRY => {
             consume_token(current_index, tokens);
             return try_expression(current_index, tokens);
-        },
+        }
         TokenType::ON => {
             consume_token(current_index, tokens);
-            return on_expression(current_index, tokens)
+            return on_expression(current_index, tokens);
         }
         _ => (),
     }
@@ -627,13 +625,11 @@ fn comp(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
     Ok(expression)
 }
 
-fn iterate(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError>{
+fn iterate(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = term(current_index, tokens)?;
 
-    while let Some(token) = tokens.get(*current_index){
-        if let TokenType::TO = token.token_type{
-
-
+    while let Some(token) = tokens.get(*current_index) {
+        if let TokenType::TO = token.token_type {
             let operator = token.token_type.clone();
             let operator_token_index = *current_index;
 
@@ -641,26 +637,23 @@ fn iterate(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
 
             let right = term(current_index, tokens)?;
 
-            expression = Expression::Binary{
-                left : Box::new(expression),
-                operator_token_index, 
-                operator, 
-                right : Box::new(right)
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                operator_token_index,
+                operator,
+                right: Box::new(right),
             };
-
         };
         break;
     }
     Ok(expression)
 }
 
-fn step(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError>{
+fn step(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
     let mut expression = iterate(current_index, tokens)?;
 
-    if let Some(token) = tokens.get(*current_index){
-        if let TokenType::STEP = token.token_type{
-
-
+    if let Some(token) = tokens.get(*current_index) {
+        if let TokenType::STEP = token.token_type {
             let operator = token.token_type.clone();
             let operator_token_index = *current_index;
 
@@ -668,16 +661,16 @@ fn step(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
 
             let right = iterate(current_index, tokens)?;
 
-            expression = Expression::Binary{
-                left : Box::new(expression),
-                operator_token_index, 
-                operator, 
-                right : Box::new(right)
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                operator_token_index,
+                operator,
+                right: Box::new(right),
             };
-
         };
     }
-    Ok(expression)}
+    Ok(expression)
+}
 
 //then comes math (first + or -)
 fn term(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError> {
@@ -929,10 +922,48 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                 literal: TokenType::NIL,
                 literal_token_index: current_index.clone(),
             }),
+            TokenType::LBRACE => {
+                let next_token = get_current_token(current_index, tokens);
+                if next_token.token_type == TokenType::RBRACE {
+                    consume_token(current_index, tokens);
+                    return Ok(Expression::Object {
+                        keys: Vec::new(),
+                        values: Vec::new(),
+                    });
+                }
+
+                let mut keys: Vec<Expression> = Vec::new();
+                let mut values: Vec<Expression> = Vec::new();
+
+                //safeguard to skip to next iteration (when false we iterate once more)
+                let mut finished = false;
+
+                while !finished {
+                    let key = expr(current_index, tokens)?;
+
+                    match_token(current_index, tokens, TokenType::COLON)?;
+
+                    let value = expr(current_index, tokens)?;
+
+                    keys.push(key);
+                    values.push(value);
+
+
+                    if let TokenType::COMMA = get_current_token(current_index, tokens).token_type {
+                        consume_token(current_index, tokens);
+                        continue;
+                    }
+                    finished = true;
+                }
+
+                match_token(current_index, tokens, TokenType::RBRACE)?;
+
+
+                Ok(Expression::Object { keys, values })
+            }
             TokenType::LBRACK => {
                 //when encountering an [ we start an array and the following are just expressions
                 //seperated by commas (or spaces)
-
 
                 let next_token = get_current_token(current_index, tokens);
                 if next_token.token_type == TokenType::RBRACK {

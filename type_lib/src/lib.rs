@@ -33,6 +33,7 @@ pub enum TokenType {
     SEMICOLON,
     SLASH,
     STAR,
+    COLON,
     TO, //array initializer
     ON,
     STEP,
@@ -171,7 +172,6 @@ pub enum Expression {
         variable : TokenType,
         on_token_index : usize
     },
-
     Identifier {
         name: String,
         identifier_token_index : usize
@@ -201,6 +201,10 @@ pub enum Expression {
     },
     Array {
         values: Vec<Expression>,
+    },
+    Object {
+        keys : Vec<Expression>,
+        values : Vec<Expression>
     },
     Call {
         callee: Box<Expression>,

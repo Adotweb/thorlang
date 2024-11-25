@@ -1,5 +1,4 @@
-use type_lib::{ThorLangError, Token, TokenType, ValueType, stringify_value};
-
+use type_lib::{stringify_value, ThorLangError, Token, TokenType, ValueType};
 
 //handles error when parsing (unexpected tokens and typos)
 pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {
@@ -12,7 +11,6 @@ pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {
     let mut error_line: String = Default::default();
     let mut pointer: &str = "";
     let mut tip: String = Default::default();
-
 
     //almost all of the below work in the same way, the token_indices are retrieved from the token
     //list and then their value is displayed in the error message, then the entire line of the
@@ -123,7 +121,6 @@ pub fn handle_error(text: String, tokens: Vec<Token>, error: ThorLangError) {
             //
             //
             let function_name_token = tokens[function_paren_token - 1].clone();
-
 
             msg = format!(
                 "function '{}' on line {}:{}\nexpects {} arguments but got {}",

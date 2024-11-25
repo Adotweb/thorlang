@@ -1,9 +1,8 @@
 use crate::{interpret_code, EnvState, Environment, ThorLangError, Value};
-use type_lib::*;
 use libloading::{Library, Symbol};
+use type_lib::*;
 
 use std::time::{SystemTime, UNIX_EPOCH};
-
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -44,33 +43,36 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
                                         needed_arguments,
                                         library,
                                         self_value,
-                                        mutating
-                                    }) => 
-                                    {
+                                        mutating,
+                                    }) => {
                                         if !mutating {
-(
-                                        key.to_string(),
-                                        Value::lib_function(
-                                            name,
-                                            needed_arguments.iter().map(|x|x.as_str()).collect(),
-                                            Some(Arc::clone(&lib)),
-                                            self_value.clone(),
-                                        ),
-                                    )
-
-                                        }else{
-(
-                                        key.to_string(),
-                                        Value::mut_lib_function(
-                                            name,
-                                            needed_arguments.iter().map(|x|x.as_str()).collect(),
-                                            Some(Arc::clone(&lib)),
-                                        ),
+                                            (
+                                                key.to_string(),
+                                                Value::lib_function(
+                                                    name,
+                                                    needed_arguments
+                                                        .iter()
+                                                        .map(|x| x.as_str())
+                                                        .collect(),
+                                                    Some(Arc::clone(&lib)),
+                                                    self_value.clone(),
+                                                ),
                                             )
-
+                                        } else {
+                                            (
+                                                key.to_string(),
+                                                Value::mut_lib_function(
+                                                    name,
+                                                    needed_arguments
+                                                        .iter()
+                                                        .map(|x| x.as_str())
+                                                        .collect(),
+                                                    Some(Arc::clone(&lib)),
+                                                ),
+                                            )
                                         }
                                     }
-                                                                        _ => (key.to_string(), (*value).clone()),
+                                    _ => (key.to_string(), (*value).clone()),
                                 }
                             })
                             .collect();
@@ -94,8 +96,8 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
 pub fn execute_lib_function(
     lib_function: Value,
     arguments: HashMap<String, Value>,
-    enclosing : Arc<Mutex<Environment>>,
-    overloadings : &mut Overloadings
+    enclosing: Arc<Mutex<Environment>>,
+    overloadings: &mut Overloadings,
 ) -> Result<Value, ThorLangError> {
     //execution of a lib function works by invokint the name with the lib.get method
     if let ValueType::Function(type_lib::Function::LibFunction {
@@ -103,7 +105,7 @@ pub fn execute_lib_function(
         needed_arguments,
         library,
         self_value,
-        mutating
+        mutating,
     }) = lib_function.value
     {
         let name_string = format!("{}", name);
@@ -113,10 +115,15 @@ pub fn execute_lib_function(
             let lib = library.unwrap().clone();
 
             if mutating {
-
-            //function inside of the lib gets called and then executed with the arguments it needs
-            let function =
-                match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>, Arc<Mutex<Environment>>, &mut Overloadings) -> Value>>(bytes) {
+                //function inside of the lib gets called and then executed with the arguments it needs
+                let function = match lib.get::<Symbol<
+                    extern "Rust" fn(
+                        HashMap<String, Value>,
+                        Arc<Mutex<Environment>>,
+                        &mut Overloadings,
+                    ) -> Value,
+                >>(bytes)
+                {
                     Ok(function) => Ok(function),
                     Err(e) => {
                         println!("{:?}", e);
@@ -124,7 +131,7 @@ pub fn execute_lib_function(
                     }
                 }?;
 
-            return Ok(function(arguments, enclosing, overloadings));
+                return Ok(function(arguments, enclosing, overloadings));
             }
 
             //function inside of the lib gets called and then executed with the arguments it needs
@@ -154,9 +161,8 @@ pub fn get_registered_function(name: String) -> Result<FnType, ThorLangError> {
     Err(ThorLangError::UnknownError)
 }
 
-pub fn register_string_methods(self_value: Value) -> HashMap<String, Value>{
+pub fn register_string_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
-
 
     //primitive methods only need a name some inputs and a reference to themselves
     //the "register function body" method can be used to register the actual calculations but not
@@ -164,53 +170,51 @@ pub fn register_string_methods(self_value: Value) -> HashMap<String, Value>{
     //loadable in the future
     Value::primitive_method("length", vec![], self_value.clone())
         .register_function_body(
-            &FN_MAP, 
-            Arc::new(|_, self_value, _, _, _|{
-                if let ValueType::String(self_string) = &self_value.unwrap().value{
-                    return Ok(Value::number(self_string.len() as f64))
+            &FN_MAP,
+            Arc::new(|_, self_value, _, _, _| {
+                if let ValueType::String(self_string) = &self_value.unwrap().value {
+                    return Ok(Value::number(self_string.len() as f64));
                 }
                 Err(ThorLangError::UnknownError)
-            })
-        ).insert_to(&mut map);
+            }),
+        )
+        .insert_to(&mut map);
 
     Value::primitive_method("parse_number", vec![], self_value)
         .register_function_body(
-            &FN_MAP, 
-            Arc::new(|_, self_value, _, _, _|{
-
-                if let ValueType::String(self_value) = &self_value.unwrap().value{
-
-                    return match self_value.parse::<f64>(){
-                        Ok(num) => Ok(Value::number(num)), 
-                        Err(_) => Err((ThorLangError::UnknownError))
-                    }
-
+            &FN_MAP,
+            Arc::new(|_, self_value, _, _, _| {
+                if let ValueType::String(self_value) = &self_value.unwrap().value {
+                    return match self_value.parse::<f64>() {
+                        Ok(num) => Ok(Value::number(num)),
+                        Err(_) => Err((ThorLangError::UnknownError)),
+                    };
                 }
                 Err(ThorLangError::UnknownError)
-            })
-        ).insert_to(&mut map);
+            }),
+        )
+        .insert_to(&mut map);
 
     map
 }
 
-pub fn register_bool_methods(self_value: Value) -> HashMap<String, Value>{
+pub fn register_bool_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
     map
 }
 
-pub fn register_object_methods(self_value: Value) -> HashMap<String, Value>{
+pub fn register_object_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
     map
 }
 
-pub fn register_function_methods(self_value: Value) -> HashMap<String, Value>{
+pub fn register_function_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
     map
 }
-
 
 //creates only named functions and inserts the function body itself inside of the FN_MAP
 pub fn register_number_methods(self_value: Value) -> HashMap<String, Value> {
@@ -245,18 +249,15 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
         )
         .insert_to(&mut map);
 
-
     Value::simple_function("get_now", vec![])
         .register_function_body(
-            &FN_MAP, 
-            Arc::new(|_, _, _, _, _|{
-
+            &FN_MAP,
+            Arc::new(|_, _, _, _, _| {
                 let now = UNIX_EPOCH.elapsed().unwrap().as_millis() as f64;
                 Ok(Value::number(now))
-            })
-        ).insert_to(&mut map);
-
-
+            }),
+        )
+        .insert_to(&mut map);
 
     Value::env_function("import", vec!["namespace"], env.clone())
         .register_function_body(
@@ -287,7 +288,6 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
         )
         .insert_to(&mut map);
 
-
     Value::env_function("import_lib", vec!["namespace"], env)
         .register_function_body(
             &FN_MAP,
@@ -295,7 +295,8 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
                 let namespace = args.get("namespace").unwrap();
 
                 if let ValueType::String(path) = &namespace.value {
-                    let path_string = env_state.unwrap().path.to_str().unwrap().to_string() + "/" + path;
+                    let path_string =
+                        env_state.unwrap().path.to_str().unwrap().to_string() + "/" + path;
 
                     let lib_map = load_lib(path_string);
 
@@ -315,7 +316,7 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
     Value::simple_function("get_input", vec!["message"])
         .register_function_body(
             &FN_MAP,
-            Arc::new(|args, _, _, _, _|{
+            Arc::new(|args, _, _, _, _| {
                 let message = args.get("message").unwrap();
 
                 //this functions needs nil as an input if there is no message to print
@@ -333,14 +334,14 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
                 let ret_val = Value::string(input_line.replace("\n", ""));
 
                 return Ok(ret_val);
-
-            })
-        ).insert_to(&mut map);
+            }),
+        )
+        .insert_to(&mut map);
 
     Value::simple_function("type_of", vec!["value"])
         .register_function_body(
-            &FN_MAP, 
-            Arc::new(|args, _, _, _, _|{
+            &FN_MAP,
+            Arc::new(|args, _, _, _, _| {
                 let val = args.get("value").unwrap();
 
                 return Ok(Value::string(
@@ -356,30 +357,25 @@ pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
                     }
                     .to_string(),
                 ));
-            })
-        ).insert_to(&mut map);
-    
+            }),
+        )
+        .insert_to(&mut map);
+
     Value::simple_function("stringify", vec!["value"])
         .register_function_body(
-            &FN_MAP, 
-            Arc::new(|args, _, _, _, _|{
+            &FN_MAP,
+            Arc::new(|args, _, _, _, _| {
                 let val = args.get("value").unwrap();
 
-
                 Ok(Value::string(stringify_value(val.clone())))
-            })
-        ).insert_to(&mut map);
-
-
-
+            }),
+        )
+        .insert_to(&mut map);
 
     map
 }
 
-pub fn register_array_methods(
-    self_value: Value,
-    var_name: String,
-) -> HashMap<String, Value> {
+pub fn register_array_methods(self_value: Value, var_name: String) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
     Value::primitive_method("len", vec![], self_value.clone())
@@ -413,10 +409,12 @@ pub fn register_array_methods(
                 let new_arr_value = Value::array(new_arr);
 
                 if let Some(var_name) = var_name {
-                    let _ = enclosing
-                        .unwrap()
-                        .lock().unwrap()
-                        .set(var_name, new_arr_value.clone(), 0);
+                    let _ =
+                        enclosing
+                            .unwrap()
+                            .lock()
+                            .unwrap()
+                            .set(var_name, new_arr_value.clone(), 0);
                 }
 
                 return Ok(new_arr_value);
@@ -427,11 +425,8 @@ pub fn register_array_methods(
     )
     .insert_to(&mut map);
 
-
-
     map
 }
-
 
 //helper function to hash values (for object retrieval still in dev)
 pub fn hash_value(val: Value) -> String {
@@ -442,4 +437,3 @@ pub fn hash_value(val: Value) -> String {
         _ => panic!("cannot hash {:?}", val.value),
     };
 }
-

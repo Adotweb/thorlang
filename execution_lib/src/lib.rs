@@ -1,21 +1,20 @@
-mod lexer;
-mod parser;
 mod error;
-mod native_functions;
 mod eval;
+mod lexer;
+mod native_functions;
+mod parser;
 
-pub use lexer::*;
-pub use parser::*;
 pub use error::*;
-pub use native_functions::*;
 pub use eval::*;
+pub use lexer::*;
+pub use native_functions::*;
+pub use parser::*;
 
 use type_lib::*;
 
-use std::sync::{Mutex, Arc};
 use std::collections::HashMap;
 use std::panic;
-
+use std::sync::{Arc, Mutex};
 
 //allows functions files to return values that can be used by other files
 //basically modules
