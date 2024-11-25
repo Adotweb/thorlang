@@ -266,7 +266,14 @@ impl Environment {
     pub fn set(&self, key: String, value: Value, eq_token_index : usize) -> Result<Value, ThorLangError> {
         
         if self.values.borrow().contains_key(&key) {
-            let p = self.values.borrow_mut().insert(key, value);
+            //we need to reassign the listeners to the new value
+            let listeners = self.values.borrow().get(&key).unwrap().listeners.clone();
+            let mut new_val = value.clone();
+            new_val.listeners = listeners;
+
+            let p = self.values.borrow_mut().insert(key, new_val);
+
+
             Ok(p.unwrap())
         } else if let Some(ref parent) = self.enclosing {
             parent.lock().unwrap().set(key, value, eq_token_index)

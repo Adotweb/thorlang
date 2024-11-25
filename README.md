@@ -240,6 +240,26 @@ a = 6; //prints 6;
 in the futurue this feature will return a derived reference to the original values (or multiple values),
 so that both push and pull based reactivity work.
 
+**Note**: when a variable with registered listeners is assigned to another variable with listeners, the assigned variable will lose its listeners :
+```thor
+
+let a = 10;
+
+//register a listener on a
+on a {
+    print a;
+};
+
+let b = 10;
+
+on b {
+    print b;
+}
+
+//listeners on 'a' are lost on assignment:
+b = a;
+```
+
 #### Modules
 
 Thorlang supports modules, to import a module use the import function:
@@ -260,6 +280,15 @@ let something = 10;
 
 
 return something;
+```
+
+Thorlang also supports native modules with shared libraries, the functions works exactly the same : 
+
+```thor
+//main.thor
+let something = import_lib("native_module.so");
+
+print something;
 ```
 
 
@@ -285,6 +314,7 @@ And of course Thorlangs native types have methods on them to make your life easi
 |Array | len | none | returns the length of the array the method was called on |
 |Array | push | value | pushes the value to the array and returns the new array|
 |String| len | none| returns the length of the string|
+|String| parse | none| returns the number value of the string (given that it is a number) or `nil` else|
 
 ## Roadmap 
 
