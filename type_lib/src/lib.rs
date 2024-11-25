@@ -303,6 +303,16 @@ impl Environment {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct OperationInfo {
+    pub operands: Vec<String>,
+    pub operation: Vec<Statement>,
+    pub overloadings: Overloadings,
+}
+
+//Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
+pub type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
+
 
 //these functions are the ones actually loaded in
 //arguments, self_value, environment, variable name, env_state

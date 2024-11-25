@@ -9,19 +9,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use type_lib::{
-    Environment, Expression, Function, Statement, ThorLangError, TokenType, Value, ValueType, stringify_value
-};
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct OperationInfo {
-    pub operands: Vec<String>,
-    pub operation: Vec<Statement>,
-    pub overloadings: Overloadings,
-}
-
-//Hashmap that returns a operation given an operator (TokenType) and an arity (usize)
-type Overloadings = HashMap<(TokenType, usize), Vec<OperationInfo>>;
+use type_lib::*;
 
 //here the magic happpens: every list of statements mutates the env tree, and as soon as a branch
 //of the env tree is not needed it automatically disappears, meaning that we can only
@@ -711,7 +699,7 @@ pub fn eval(
                     eval_args.insert(arg_name.to_string(), arg);
                 }
 
-                return execute_lib_function(function, eval_args, enclosing);
+                return execute_lib_function(function, eval_args, enclosing, overloadings);
             }
 
             if let ValueType::Function(Function::NamedFunction {

@@ -1,6 +1,5 @@
 use crate::{interpret_code, EnvState, Environment, ThorLangError, Value};
-use type_lib::{FnType, RegisteredFnMap, ValueType, stringify_value};
-
+use type_lib::*;
 use libloading::{Library, Symbol};
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -95,7 +94,8 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
 pub fn execute_lib_function(
     lib_function: Value,
     arguments: HashMap<String, Value>,
-    enclosing : Arc<Mutex<Environment>>
+    enclosing : Arc<Mutex<Environment>>,
+    overloadings : &mut Overloadings
 ) -> Result<Value, ThorLangError> {
     //execution of a lib function works by invokint the name with the lib.get method
     if let ValueType::Function(type_lib::Function::LibFunction {
@@ -116,7 +116,7 @@ pub fn execute_lib_function(
 
             //function inside of the lib gets called and then executed with the arguments it needs
             let function =
-                match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>, Arc<Mutex<Environment>>) -> Value>>(bytes) {
+                match lib.get::<Symbol<extern "Rust" fn(HashMap<String, Value>, Arc<Mutex<Environment>>, &mut Overloadings) -> Value>>(bytes) {
                     Ok(function) => Ok(function),
                     Err(e) => {
                         println!("{:?}", e);
@@ -124,7 +124,7 @@ pub fn execute_lib_function(
                     }
                 }?;
 
-            return Ok(function(arguments, enclosing));
+            return Ok(function(arguments, enclosing, overloadings));
             }
 
             //function inside of the lib gets called and then executed with the arguments it needs
