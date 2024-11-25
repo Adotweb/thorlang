@@ -933,7 +933,10 @@ fn primary(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression,
                 //when encountering an [ we start an array and the following are just expressions
                 //seperated by commas (or spaces)
 
-                if token.token_type == TokenType::RBRACK {
+
+                let next_token = get_current_token(current_index, tokens);
+                if next_token.token_type == TokenType::RBRACK {
+                    consume_token(current_index, tokens);
                     return Ok(Expression::Array { values: vec![] });
                 }
 
