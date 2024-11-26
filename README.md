@@ -234,6 +234,25 @@ on a {
 
 a = 6; //prints 6;
 ```
+
+the on keyword also supports multiple variables: 
+
+```thor
+let a = 5;
+
+let b = 6;
+
+//these parenthesis can be omitted but that is not recommended
+on (a, b) { 
+    //this code block is executed everytime a or b change.
+    print a;
+
+}; //needs semicolon because is expression
+
+a = 6; //prints 6;
+b = 7; //prints 6;
+```
+
 in the futurue this feature will return a derived reference to the original values (or multiple values),
 so that both push and pull based reactivity work.
 
