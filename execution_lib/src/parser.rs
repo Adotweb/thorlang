@@ -494,30 +494,58 @@ fn on_expression(
     let on_token_index = *current_index - 1;
     let encountered_token_index = *current_index;
 
-    if let TokenType::IDENTIFIER(var_name) = &current_token.token_type {
+    let mut variables : Vec<TokenType> = Vec::new();
+    let mut move_on = false;
+
+
+    //in case there is a parenthesis around the listened variables
+    if let TokenType::LPAREN = current_token.token_type{
         consume_token(current_index, tokens);
-
-        if let Err(_) = match_token(current_index, tokens, TokenType::LBRACE) {
-            return Ok(Expression::On {
-                block: None,
-                on_token_index,
-                variable: current_token.token_type.clone(),
-            });
-        }
-
-        let block = statement(current_index, tokens)?;
-
-        return Ok(Expression::On {
-            block: Some(block),
-            on_token_index,
-            variable: current_token.token_type.clone(),
-        });
     }
 
-    Err(ThorLangError::UnexpectedToken {
-        expected: vec![TokenType::IDENTIFIER("something".to_string())],
-        encountered: encountered_token_index,
+    while !move_on {
+        let current_token = get_current_token(current_index, tokens).token_type.clone();
+       
+        if let TokenType::IDENTIFIER(_) = current_token{
+            variables.push(current_token);
+            consume_token(current_index, tokens);
+           
+            if let TokenType::COMMA = get_current_token(current_index, tokens).token_type{
+                consume_token(current_index, tokens);
+                continue;
+            }
+            move_on = true
+        }
+    }
+
+    //in case there is a parenthesis around the listened variables
+    if let TokenType::RPAREN = get_current_token(current_index, tokens).token_type{
+        consume_token(current_index, tokens);
+    }
+
+    if variables.len() == 0{
+        return  Err(ThorLangError::UnexpectedToken {
+            expected: vec![TokenType::IDENTIFIER("something".to_string())],
+            encountered: encountered_token_index,
+        }) 
+    }
+
+    if let Err(_) = match_token(current_index, tokens, TokenType::LBRACE) {
+        return Ok(Expression::On{
+            block : None, 
+            on_token_index, 
+            variables
+        })
+    }
+
+    let block = statement(current_index, tokens)?;
+
+    Ok(Expression::On{
+        block : Some(block),
+        on_token_index,
+        variables
     })
+
 }
 
 //matches every expression

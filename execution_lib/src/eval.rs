@@ -575,19 +575,23 @@ pub fn eval(
         }
         Expression::On {
             block,
-            variable,
+            variables,
             on_token_index,
         } => {
             //listeners here
 
             if let Some(block) = block {
-                let ret = enclosing.lock().unwrap().add_listener(
+
+                for variable in variables {
+                    enclosing.lock().unwrap().add_listener(
                     variable.get_content().unwrap(),
                     block.clone(),
                     *on_token_index,
                 )?;
 
-                return Ok(ret);
+                }
+                
+                return Ok(Value::nil());
             }
 
             ThorLangError::eval_error(*on_token_index)

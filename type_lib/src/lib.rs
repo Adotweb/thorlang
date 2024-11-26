@@ -169,7 +169,7 @@ pub enum Expression {
     },
     On{
         block : Option<Vec<Statement>>,
-        variable : TokenType,
+        variables : Vec<TokenType>,
         on_token_index : usize
     },
     Identifier {
