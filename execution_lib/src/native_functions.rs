@@ -220,6 +220,32 @@ pub fn register_function_methods(self_value: Value) -> HashMap<String, Value> {
 pub fn register_number_methods(self_value: Value) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
+    Value::named_function("ceil", vec![], Some(Box::new(self_value.clone())), None, None)
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|_, self_value: Option<Value>, _, _, _| {
+                if let ValueType::Number(num) = &self_value.unwrap().value {
+                    return Ok(Value::number(num.ceil()));
+                }
+                Err(ThorLangError::UnknownError)
+            }),
+        )
+        .insert_to(&mut map);
+
+    Value::named_function("floor", vec![], Some(Box::new(self_value.clone())), None, None)
+        .register_function_body(
+            &FN_MAP,
+            Arc::new(|_, self_value: Option<Value>, _, _, _| {
+                if let ValueType::Number(num) = &self_value.unwrap().value {
+                    return Ok(Value::number(num.floor()));
+                }
+                Err(ThorLangError::UnknownError)
+            }),
+        )
+        .insert_to(&mut map);
+
+
+
     Value::named_function("sqrt", vec![], Some(Box::new(self_value)), None, None)
         .register_function_body(
             &FN_MAP,
