@@ -79,7 +79,6 @@ pub fn execute_lib_function(
         let name_string = format!("{}", name);
         let bytes = name_string.as_bytes();
 
-        println!("running function {name_string} with library {:?}", library);
 
         unsafe {
             let lib = library.unwrap().clone();

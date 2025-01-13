@@ -215,7 +215,7 @@ pub fn eval_statement(
             } => {
                 let result = eval(&expression, enclosing.clone(), overloadings)?;
 
-                println!("debug mode {:#?}", result);
+                //println!("debug mode {:#?}", result);
                 if let ValueType::String(ref str) = result.value {
                     println!("{str}");
                 } else {
@@ -617,7 +617,6 @@ pub fn eval(
             //first we need to get the key and the field we want to call from
             let callee_value = eval(callee, enclosing.clone(), overloadings)?;
 
-            println!("callee_value {:#?}", callee_value);
             let key_string: String;
 
             //if the key is an identifier we turn it to a string else we would hash it (hashing
@@ -631,6 +630,7 @@ pub fn eval(
             } else {
                 key_string = hash_value(eval(key, enclosing.clone(), overloadings)?);
             }
+            
 
             //the default value is nil (field does not exist)
 
@@ -639,7 +639,13 @@ pub fn eval(
             //if a field with the above name does exist we return it
             if let Some(field) = callee_value.fields.get(&key_string) {
                 
+                
                 let mut field = field.clone();
+                if let Some(library) = callee_value.library{
+
+                    field.library = Some(library.clone());
+                }
+
                 //field.library = callee_value.library;
 
                 return Ok(field);
@@ -688,7 +694,6 @@ pub fn eval(
 
             ret_val.library = callee_value.library;
 
-            println!("field call {:#?}", ret_val);
 
             Ok(ret_val)
         }
