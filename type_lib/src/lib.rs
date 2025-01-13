@@ -477,6 +477,16 @@ impl Value {
         }
     }
 
+    pub fn object(value : HashMap<&'static str, Value>) -> Self{
+        Value{
+            value : ValueType::Object,
+            fields : value.iter().map(|(key, value)|{
+                (key.to_string(), value.clone())
+            }).collect(),
+            ..Default::default()
+        }
+    }
+
     pub fn number(value: f64) -> Self {
         Value {
             value: ValueType::Number(value),
@@ -487,6 +497,13 @@ impl Value {
     pub fn string(value: String) -> Self {
         Value {
             value: ValueType::String(value),
+            ..Value::default()
+        }
+    }
+    
+    pub fn str(value : &'static str) -> Self {
+        Value {
+            value : ValueType::String(value.to_string()),
             ..Value::default()
         }
     }
