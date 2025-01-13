@@ -340,7 +340,6 @@ pub enum Function{
     LibFunction{
         name : &'static str,
         needed_arguments : Vec<String>,
-        library : Option<Arc<Library>>,
         //only needs self value in case of method
         self_value : Option<Box<Value>>,
 
@@ -376,7 +375,7 @@ impl PartialEq for Function {
 impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Function::LibFunction { name, needed_arguments, library, self_value, mutating } => {
+            Function::LibFunction { name, needed_arguments, self_value, mutating } => {
                 f.debug_struct("Function")
                     .field("name", name)
                     .finish()
@@ -413,12 +412,20 @@ pub enum ValueType {
 
 
 //this is still the same, everything 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Value {
     pub value: ValueType,
     pub fields: HashMap<String, Value>,
     pub return_true: bool,
-    pub listeners : Option<Vec<Vec<Statement>>>
+    pub listeners : Option<Vec<Vec<Statement>>>,
+
+    pub library : Option<Arc<Library>>
+}
+
+impl PartialEq for Value{
+    fn eq(&self, other: &Self) -> bool {
+        return self.value == other.value && self.fields == other.fields;
+    }
 }
 
 //nice instantiation functions for values 
@@ -601,14 +608,12 @@ impl Value {
     pub fn lib_function(
         name : &'static str,
         needed_arguments : Vec<&str>,
-        library : Option<Arc<Library>>,
         self_value: Option<Box<Value>>
     ) -> Self {
         Value{
             value : ValueType::Function(Function::LibFunction{
                 name , 
                 needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
-                library,
                 self_value,
                 mutating : false
             }),
@@ -620,13 +625,11 @@ impl Value {
     pub fn mut_lib_function(
         name : &'static str,
         needed_arguments : Vec<&str>,
-        library : Option<Arc<Library>>,
     ) -> Self {
         Value{
             value : ValueType::Function(Function::LibFunction{
                 name , 
                 needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
-                library,
                 self_value : None,
                 mutating : true
             }),
@@ -636,7 +639,7 @@ impl Value {
 
     pub fn insert_to<'a>(&self, map : &'a mut HashMap<String, Value>){
         match &self.value{
-            ValueType::Function(Function::LibFunction { name, needed_arguments, library, self_value, mutating })=> {
+            ValueType::Function(Function::LibFunction { name, needed_arguments,  self_value, mutating })=> {
                 map.insert(name.to_string(), self.clone());
             },
             ValueType::Function(Function::NamedFunction { name, needed_arguments, self_value, env_state,  var_name}) => {
@@ -655,7 +658,8 @@ impl Default for Value {
             value: ValueType::Nil,
             fields: HashMap::new(),
             return_true: false,
-            listeners : None
+            listeners : None,
+            library : None
         }
     }
 }

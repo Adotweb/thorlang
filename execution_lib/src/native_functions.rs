@@ -30,52 +30,17 @@ fn load_lib(path: String) -> Result<HashMap<String, Value>, ThorLangError> {
                 match lib.get::<Symbol<extern "Rust" fn() -> HashMap<String, Value>>>(b"value_map")
                 {
                     Ok(map) => {
-                        let v_map = map();
+                        let mut v_map = map();
 
-                        let ret_map = v_map
-                            .iter()
-                            .map(|(key, value)| {
-                                //create executable lib functions by puttint a reference to the lib
-                                //into them
-                                match &value.value {
-                                    ValueType::Function(type_lib::Function::LibFunction {
-                                        name,
-                                        needed_arguments,
-                                        library,
-                                        self_value,
-                                        mutating,
-                                    }) => {
-                                        if !mutating {
-                                            (
-                                                key.to_string(),
-                                                Value::lib_function(
-                                                    name,
-                                                    needed_arguments
-                                                        .iter()
-                                                        .map(|x| x.as_str())
-                                                        .collect(),
-                                                    Some(Arc::clone(&lib)),
-                                                    self_value.clone(),
-                                                ),
-                                            )
-                                        } else {
-                                            (
-                                                key.to_string(),
-                                                Value::mut_lib_function(
-                                                    name,
-                                                    needed_arguments
-                                                        .iter()
-                                                        .map(|x| x.as_str())
-                                                        .collect(),
-                                                    Some(Arc::clone(&lib)),
-                                                ),
-                                            )
-                                        }
-                                    }
-                                    _ => (key.to_string(), (*value).clone()),
-                                }
-                            })
-                            .collect();
+                        let mut ret_map = HashMap::new();
+
+
+                        v_map.iter_mut().for_each(|(key, value)|{
+                            value.library = Some(lib.clone());
+
+                            ret_map.insert(key.to_string(), value.clone());
+                        });
+
 
                         Ok(ret_map)
                     }
@@ -99,17 +64,22 @@ pub fn execute_lib_function(
     enclosing: Arc<Mutex<Environment>>,
     overloadings: &mut Overloadings,
 ) -> Result<Value, ThorLangError> {
+
+    let library = lib_function.library;
+
+
     //execution of a lib function works by invokint the name with the lib.get method
     if let ValueType::Function(type_lib::Function::LibFunction {
         name,
         needed_arguments,
-        library,
         self_value,
         mutating,
     }) = lib_function.value
     {
         let name_string = format!("{}", name);
         let bytes = name_string.as_bytes();
+
+        println!("running function {name_string} with library {:?}", library);
 
         unsafe {
             let lib = library.unwrap().clone();
@@ -131,7 +101,12 @@ pub fn execute_lib_function(
                     }
                 }?;
 
-                return Ok(function(arguments, enclosing, overloadings));
+
+                let mut ret_val = function(arguments, enclosing, overloadings);
+
+                ret_val.library = Some(lib.clone());
+
+                return Ok(ret_val);
             }
 
             //function inside of the lib gets called and then executed with the arguments it needs
@@ -144,7 +119,12 @@ pub fn execute_lib_function(
                     }
                 }?;
 
-            return Ok(function(arguments));
+
+            let mut ret_val = function(arguments);
+
+            ret_val.library = Some(lib.clone());
+
+            return Ok(ret_val);
         }
     }
 
