@@ -679,12 +679,13 @@ impl Value {
     pub fn mut_lib_function(
         name : &'static str,
         needed_arguments : Vec<&str>,
+        self_value: Option<Box<Value>>
     ) -> Self {
         Value{
             value : ValueType::Function(Function::LibFunction{
                 name , 
                 needed_arguments :needed_arguments.iter().map(|x|x.to_string()).collect(), 
-                self_value : None,
+                self_value,
                 mutating : true
             }),
             ..Value::default()
