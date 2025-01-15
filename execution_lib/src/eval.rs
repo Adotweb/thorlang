@@ -89,7 +89,7 @@ pub fn eval_statement(
             } => {
                 let closure = Environment::new(Some(enclosing.clone()));
 
-                let function = Value::thor_function(arguments, *body, closure.clone());
+                let function = Value::thor_function(name.clone(), arguments, *body, closure.clone());
 
                 //insert the function with its name into the environment
                 enclosing
@@ -251,6 +251,64 @@ pub fn eval_statement(
     }
 
     Ok(Value::default())
+}
+
+pub fn eval_function(function_value : Value, arguments: Vec<Value>, enclosing: Arc<Mutex<Environment>>, overloadings: &mut Overloadings) -> Result<Value, ThorLangError>{
+
+
+
+    let function = match function_value.clone().value{
+        ValueType::Function(func) => func,
+        _ => return ThorLangError::runtime_error("eval_function helper only accepts function input".to_string())
+    };
+
+    let needed_arguments = function.get_args();
+
+    let function_name = function.get_function_name();
+
+    if needed_arguments.len() != arguments.len(){
+        return ThorLangError::runtime_error(format!("arguments of function {function_name} are {} but need to be {}", arguments.len(), needed_arguments.len()))
+    }
+
+
+    let mut arguments : HashMap<String, Value> = needed_arguments.into_iter().enumerate().map(|(index, key)|{
+        (key.to_string(), arguments[index].clone()) 
+    }).collect();
+
+    
+
+    
+
+    return match function {
+        Function::LibFunction { name, needed_arguments, self_value, mutating } => { 
+            execute_lib_function(
+                function_value, arguments, enclosing.clone(), overloadings
+            )
+        }
+        Function::ThorFunction { name, body, needed_arguments, closure } => {
+            eval_statement(body, enclosing.clone(), overloadings)
+        }
+        Function::NamedFunction { name, needed_arguments, self_value, env_state, var_name } => {
+            let function = get_registered_function(name)?;
+            
+
+            let mut s_value = None;
+            if let Some(self_value) = self_value.clone(){
+                arguments.insert("self_value".to_string(), *self_value.clone());
+                s_value = Some(*self_value);
+            }
+
+
+
+            function(
+                arguments,
+                s_value,
+                Some(enclosing.clone()),
+                var_name,
+                env_state,
+            )
+        }
+    }
 }
 
 //helper function to check whether or not a operation works for the inputs provided
@@ -808,6 +866,7 @@ pub fn eval(
                 body,
                 needed_arguments,
                 closure,
+                name
             }) = function.value
             {
                 if needed_arguments.len() != arguments.len() {

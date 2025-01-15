@@ -346,6 +346,7 @@ pub enum Function{
         mutating : bool    
     },
     ThorFunction {
+        name : String,
         body: Vec<Statement>,
         needed_arguments: Vec<String>,
         closure: Arc<Mutex<Environment>>,
@@ -356,6 +357,39 @@ pub enum Function{
         self_value : Option<Box<Value>>, 
         env_state : Option<EnvState>,
         var_name : Option<String>
+    }
+}
+
+impl Function {
+    pub fn get_function_name(&self) -> String{
+        return match self{
+            Self::LibFunction { name, needed_arguments, self_value, mutating } => {
+                name.to_string()
+            },
+            Self::ThorFunction { name, body, needed_arguments, closure } => {
+                name.to_string()
+            }
+            Self::NamedFunction { name, needed_arguments, self_value, env_state, var_name } => {
+                name.to_string()
+            }
+        }
+    }
+
+    pub fn get_args(&self)  -> Vec<String>{
+        let mut args : Vec<String> = Vec::new();
+        match self{
+            Self::LibFunction { name, needed_arguments, self_value, mutating } => {
+                args = needed_arguments.to_vec()
+            },
+            Self::ThorFunction { name, body, needed_arguments, closure } => {
+                args = needed_arguments.to_vec()
+            }
+            Self::NamedFunction { name, needed_arguments, self_value, env_state, var_name } => {
+                args = needed_arguments.to_vec()
+            }
+        }
+
+        return args;
     }
 }
 
@@ -384,6 +418,7 @@ impl fmt::Debug for Function {
                 body: _,
                 needed_arguments,
                 closure: _,
+                name,
             } => f
                 .debug_struct("Function")
                 .field("args", needed_arguments)
@@ -607,6 +642,7 @@ impl Value {
 
     //unlike thorfunctions which are just a holder for a block and a closure
     pub fn thor_function(
+        name : String,
         arguments: Vec<String>,
         body: Vec<Statement>,
         closure: Arc<Mutex<Environment>>,
@@ -615,7 +651,8 @@ impl Value {
             value: ValueType::Function(Function::ThorFunction {
                 needed_arguments: arguments,
                 body,
-                closure 
+                closure,
+                name
             }),
             ..Value::default()
         }
@@ -798,12 +835,22 @@ pub enum ThorLangError{
         operation_token_index : usize
     },
 
+    RuntimeError{
+        message : String
+    },
+
     UnknownError
 }
 
 
 //easier methods to return nice errors
 impl ThorLangError {
+
+    pub fn runtime_error(message : String) -> Result<Value, ThorLangError>{
+        Err(ThorLangError::RuntimeError{
+            message
+        })
+    }
 
     //errors have form:
     //expected ... after ..., encountered ...
