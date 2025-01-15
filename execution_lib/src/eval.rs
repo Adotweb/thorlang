@@ -809,6 +809,7 @@ pub fn eval(
                     );
                 }
 
+
                 let mut eval_args: HashMap<String, Value> = HashMap::new();
 
                 for i in 0..arguments.len() {
@@ -816,6 +817,10 @@ pub fn eval(
                     let arg_name = needed_arguments.get(i).unwrap();
 
                     eval_args.insert(arg_name.to_string(), arg);
+                }
+
+                if let Some(self_value) = self_value{
+                    eval_args.insert("self_value".to_string(), *self_value.clone());
                 }
 
                 return execute_lib_function(function, eval_args, enclosing, overloadings);
