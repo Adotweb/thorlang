@@ -10,7 +10,7 @@ I build Thorlang (or thor for short) to understand the steps necessary in order 
 
 ## Readme info
 
-This project is written and maintained in the scope of a Maturapaper.
+This project was written and maintained in the scope of a Maturapaper.
 **note**
 Thorlang is highly experimental and still in development, using it in production is not recommended.
 
@@ -116,6 +116,25 @@ fn function_name(argument){
     return argument;
 }
 ```
+
+alternatively you can do lambda functions: 
+
+```thor
+let a = :(x) -> x;
+
+//or
+
+let a = :x -> x;
+
+//or 
+
+let a = :x -> {
+    return x;
+};
+
+```
+
+note that the parenthesis around the arguments can be omitted.
 
 
 #### Control flow
@@ -302,7 +321,7 @@ Thorlang also supports native modules with shared libraries, the functions works
 
 ```thor
 //main.thor
-let something = import_lib("native_module.so");
+let something = import_lib("native_module.so/.dll");
 
 print something;
 ```
@@ -318,7 +337,8 @@ Of course thorlang has some native functions (this list will be expanded):
 | `get_now` | No arguments | returns the current unix time (unimplemented)| 
 | `import` | `filename : any` | returns the returned value of the given file and throws if the file does not exist| 
 | `import_lib` | `filename : any` | returns the returned value of the given file (in this case shared libraries ".so" or ".dll") and throws if the file does not exist| 
-| `stringify` | `value : any, type : string` | converts the input to the a string. example : `stringify(4)` becomes `4`| 
+| `stringify` | `value : any, type : string` | converts the input to the a string. example : `stringify(4)` becomes `"4"`| 
+| `eval` | `code : string` | executes whatever code is inputted| 
 
 #### Native Methods
 
@@ -330,7 +350,7 @@ And of course Thorlangs native types have methods on them to make your life easi
 |Array | len | none | returns the length of the array the method was called on |
 |Array | push | value | pushes the value to the array and returns the new array|
 |String| len | none| returns the length of the string|
-|String| parse | none| returns the number value of the string (given that it is a number) or `nil` else|
+|String| len | none| returns the length of the string|
 
 ## Roadmap 
 
