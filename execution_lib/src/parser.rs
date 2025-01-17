@@ -571,16 +571,15 @@ fn lambda_expression(current_index: &mut usize, tokens: &Vec<Token>) -> Result<E
     }
 
 
-    let mut has_more_arguments = true;
     let mut arguments : Vec<String> = Vec::new();
 
-    while has_more_arguments{
+    loop{
         let current_token = get_current_token(current_index, tokens);
         if let TokenType::IDENTIFIER(id) = &current_token.token_type{
             arguments.push(id.to_string())
         }
         if let TokenType::RPAREN = &current_token.token_type{
-            has_more_arguments = false;
+            break;;
         }
         if let TokenType::MINUS = &current_token.token_type{
             break;
