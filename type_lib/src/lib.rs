@@ -172,6 +172,10 @@ pub enum Expression {
         variables : Vec<TokenType>,
         on_token_index : usize
     },
+    Lambda{
+        block : Vec<Statement>, 
+        arguments : Vec<String>
+    },
     Identifier {
         name: String,
         identifier_token_index : usize

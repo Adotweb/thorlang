@@ -548,6 +548,50 @@ fn on_expression(
 
 }
 
+fn lambda_expression(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, ThorLangError>{
+
+    //a lambda function looks like this: 
+    //let p = :(a, b, c) -> a + b + c;
+    //or this: 
+    //let p = :(a, b, c) -> {
+    //  return a + b + c;
+    //}
+    //
+    //this means that for the case without braces we need to introduce both a left brace as well as
+    //a return keyword before the value, next we need to insert a right brace before the semilcolon
+    //(once we matched one);
+
+    match_token(current_index, tokens, TokenType::LPAREN)?;
+
+    let mut has_more_arguments = true;
+    let mut arguments : Vec<String> = Vec::new();
+
+    while has_more_arguments{
+        let current_token = get_current_token(current_index, tokens);
+        if let TokenType::IDENTIFIER(id) = &current_token.token_type{
+            arguments.push(id.to_string())
+        }
+        if let TokenType::RPAREN = &current_token.token_type{
+            has_more_arguments = false;
+        }
+
+        consume_token(current_index, tokens);
+    }
+
+    match_token(current_index, tokens, TokenType::MINUS)?;
+    match_token(current_index, tokens, TokenType::GREATER)?;
+
+    match_token(current_index, tokens, TokenType::LBRACE)?;
+
+    let block = statement(current_index, tokens)?;
+
+
+    Ok(Expression::Lambda{
+        block,
+        arguments
+    }) 
+}
+
 //matches every expression
 //precedence works on the deepest possible match i.e.
 //the more specific an expression the deeper the function goes
@@ -564,6 +608,10 @@ fn expr(current_index: &mut usize, tokens: &Vec<Token>) -> Result<Expression, Th
         TokenType::ON => {
             consume_token(current_index, tokens);
             return on_expression(current_index, tokens);
+        }
+        TokenType::COLON => {
+            consume_token(current_index, tokens);
+            return lambda_expression(current_index, tokens);
         }
         _ => (),
     }

@@ -630,6 +630,18 @@ pub fn eval(
             return Ok(ret_val)
         }
 
+        Expression::Lambda { block, arguments } => {
+            let closure = Environment::new(Some(enclosing.clone()));
+            let con_func = Value::thor_function(
+                "#lambda#".to_string(),
+                arguments.to_vec(),
+                block.to_vec(),
+                closure
+            );
+
+            Ok(con_func)
+        },
+
         Expression::Try { block } => {
             //this ensures that errors can be returned as values
             let eval_value = eval_statement(block.to_vec(), enclosing.clone(), overloadings);
@@ -920,6 +932,7 @@ pub fn eval(
             eq_token_index,
         } => {
             let eval_value = eval(value, enclosing.clone(), overloadings)?;
+
 
             //Assignment needs to find the target first
 
