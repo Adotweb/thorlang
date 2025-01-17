@@ -561,7 +561,15 @@ fn lambda_expression(current_index: &mut usize, tokens: &Vec<Token>) -> Result<E
     //a return keyword before the value, next we need to insert a right brace before the semilcolon
     //(once we matched one);
 
-    match_token(current_index, tokens, TokenType::LPAREN)?;
+    let current_token = get_current_token(current_index, tokens);
+
+    let mut argument_parens = false;
+
+    if let TokenType::LPAREN = current_token.token_type{
+        consume_token(current_index, tokens);
+        argument_parens = true;
+    }
+
 
     let mut has_more_arguments = true;
     let mut arguments : Vec<String> = Vec::new();
@@ -574,22 +582,53 @@ fn lambda_expression(current_index: &mut usize, tokens: &Vec<Token>) -> Result<E
         if let TokenType::RPAREN = &current_token.token_type{
             has_more_arguments = false;
         }
+        if let TokenType::MINUS = &current_token.token_type{
+            break;
+        }
 
         consume_token(current_index, tokens);
+    }
+
+    //when we started with an paren around the arguments we need to close them as well
+    if argument_parens{
+        match_token(current_index, tokens, TokenType::RPAREN)?;
     }
 
     match_token(current_index, tokens, TokenType::MINUS)?;
     match_token(current_index, tokens, TokenType::GREATER)?;
 
-    match_token(current_index, tokens, TokenType::LBRACE)?;
+    let current_token = get_current_token(current_index, tokens);
 
-    let block = statement(current_index, tokens)?;
+    let mut block;
+    if let TokenType::LBRACE = current_token.token_type{
+
+        //in case we have a "complex" lambda function (with function body in braces)
+        consume_token(current_index, tokens);
+
+
+        block = statement(current_index, tokens)?;
+    }else {
+       
+        let ret_expr = expr(current_index, tokens)?;
+
+
+        block = return_expression(ret_expr);
+         
+    }
+
 
 
     Ok(Expression::Lambda{
         block,
         arguments
     }) 
+}
+
+fn return_expression(expr : Expression) -> Vec<Statement>{
+    vec![Statement::Return{
+        expression : expr,
+        line : 0,
+    }]
 }
 
 //matches every expression
