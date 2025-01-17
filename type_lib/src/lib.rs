@@ -231,6 +231,7 @@ pub enum Expression {
 pub struct Environment {
     pub values: RefCell<HashMap<String, Value>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,
+    pub overloadings : Overloadings
 }
 
 //its easier to instantiate a get and set function that automatically search the entire env tree
@@ -240,7 +241,8 @@ impl Environment {
     pub fn new(enclosing: Option<Arc<Mutex<Environment>>>) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Environment {
             values: RefCell::new(HashMap::new()),
-            enclosing
+            enclosing, 
+            overloadings : HashMap::new()
         }))
     }
    
@@ -268,7 +270,7 @@ impl Environment {
     //.borrow_mut() (mutable reference) since we want to be able to change whatever value we
     //encounter
     pub fn set(&self, key: String, value: Value, eq_token_index : usize) -> Result<Value, ThorLangError> {
-        
+
         if self.values.borrow().contains_key(&key) {
             //we need to reassign the listeners to the new value
             let listeners = self.values.borrow().get(&key).unwrap().listeners.clone();
@@ -292,6 +294,33 @@ impl Environment {
         }
     }
 
+    pub fn set_overloadings(&mut self, overloadings : Overloadings){
+       
+
+        //first move up to the root of the env tree
+       
+        if let Some(parent_env) = &self.enclosing{
+            parent_env.lock().unwrap().set_overloadings(overloadings);
+        }else {
+            self.overloadings = overloadings;
+        }
+        
+    }
+
+    pub fn get_overloadings(&self) -> Overloadings{
+        if let Some(parent_env)  = &self.enclosing{
+            parent_env.lock().unwrap().get_overloadings()
+        }else{
+
+            let ov = self.overloadings.clone();
+        
+
+            ov
+        }
+
+    }
+
+
     pub fn add_listener(&self, key : String, listener : Vec<Statement>, on_token_index : usize) -> Result<Value, ThorLangError>{
 
 
@@ -312,6 +341,7 @@ impl Environment {
 
         ThorLangError::eval_error(on_token_index)
     }
+
 }
 
 #[derive(Debug, Clone, PartialEq)]

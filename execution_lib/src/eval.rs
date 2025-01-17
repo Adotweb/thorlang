@@ -794,6 +794,9 @@ pub fn eval(
             //functions
             let function = eval(callee, enclosing.clone(), overloadings)?;
 
+            //copy all overloadings to the environment
+            enclosing.lock().unwrap().set_overloadings(overloadings.clone());
+
             if let ValueType::Function(Function::LibFunction {
                 name,
                 needed_arguments,

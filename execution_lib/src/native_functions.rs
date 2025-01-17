@@ -1,4 +1,4 @@
-use crate::{interpret_code, EnvState, Environment, ThorLangError, Value};
+use crate::{interpret_code, EnvState, Environment, ThorLangError, Value, lexer, parse, eval_statement};
 use libloading::{Library, Symbol};
 use type_lib::*;
 
@@ -243,18 +243,40 @@ pub fn register_number_methods(self_value: Value) -> HashMap<String, Value> {
 pub fn register_native_functions(env: EnvState) -> HashMap<String, Value> {
     let mut map = HashMap::new();
 
-    Value::simple_function("some_func", vec![])
+    Value::env_function("eval", vec!["code"], env.clone())
         .register_function_body(
-            &FN_MAP,
-            Arc::new(|args, _, _, _, _| {
-                println!("hello from some_func");
+            &FN_MAP, 
+            Arc::new(|args, _, enclosing, _, env_state|{
+                let env_state = env_state.unwrap();
+                
+
+                let eval_code = args.get("code").unwrap();
+
+                if let ValueType::String(eval_code) = &eval_code.value{
+            
+
+                    let enclosing = enclosing.unwrap().clone();
+
+                    let mut overloadings = enclosing.lock().unwrap().get_overloadings();
+
+                    let lexed = lexer(eval_code.to_string());
+
+                    let ast = parse(lexed)?;
+
+                    let result = eval_statement(ast, enclosing, &mut overloadings)?;
+
+
+                    return Ok(result)
+                } 
+
+                 
 
                 Ok(Value::nil())
-            }),
+            })
         )
         .insert_to(&mut map);
 
-    Value::simple_function("get_now", vec![])
+       Value::simple_function("get_now", vec![])
         .register_function_body(
             &FN_MAP,
             Arc::new(|_, _, _, _, _| {

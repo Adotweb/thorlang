@@ -42,6 +42,7 @@ pub fn interpret_code(text: String, env: EnvState) -> Value {
     let global_env = Arc::new(Mutex::new(Environment {
         values: natives.into(),
         enclosing: None,
+        overloadings : HashMap::new()
     }));
 
     //same with overloadings
