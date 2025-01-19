@@ -295,6 +295,23 @@ on b {
 b = a;
 ```
 
+Custom listeners are also supported, to use them just declare an `add_listeners` method on your object:
+
+```thor
+
+let obj = {
+    "add_listeners" : :y -> {print y;}
+};
+
+
+//this will now print "function" because the listener appended has type function
+on obj {
+    
+};
+```
+unfortunately custom listeners cannot yet be accessed through thorlang itself, native libraries however can use this to declare custom reactive content.
+
+
 #### Modules
 
 Thorlang supports modules, to import a module use the import function:
