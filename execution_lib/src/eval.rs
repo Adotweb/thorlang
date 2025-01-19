@@ -96,7 +96,7 @@ pub fn eval_statement(
                     .lock()
                     .unwrap()
                     .values
-                    .borrow_mut()
+                    .lock().unwrap()
                     .insert(name.clone(), function.clone());
 
                 //insert the function with its name into the closure to allow for recursion
@@ -104,7 +104,7 @@ pub fn eval_statement(
                     .lock()
                     .unwrap()
                     .values
-                    .borrow_mut()
+                    .lock().unwrap()
                     .insert(name, function);
             }
             //a block just opens a new env tree branch
@@ -195,7 +195,7 @@ pub fn eval_statement(
                             .lock()
                             .unwrap()
                             .values
-                            .borrow_mut()
+                            .lock().unwrap()
                             .insert(var_name.clone(), val.clone());
 
                         let ret_val =
@@ -244,7 +244,7 @@ pub fn eval_statement(
                     .lock()
                     .unwrap()
                     .values
-                    .borrow_mut()
+                    .lock().unwrap()
                     .insert(name, val);
             }
         }
@@ -296,7 +296,7 @@ pub fn eval_function(function_value : Value, arguments: Vec<Value>, enclosing: A
             let closure = Environment::new(Some(enclosing.clone()));
    
             arguments.iter().for_each(|(key, value)|{  
-                closure.lock().unwrap().values.get_mut().insert(key.to_string(), value.clone()); 
+                closure.lock().unwrap().values.lock().unwrap().insert(key.to_string(), value.clone()); 
             });
 
 
@@ -352,7 +352,8 @@ fn eval_overloaded(
         for i in 0..operands.len() {
             op_env
                 .values
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .insert(operands[i].clone(), arguments[i].clone());
         }
 
@@ -944,7 +945,7 @@ pub fn eval(
                         .lock()
                         .unwrap()
                         .values
-                        .borrow_mut()
+                        .lock().unwrap()
                         .insert(name, value);
                 }
 

@@ -40,7 +40,7 @@ pub fn interpret_code(text: String, env: EnvState) -> Value {
     //the global env instantiation (global values and functions)
     let natives: HashMap<String, Value> = register_native_functions(env);
     let global_env = Arc::new(Mutex::new(Environment {
-        values: natives.into(),
+        values: Arc::new(Mutex::new(natives)),
         enclosing: None,
         overloadings : HashMap::new()
     }));

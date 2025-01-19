@@ -233,7 +233,7 @@ pub enum Expression {
 //decision, but makes it wor
 #[derive(Debug, Clone)]
 pub struct Environment {
-    pub values: RefCell<HashMap<String, Value>>,
+    pub values: Arc<Mutex<HashMap<String, Value>>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,
     pub overloadings : Overloadings
 }
@@ -244,7 +244,7 @@ pub struct Environment {
 impl Environment {
     pub fn new(enclosing: Option<Arc<Mutex<Environment>>>) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Environment {
-            values: RefCell::new(HashMap::new()),
+            values: Arc::new(Mutex::new(HashMap::new())),
             enclosing, 
             overloadings : HashMap::new()
         }))
@@ -255,7 +255,7 @@ impl Environment {
         
         //in case that the current environment level already contains the key, return the value
         //behind it
-        if let Some(value) = self.values.borrow().get(key) {
+        if let Some(value) = self.values.lock().unwrap().get(key) {
             Some(value.clone())
         } 
         //if not we return a reference to the environment that closes over the current one and
@@ -275,13 +275,13 @@ impl Environment {
     //encounter
     pub fn set(&self, key: String, value: Value, eq_token_index : usize) -> Result<Value, ThorLangError> {
 
-        if self.values.borrow().contains_key(&key) {
+        if self.values.lock().unwrap().contains_key(&key) {
             //we need to reassign the listeners to the new value
-            let listeners = self.values.borrow().get(&key).unwrap().listeners.clone();
+            let listeners = self.values.lock().unwrap().get(&key).unwrap().listeners.clone();
             let mut new_val = value.clone();
             new_val.listeners = listeners;
 
-            let p = self.values.borrow_mut().insert(key, new_val);
+            let p = self.values.lock().unwrap().insert(key, new_val);
 
 
             Ok(p.unwrap())
@@ -328,7 +328,7 @@ impl Environment {
     pub fn add_listener(&self, key : String, listener : Vec<Statement>, on_token_index : usize) -> Result<Value, ThorLangError>{
 
 
-        if let Some(value) = self.values.borrow_mut().get_mut(&key){
+        if let Some(value) = self.values.lock().unwrap().get_mut(&key){
             match &mut value.listeners {
                 Some(listeners) => {
                     listeners.push(listener) 
