@@ -279,6 +279,14 @@ pub fn eval_function(function_value : Value, arguments: Vec<Value>, enclosing: A
 
     return match function {
         Function::LibFunction { name, needed_arguments, self_value, mutating } => { 
+            
+            let mut arguments = arguments;
+    
+
+            if let Some(self_value) = self_value{
+                arguments.insert("self_value".to_string(), *self_value);
+            }
+
             execute_lib_function(
                 function_value, arguments, enclosing.clone(), overloadings
             )
