@@ -277,8 +277,6 @@ pub fn eval_function(function_value : Value, arguments: Vec<Value>, enclosing: A
 
     
 
-    
-
     return match function {
         Function::LibFunction { name, needed_arguments, self_value, mutating } => { 
             execute_lib_function(
@@ -286,7 +284,15 @@ pub fn eval_function(function_value : Value, arguments: Vec<Value>, enclosing: A
             )
         }
         Function::ThorFunction { name, body, needed_arguments, closure } => {
-            eval_statement(body, enclosing.clone(), overloadings)
+            
+            let closure = Environment::new(Some(enclosing.clone()));
+   
+            arguments.iter().for_each(|(key, value)|{  
+                closure.lock().unwrap().values.get_mut().insert(key.to_string(), value.clone()); 
+            });
+
+
+            eval_statement(body, closure, overloadings)
         }
         Function::NamedFunction { name, needed_arguments, self_value, env_state, var_name } => {
             let function = get_registered_function(name)?;
@@ -662,12 +668,29 @@ pub fn eval(
 
             if let Some(block) = block {
 
+
                 for variable in variables {
-                    enclosing.lock().unwrap().add_listener(
-                    variable.get_content().unwrap(),
-                    block.clone(),
-                    *on_token_index,
-                )?;
+                    if let Expression::Identifier { name, identifier_token_index } = variable{
+                        enclosing.lock().unwrap().add_listener(
+                            name.to_string(),
+                            block.clone(),
+                            *on_token_index,
+                        )?;
+
+                    }
+                    
+                    let new_listener = Value::thor_function("#lambda#".to_string(), vec![], block.to_vec(), enclosing.clone());
+
+                    let mut value = eval(variable, enclosing.clone(), overloadings)?;
+
+
+                    if let Some(add_func) = value.fields.get_mut("add_listener"){
+                        
+                        add_func.library = value.library;
+
+
+                        eval_function(add_func.clone(), vec![new_listener], enclosing.clone(), overloadings)?;
+                    }
 
                 }
                 

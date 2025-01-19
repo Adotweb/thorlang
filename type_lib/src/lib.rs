@@ -169,7 +169,7 @@ pub enum Expression {
     },
     On{
         block : Option<Vec<Statement>>,
-        variables : Vec<TokenType>,
+        variables : Vec<Expression>,
         on_token_index : usize
     },
     Lambda{

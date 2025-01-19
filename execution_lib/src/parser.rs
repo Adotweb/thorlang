@@ -494,7 +494,7 @@ fn on_expression(
     let on_token_index = *current_index - 1;
     let encountered_token_index = *current_index;
 
-    let mut variables : Vec<TokenType> = Vec::new();
+    let mut variables : Vec<Expression> = Vec::new();
     let mut move_on = false;
 
 
@@ -507,8 +507,10 @@ fn on_expression(
         let current_token = get_current_token(current_index, tokens).token_type.clone();
        
         if let TokenType::IDENTIFIER(_) = current_token{
-            variables.push(current_token);
-            consume_token(current_index, tokens);
+
+            let expression = expr(current_index, tokens)?;
+
+            variables.push(expression);
            
             if let TokenType::COMMA = get_current_token(current_index, tokens).token_type{
                 consume_token(current_index, tokens);
